@@ -31,6 +31,16 @@ class HumanCLI:
         print(f"Stack: {stack_len} | Top: {top_label}")
         print(f"Loot deck: {len(s.loot_deck)} | Loot discard: {len(s.loot_discard)}")
 
+        # Monster board (Sprint 2)
+        monster_status = []
+        for i in range(len(s.monster_slots)):
+            monster = s.monster_slots.get(i)
+            if monster:
+                monster_status.append(f"[{i}] {monster}")
+            else:
+                monster_status.append(f"[{i}] empty")
+        print(f"Monsters: {' | '.join(monster_status)}")
+
         for pid in s.turn_order:
             p = s.get_player(pid)
             hand_ids = [c.instance_id for c in p.hand]
