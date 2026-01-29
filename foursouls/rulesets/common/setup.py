@@ -6,6 +6,7 @@ from typing import List, Optional
 from foursouls.engine.rng import RNG
 from foursouls.engine.zones import DeckZone, DiscardZone
 from foursouls.model.game_state import GameState
+from foursouls.model.monster import MonsterState
 from foursouls.model.player_state import PlayerState
 from foursouls.model.refs import CardRef, InstanceId
 
@@ -95,4 +96,9 @@ def setup_game_state(
         loot_deck=loot_deck,
         loot_discard=loot_discard,
     )
+
+    # Setup dummy monster in slot 0 (Sprint 2)
+    dingle = MonsterState(name="DINGLE", hp=2, max_hp=2)
+    gs.monster_slots.set(0, dingle)
+
     return gs

@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-from foursouls.engine.zones import DeckZone, DiscardZone
+from foursouls.engine.zones import DeckZone, DiscardZone, SlotsZone
+from foursouls.model.monster import MonsterState
 from .player_state import PlayerState
 from .refs import CardRef, PlayerId
 from .turn_state import TurnState
@@ -18,6 +19,11 @@ class GameState:
     # New: minimal global zones for Sprint 1
     loot_deck: DeckZone[CardRef] = field(default_factory=DeckZone)
     loot_discard: DiscardZone[CardRef] = field(default_factory=DiscardZone)
+
+    # Monster board (Sprint 2)
+    monster_slots: SlotsZone[MonsterState] = field(
+        default_factory=lambda: SlotsZone(size=1)
+    )
 
     # Turn/phase tracking
     turn: TurnState = field(default_factory=TurnState)
