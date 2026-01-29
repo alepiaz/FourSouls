@@ -1,5 +1,5 @@
 from foursouls.engine.game_loop import Game
-from foursouls.model.commands import EndTurn
+from foursouls.model.commands import EndTurn, PassPriority
 from foursouls.model.effects import AppendMarkerEffect
 from foursouls.model.game_state import GameState
 from foursouls.model.player_state import PlayerState
@@ -51,3 +51,17 @@ def test_step_end_turn_rejected_if_illegal():
         assert False, "Expected ValueError for illegal EndTurn"
     except ValueError:
         pass
+
+
+def test_end_turn_stays_legal_after_pass_when_action_and_stack_empty():
+    g = _game_two_players_active_p1()
+    g.state.turn.phase = TurnPhase.ACTION
+
+    # Initially legal
+    assert "END_TURN" in [c.kind for c in g.legal_commands()]
+
+    # Pass once (would normally move priority away)
+    g.step(PassPriority())
+
+    # With Option B snap-back, active should still have priority => END_TURN still legal
+    assert "END_TURN" in [c.kind for c in g.legal_commands()]
