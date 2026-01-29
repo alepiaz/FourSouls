@@ -14,8 +14,10 @@ from foursouls.engine.events import (
 )
 from foursouls.engine.log import EventLog
 from foursouls.engine.priority import PriorityManager
+from foursouls.engine.rng import RNG
 from foursouls.engine.stack import Stack, StackItem
 from foursouls.model.commands import Command, EndTurn, PassPriority
+from foursouls.model.effect_context import EffectContext
 from foursouls.model.effects import Effect
 from foursouls.model.game_state import GameState
 from foursouls.model.turn_state import TurnPhase
@@ -34,6 +36,8 @@ from foursouls.rulesets.common.turn import (
 class Game:
     state: GameState
     ruleset: BaseRuleset = field(default_factory=BaseRuleset)
+
+    rng: RNG = field(default_factory=RNG)
 
     stack: Stack = field(default_factory=Stack)
     priority: PriorityManager = field(init=False)
@@ -99,9 +103,10 @@ class Game:
                 if not self.stack.empty():
                     item = self.stack.pop()
                     eff: Effect = item.effect  # type: ignore[assignment]
+                    ctx = EffectContext(state=self.state, rng=self.rng)
 
-                    if eff.validate(self.state):
-                        eff.apply(self.state)
+                    if eff.validate(ctx):
+                        eff.apply(ctx)
                         self.log.append(
                             StackItemResolved(stack_id=item.stack_id, label=item.label)
                         )
@@ -124,9 +129,9 @@ class Game:
                     self.priority.reset_to(self.state.active_player_id)
 
         elif isinstance(command, EndTurn):
-            # End turn & advance
             self.state.turn.phase = TurnPhase.END
             prev = self.state.active_player_id
+
             advance_turn(self.state)
             self.priority.reset_to(self.state.active_player_id)
 
