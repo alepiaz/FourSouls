@@ -97,11 +97,6 @@ class Game:
             passing_player = self.priority.current()
             self.log.append(PriorityPassed(player_id=passing_player))
             self.priority.pass_priority()
-            # When stack is empty during ACTION, we don't keep a free-floating priority window.
-            # Snap priority back to the active player (so END_TURN stays available).
-            if self.state.turn.phase == TurnPhase.ACTION and self.stack.empty():
-                self.priority.reset_to(self.state.active_player_id)
-                return list(self.log.events)
             # Pass-cycle resolution
             if self.priority.all_passed():
                 if not self.stack.empty():
@@ -131,6 +126,14 @@ class Game:
                 else:
                     self.log.append(WindowEnded())
                     self.priority.reset_to(self.state.active_player_id)
+            # When stack is empty during ACTION and NOT all passed, snap priority back.
+            # (This prevents a free-floating priority window while keeping END_TURN available.)
+            # Snap back WITHOUT clearing pass tracking, so we can still reach all_passed().
+            elif self.state.turn.phase == TurnPhase.ACTION and self.stack.empty():
+                # Just change current index, don't clear passed set
+                self.priority.current_index = self.priority.player_order.index(
+                    self.state.active_player_id
+                )
 
         elif isinstance(command, EndTurn):
             self.state.turn.phase = TurnPhase.END

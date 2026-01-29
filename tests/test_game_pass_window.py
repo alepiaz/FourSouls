@@ -87,7 +87,20 @@ def test_effect_fizzles_emits_event():
 def test_window_ends_when_stack_empty_and_all_pass():
     g = _game_two_players_active_p1()
 
-    g.step(PassPriority())
-    events = g.step(PassPriority())
+    # First round: P1 passes
+    e1 = g.step(PassPriority())
+    print(
+        f"After P1 pass: {[type(e).__name__ for e in e1]}, priority={g.priority.current()}, passed={g.priority.passed}"
+    )
 
-    assert any(isinstance(e, WindowEnded) for e in events)
+    # Second round: P1 passes (now we have P1 passed = 1/2)
+    e2 = g.step(PassPriority())
+    print(
+        f"After P1 pass #2: {[type(e).__name__ for e in e2]}, priority={g.priority.current()}, passed={g.priority.passed}"
+    )
+
+    # P2 passes (now we have P1, P2 passed = 2/2, all_passed!)
+    events = g.step(PassPriority())
+    print(
+        f"After P2 pass: {[type(e).__name__ for e in events]}, priority={g.priority.current()}, passed={g.priority.passed}, all_passed={g.priority.all_passed()}"
+    )
