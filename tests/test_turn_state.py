@@ -12,6 +12,7 @@ def test_default_turn_state_exists_on_game_state():
 
     assert gs.turn.number == 1
     assert gs.turn.phase == TurnPhase.START
+    assert gs.turn.loot1_scheduled is False
     assert gs.turn.attack_used is False
     assert gs.turn.purchase_used is False
     assert gs.turn.loot_play_used is False

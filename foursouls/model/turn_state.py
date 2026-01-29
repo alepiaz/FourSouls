@@ -20,6 +20,9 @@ class TurnState:
     number: int = 1
     phase: TurnPhase = TurnPhase.START
 
+    # Start-of-turn automation
+    loot1_scheduled: bool = False
+
     # Placeholders for later legality rules
     attack_used: bool = False
     purchase_used: bool = False

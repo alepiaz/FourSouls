@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, List
+from typing import Any
 
 from foursouls.engine.events import (
+    DebugEvent,
     EffectFizzled,
     Event,
     PriorityPassed,
     StackItemPushed,
     StackItemResolved,
     WindowEnded,
-    DebugEvent,
 )
 from foursouls.engine.log import EventLog
 from foursouls.engine.priority import PriorityManager
@@ -20,6 +20,14 @@ from foursouls.model.effects import Effect
 from foursouls.model.game_state import GameState
 from foursouls.model.turn_state import TurnPhase
 from foursouls.rulesets.base_rules import BaseRuleset
+from foursouls.rulesets.common.turn import (
+    LOOT1_LABEL,
+    advance_turn,
+    make_loot1_effect,
+    mark_loot1_scheduled,
+    on_loot1_resolved,
+    should_schedule_loot1,
+)
 
 
 @dataclass(slots=True)
@@ -57,8 +65,21 @@ class Game:
         )
         return item
 
+    def _schedule_loot1_if_needed(self) -> None:
+        if should_schedule_loot1(self.state):
+            mark_loot1_scheduled(self.state)
+            self.push_to_stack(
+                controller_id=self.state.active_player_id,
+                source="TURN_START",
+                effect=make_loot1_effect(self.state),
+                label=LOOT1_LABEL,
+            )
+
     def step(self, command: Command) -> list[Event]:
         self.log.clear()
+
+        # Start-of-turn automation: ensure Loot 1 is on the stack
+        self._schedule_loot1_if_needed()
 
         legal = self.legal_commands()
         if not any(
@@ -73,7 +94,7 @@ class Game:
             self.log.append(PriorityPassed(player_id=passing_player))
             self.priority.pass_priority()
 
-            # Pass-cycle resolution (unchanged)
+            # Pass-cycle resolution
             if self.priority.all_passed():
                 if not self.stack.empty():
                     item = self.stack.pop()
@@ -93,33 +114,34 @@ class Game:
                             )
                         )
 
+                    # If Loot 1 resolved (or fizzled), enter ACTION phase
+                    if item.label == LOOT1_LABEL:
+                        on_loot1_resolved(self.state)
+
                     self.priority.reset_to(self.state.active_player_id)
                 else:
                     self.log.append(WindowEnded())
                     self.priority.reset_to(self.state.active_player_id)
 
         elif isinstance(command, EndTurn):
-            # Minimal EndTurn behavior for Sprint 1 legality testing.
-            # Sprint 1.5 will expand this (Loot 1 scheduling, end-phase cleanup, etc.)
-            prev = self.state.active_player_id
-
-            # End current turn (minimal)
+            # End turn & advance
             self.state.turn.phase = TurnPhase.END
-
-            nxt = self.state.next_player_id(prev)
-            self.state.active_player_id = nxt
-            self.state.turn.number += 1
-
-            # Reset per-turn flags & move to START (next issues will schedule Loot 1 here)
-            self.state.turn.attack_used = False
-            self.state.turn.purchase_used = False
-            self.state.turn.loot_play_used = False
-            self.state.turn.phase = TurnPhase.START
-
+            prev = self.state.active_player_id
+            advance_turn(self.state)
             self.priority.reset_to(self.state.active_player_id)
+
             self.log.append(
-                DebugEvent({"action": "EndTurn", "from": str(prev), "to": str(nxt)})
+                DebugEvent(
+                    {
+                        "action": "EndTurn",
+                        "from": str(prev),
+                        "to": str(self.state.active_player_id),
+                    }
+                )
             )
+
+            # Immediately schedule next turn's Loot 1 onto stack
+            self._schedule_loot1_if_needed()
 
         else:
             raise NotImplementedError(f"Unsupported command: {command}")
