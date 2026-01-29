@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from foursouls.model.effects import DrawLootEffect
 from foursouls.model.game_state import GameState
 from foursouls.model.turn_state import TurnPhase
