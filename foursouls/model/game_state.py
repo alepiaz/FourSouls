@@ -3,8 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
+from foursouls.engine.zones import DeckZone, DiscardZone
 from .player_state import PlayerState
-from .refs import PlayerId
+from .refs import CardRef, PlayerId
 from .turn_state import TurnState
 
 
@@ -14,7 +15,11 @@ class GameState:
     turn_order: List[PlayerId]
     active_player_id: PlayerId
 
-    # New: turn/phase tracking
+    # New: minimal global zones for Sprint 1
+    loot_deck: DeckZone[CardRef] = field(default_factory=DeckZone)
+    loot_discard: DiscardZone[CardRef] = field(default_factory=DiscardZone)
+
+    # Turn/phase tracking
     turn: TurnState = field(default_factory=TurnState)
 
     # Useful for early kernel tests/effects
@@ -22,7 +27,12 @@ class GameState:
 
     @classmethod
     def from_players(
-        cls, players: List[PlayerState], *, active_player_id: Optional[PlayerId] = None
+        cls,
+        players: List[PlayerState],
+        *,
+        active_player_id: Optional[PlayerId] = None,
+        loot_deck: Optional[DeckZone[CardRef]] = None,
+        loot_discard: Optional[DiscardZone[CardRef]] = None,
     ) -> "GameState":
         if not players:
             raise ValueError("GameState requires at least one player")
@@ -36,7 +46,13 @@ class GameState:
         if active not in players_map:
             raise ValueError("active_player_id must be one of the provided players")
 
-        return cls(players=players_map, turn_order=order, active_player_id=active)
+        return cls(
+            players=players_map,
+            turn_order=order,
+            active_player_id=active,
+            loot_deck=loot_deck or DeckZone(),
+            loot_discard=loot_discard or DiscardZone(),
+        )
 
     def get_player(self, player_id: PlayerId) -> PlayerState:
         try:

@@ -10,12 +10,14 @@ from foursouls.model.effects import AlwaysFizzleEffect, AppendMarkerEffect
 from foursouls.model.game_state import GameState
 from foursouls.model.player_state import PlayerState
 from foursouls.model.refs import PlayerId
+from foursouls.model.turn_state import TurnPhase
 
 
 def _game_two_players_active_p1() -> Game:
     p1 = PlayerState(player_id=PlayerId("P1"), max_hp=2, hp=2)
     p2 = PlayerState(player_id=PlayerId("P2"), max_hp=2, hp=2)
     gs = GameState.from_players([p1, p2], active_player_id=PlayerId("P1"))
+    gs.turn.phase = TurnPhase.ACTION  # prevent auto Loot1 scheduling in kernel tests
     return Game(gs)
 
 
