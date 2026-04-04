@@ -127,6 +127,12 @@ class SlotsZone(Generic[T]):
     def clear(self, idx: int) -> None:
         self.set(idx, None)
 
+    def is_occupied(self, idx: int) -> bool:
+        return self.get(idx) is not None
+
+    def is_empty(self, idx: int) -> bool:
+        return self.get(idx) is None
+
     def empty_indices(self) -> List[int]:
         return [i for i, c in enumerate(self.slots) if c is None]
 

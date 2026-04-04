@@ -28,3 +28,9 @@ class PlayLoot(Command):
 @dataclass(frozen=True, slots=True)
 class ActivateCharacterAbility(Command):
     kind: str = "ACTIVATE_CHARACTER_ABILITY"
+
+
+@dataclass(frozen=True, slots=True)
+class BuyShop(Command):
+    slot_index: int
+    kind: str = "BUY_SHOP"

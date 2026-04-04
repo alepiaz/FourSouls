@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from foursouls.model.phase import Phase
-from foursouls.model.refs import PlayerId
+from foursouls.model.refs import CardRef, PlayerId
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,6 +98,21 @@ class ActivePlayerChanged(Event):
         object.__setattr__(self, "name", "ActivePlayerChanged")
         object.__setattr__(self, "old_player_id", old_player_id)
         object.__setattr__(self, "new_player_id", new_player_id)
+
+
+@dataclass(frozen=True, slots=True)
+class TreasureBought(Event):
+    player_id: PlayerId
+    card_ref: CardRef
+    slot_index: int
+    cost: int
+
+    def __init__(self, player_id: PlayerId, card_ref: CardRef, slot_index: int, cost: int) -> None:
+        object.__setattr__(self, "name", "TreasureBought")
+        object.__setattr__(self, "player_id", player_id)
+        object.__setattr__(self, "card_ref", card_ref)
+        object.__setattr__(self, "slot_index", slot_index)
+        object.__setattr__(self, "cost", cost)
 
 
 @dataclass(frozen=True, slots=True)

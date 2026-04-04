@@ -27,3 +27,12 @@ class PlayerState:
 
     def is_alive(self) -> bool:
         return self.hp > 0
+
+    def gain_treasure(self, ref: CardRef) -> None:
+        """Move a treasure card into this player's treasure area."""
+        self.items.append(ref)
+
+    @property
+    def treasures(self) -> List[CardRef]:
+        """Read-only view of the player's treasure area (alias for items)."""
+        return self.items

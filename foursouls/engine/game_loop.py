@@ -15,12 +15,13 @@ from foursouls.engine.game_zones import GameZones
 from foursouls.engine.log import EventLog
 from foursouls.engine.priority import PriorityManager
 from foursouls.engine.stack import Stack, StackItem
-from foursouls.model.commands import ActivateCharacterAbility, Command, EndTurn, PassPriority, PlayLoot
+from foursouls.model.commands import ActivateCharacterAbility, BuyShop, Command, EndTurn, PassPriority, PlayLoot
 from foursouls.model.effects import Effect
 from foursouls.model.game_state import GameState
 from foursouls.rulesets.base_rules import BaseRuleset
 from foursouls.rulesets.common.effects import GrantExtraLootPlayEffect
 from foursouls.rulesets.common.loot import on_play_loot
+from foursouls.rulesets.common.shop import on_buy_shop
 from foursouls.rulesets.common.turn import on_all_passed_empty_stack, on_end_turn
 
 
@@ -100,6 +101,9 @@ class Game:
                 label="GrantExtraLootPlay",
             )
             self.priority.reset_to(active_id)
+
+        elif isinstance(command, BuyShop):
+            on_buy_shop(self, command.slot_index)
 
         else:
             raise NotImplementedError(f"Unsupported command: {command}")

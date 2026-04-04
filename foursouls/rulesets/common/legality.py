@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, List
 
-from foursouls.model.commands import ActivateCharacterAbility, Command, EndTurn, PassPriority, PlayLoot
+from foursouls.model.commands import ActivateCharacterAbility, BuyShop, Command, EndTurn, PassPriority, PlayLoot
 from foursouls.model.phase import Phase
 
 if TYPE_CHECKING:
     from foursouls.engine.game_loop import Game
+
+# Standard shop cost in cents (base game: one coin = 10 cents)
+TREASURE_COST = 10
 
 
 def legal_commands(game: Game) -> List[Command]:
@@ -37,5 +40,10 @@ def legal_commands(game: Game) -> List[Command]:
         char = active.character
         if char is not None and not char.is_tapped:
             cmds.append(ActivateCharacterAbility())
+
+        if not flags.purchase_used and game.zones is not None:
+            for idx in game.zones.shop_slots.filled_indices():
+                if active.cents >= TREASURE_COST:
+                    cmds.append(BuyShop(slot_index=idx))
 
     return cmds
