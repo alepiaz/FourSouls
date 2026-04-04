@@ -14,6 +14,7 @@ def enter_start_phase(game: Game) -> None:
     """
     Transition into START phase for the current active player:
       - set phase = START
+      - untap the active player's character (recharge)
       - push Loot1 (draw 1 loot) onto the stack
 
     Requires game.zones to be initialised.
@@ -21,6 +22,12 @@ def enter_start_phase(game: Game) -> None:
     assert game.zones is not None, "enter_start_phase requires game.zones to be set up"
     game.state.phase = Phase.START
     active_id = game.state.active_player_id
+
+    # Recharge: untap character at the start of the active player's turn
+    character = game.state.get_player(active_id).character
+    if character is not None:
+        character.untap()
+
     effect = DrawLoot1Effect(player_id=active_id, loot_deck=game.zones.loot_deck)
     game.push_to_stack(
         controller_id=active_id,

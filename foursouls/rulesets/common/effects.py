@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from foursouls.engine.zones import DeckZone
+from foursouls.engine.zones import DeckZone, DiscardZone
+from foursouls.model.effects import Effect
 from foursouls.model.game_state import GameState
 from foursouls.model.refs import CardRef, PlayerId
 
@@ -20,3 +21,67 @@ class DrawLoot1Effect:
     def apply(self, ctx: GameState) -> None:
         drawn = self.loot_deck.draw(1)
         ctx.get_player(self.player_id).hand.extend(drawn)
+
+
+@dataclass(slots=True)
+class GainCentsEffect:
+    """Player gains a fixed number of cents."""
+
+    player_id: PlayerId
+    amount: int
+
+    def validate(self, ctx: GameState) -> bool:  # noqa: ARG002
+        return True
+
+    def apply(self, ctx: GameState) -> None:
+        ctx.get_player(self.player_id).cents += self.amount
+
+
+@dataclass(slots=True)
+class DealDamageEffect:
+    """Deal damage to a player, reducing their HP (minimum 0)."""
+
+    player_id: PlayerId
+    amount: int
+
+    def validate(self, ctx: GameState) -> bool:  # noqa: ARG002
+        return True
+
+    def apply(self, ctx: GameState) -> None:
+        player = ctx.get_player(self.player_id)
+        player.hp = max(0, player.hp - self.amount)
+
+
+@dataclass(slots=True)
+class PlayLootEffect:
+    """
+    Wrapper that resolves a loot card's inner effect then discards the card.
+
+    If inner.validate() returns False the card remains out-of-zone (limbo).
+    No loot card in Sprint 2 is expected to fizzle, so this is acceptable
+    until a proper 'card in-play zone' is introduced.
+    """
+
+    card_ref: CardRef
+    inner: Effect
+    loot_discard: DiscardZone
+
+    def validate(self, ctx: GameState) -> bool:
+        return self.inner.validate(ctx)
+
+    def apply(self, ctx: GameState) -> None:
+        self.inner.apply(ctx)
+        self.loot_discard.add(self.card_ref)
+
+
+@dataclass(slots=True)
+class GrantExtraLootPlayEffect:
+    """Grant the controlling player one additional loot play this turn."""
+
+    player_id: PlayerId
+
+    def validate(self, ctx: GameState) -> bool:  # noqa: ARG002
+        return True  # cost already paid; cannot fizzle
+
+    def apply(self, ctx: GameState) -> None:
+        ctx.turn_flags.loot_plays_allowed += 1

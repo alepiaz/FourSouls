@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 
+from .item_in_play import ItemInPlay
 from .refs import CardRef, PlayerId
 
 
@@ -14,6 +15,7 @@ class PlayerState:
     cents: int = 0
 
     hand: List[CardRef] = field(default_factory=list)
+    character: Optional[ItemInPlay] = None          # character card in play
     items: List[CardRef] = field(default_factory=list)  # treasures/trinkets/etc in play
     souls: List[CardRef] = field(default_factory=list)  # collected souls (bosses/bonus)
 

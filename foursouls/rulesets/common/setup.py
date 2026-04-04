@@ -9,6 +9,7 @@ from foursouls.engine.zones import DeckZone, DiscardZone, SlotsZone
 from foursouls.model.game_state import GameState
 from foursouls.model.phase import Phase
 from foursouls.model.refs import CardRef, PlayerId
+from foursouls.rulesets.common.turn import enter_start_phase
 
 
 def setup_game(
@@ -72,4 +73,6 @@ def setup_game(
         monster_slots=m_slots,
     )
 
-    return Game(state=state, zones=zones)
+    game = Game(state=state, zones=zones)
+    enter_start_phase(game)
+    return game

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .refs import CardRef
+
 
 class Command:
     kind: str
@@ -15,3 +17,14 @@ class PassPriority(Command):
 @dataclass(frozen=True, slots=True)
 class EndTurn(Command):
     kind: str = "END_TURN"
+
+
+@dataclass(frozen=True, slots=True)
+class PlayLoot(Command):
+    card_ref: CardRef
+    kind: str = "PLAY_LOOT"
+
+
+@dataclass(frozen=True, slots=True)
+class ActivateCharacterAbility(Command):
+    kind: str = "ACTIVATE_CHARACTER_ABILITY"

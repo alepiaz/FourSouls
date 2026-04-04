@@ -54,7 +54,8 @@ def test_game_state_defaults_phase_start():
 
     assert gs.phase == Phase.START
     assert gs.turn_number == 1
-    assert gs.turn_flags.loot_play_used is False
+    assert gs.turn_flags.loot_plays_used == 0
+    assert gs.turn_flags.loot_plays_allowed == 1
     assert gs.turn_flags.attack_used is False
     assert gs.turn_flags.purchase_used is False
 
@@ -64,7 +65,8 @@ def test_turn_flags_reset():
     p2 = PlayerState(player_id=PlayerId("P2"), max_hp=2, hp=2)
     gs = GameState.from_players([p1, p2], active_player_id=PlayerId("P1"))
 
-    gs.turn_flags.loot_play_used = True
+    gs.turn_flags.loot_plays_used = 2
+    gs.turn_flags.loot_plays_allowed = 3
     gs.turn_flags.attack_used = True
     gs.turn_flags.purchase_used = True
     gs.phase = Phase.END
@@ -74,6 +76,7 @@ def test_turn_flags_reset():
     assert gs.active_player_id == PlayerId("P2")
     assert gs.phase == Phase.START
     assert gs.turn_number == 2
-    assert gs.turn_flags.loot_play_used is False
+    assert gs.turn_flags.loot_plays_used == 0
+    assert gs.turn_flags.loot_plays_allowed == 1
     assert gs.turn_flags.attack_used is False
     assert gs.turn_flags.purchase_used is False

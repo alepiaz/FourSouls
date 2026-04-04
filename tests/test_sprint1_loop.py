@@ -18,7 +18,6 @@ from foursouls.model.phase import Phase
 from foursouls.model.player_state import PlayerState
 from foursouls.model.refs import CardRef, InstanceId, PlayerId
 from foursouls.rulesets.common.setup import setup_game
-from foursouls.rulesets.common.turn import enter_start_phase
 
 
 def _make_cards(prefix: str, n: int) -> list[CardRef]:
@@ -45,8 +44,6 @@ def test_simulate_three_turns():
     per EndTurn).
     """
     g = _new_game()
-    enter_start_phase(g)  # queue Loot1 for P1 (turn 1)
-
     player_sequence = []
 
     for _ in range(60):  # hard ceiling to catch infinite loops
@@ -83,7 +80,6 @@ def test_end_turn_step_emits_milestone_events():
     and StackItemPushed(label='Loot1').
     """
     g = _new_game()
-    enter_start_phase(g)
 
     # Drive to ACTION phase
     while g.state.phase != Phase.ACTION:

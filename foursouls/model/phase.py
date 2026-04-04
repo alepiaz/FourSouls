@@ -12,11 +12,13 @@ class Phase(enum.Enum):
 
 @dataclass(slots=True)
 class TurnFlags:
-    loot_play_used: bool = False
+    loot_plays_used: int = 0
+    loot_plays_allowed: int = 1
     attack_used: bool = False
     purchase_used: bool = False
 
     def reset(self) -> None:
-        self.loot_play_used = False
+        self.loot_plays_used = 0
+        self.loot_plays_allowed = 1
         self.attack_used = False
         self.purchase_used = False

@@ -1,11 +1,11 @@
 from foursouls.engine.rng import RNG
 from foursouls.model.commands import EndTurn, PassPriority
 from foursouls.model.game_state import GameState
+from foursouls.model.item_in_play import ItemInPlay
 from foursouls.model.phase import Phase
 from foursouls.model.player_state import PlayerState
 from foursouls.model.refs import CardRef, InstanceId, PlayerId
 from foursouls.rulesets.common.setup import setup_game
-from foursouls.rulesets.common.turn import enter_start_phase
 
 
 def _make_cards(prefix: str, n: int) -> list[CardRef]:
@@ -13,7 +13,7 @@ def _make_cards(prefix: str, n: int) -> list[CardRef]:
 
 
 def _game_two_players():
-    """Two-player game fully set up with zones, Loot1 NOT yet queued."""
+    """Two-player game fully set up with zones; Loot1 already queued by setup_game."""
     p1 = PlayerState(player_id=PlayerId("P1"), max_hp=3, hp=3)
     p2 = PlayerState(player_id=PlayerId("P2"), max_hp=3, hp=3)
     state = GameState.from_players([p1, p2], active_player_id=PlayerId("P1"))
@@ -28,9 +28,6 @@ def _game_two_players():
 
 def test_start_phase_queues_loot1():
     g = _game_two_players()
-    assert g.stack.empty()
-
-    enter_start_phase(g)
 
     assert not g.stack.empty()
     assert g.stack.top().label == "Loot1"
@@ -39,8 +36,7 @@ def test_start_phase_queues_loot1():
 
 
 def test_after_loot1_resolves_and_all_passed_phase_becomes_action():
-    g = _game_two_players()
-    enter_start_phase(g)   # stack: [Loot1], phase: START
+    g = _game_two_players()  # stack: [Loot1], phase: START
 
     hand_before = len(g.state.get_player(PlayerId("P1")).hand)
 
@@ -58,9 +54,50 @@ def test_after_loot1_resolves_and_all_passed_phase_becomes_action():
     assert g.state.phase == Phase.ACTION
 
 
+def _char(name: str) -> ItemInPlay:
+    return ItemInPlay(card_ref=CardRef(InstanceId(name)))
+
+
+def test_character_untaps_at_start_of_own_turn():
+    """Character is tapped mid-turn, then untaps when that player's next turn begins."""
+    g = _game_two_players()
+
+    # Give P1 a tapped character
+    p1 = g.state.get_player(PlayerId("P1"))
+    p1.character = _char("char-p1")
+    p1.character.tap()
+    assert p1.character.is_tapped
+
+    # Advance P1's turn all the way through and end it → P2's START phase begins
+    g.step(PassPriority())
+    g.step(PassPriority())  # Loot1 resolves
+    g.step(PassPriority())
+    g.step(PassPriority())  # ACTION
+    g.step(EndTurn())       # P2's turn starts; P1's char still tapped
+
+    assert p1.character.is_tapped  # P1's char does NOT untap on P2's turn
+
+    # Advance P2's turn and end it → P1's START phase begins → untap
+    g.step(PassPriority())
+    g.step(PassPriority())  # P2 Loot1 resolves
+    g.step(PassPriority())
+    g.step(PassPriority())  # ACTION
+    g.step(EndTurn())       # P1's turn starts → enter_start_phase untaps P1's char
+
+    assert not p1.character.is_tapped  # now untapped
+
+
+def test_character_with_no_character_does_not_crash():
+    """Players without a character set sail through enter_start_phase fine."""
+    g = _game_two_players()
+    p1 = g.state.get_player(PlayerId("P1"))
+    assert p1.character is None  # default
+    # Stack already has Loot1 — just verify no exception was raised during setup
+    assert not g.stack.empty()
+
+
 def test_end_turn_advances_player_and_phase_start_and_queues_loot1():
     g = _game_two_players()
-    enter_start_phase(g)
 
     # Advance through START phase so we can reach ACTION
     g.step(PassPriority())

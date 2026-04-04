@@ -15,10 +15,12 @@ from foursouls.engine.game_zones import GameZones
 from foursouls.engine.log import EventLog
 from foursouls.engine.priority import PriorityManager
 from foursouls.engine.stack import Stack, StackItem
-from foursouls.model.commands import Command, EndTurn, PassPriority
+from foursouls.model.commands import ActivateCharacterAbility, Command, EndTurn, PassPriority, PlayLoot
 from foursouls.model.effects import Effect
 from foursouls.model.game_state import GameState
 from foursouls.rulesets.base_rules import BaseRuleset
+from foursouls.rulesets.common.effects import GrantExtraLootPlayEffect
+from foursouls.rulesets.common.loot import on_play_loot
 from foursouls.rulesets.common.turn import on_all_passed_empty_stack, on_end_turn
 
 
@@ -37,7 +39,7 @@ class Game:
         self.priority.reset_to(self.state.active_player_id)
 
     def legal_commands(self) -> list[Command]:
-        return self.ruleset.legal_commands(self.state, self.stack)
+        return self.ruleset.legal_commands(self)
 
     def push_to_stack(self, *, controller_id, source: Any, effect: Effect, label: str = "") -> StackItem:
         item = self.stack.push(controller_id=controller_id, source=source, effect=effect, label=label)
@@ -56,7 +58,7 @@ class Game:
         self.log.clear()
 
         legal = self.legal_commands()
-        if not any(type(command) is type(c) and getattr(command, "kind", None) == getattr(c, "kind", None) for c in legal):
+        if command not in legal:
             raise ValueError(f"Illegal command: {command}")
 
         if isinstance(command, PassPriority):
@@ -83,6 +85,21 @@ class Game:
 
         elif isinstance(command, EndTurn):
             on_end_turn(self)
+
+        elif isinstance(command, PlayLoot):
+            on_play_loot(self, command.card_ref)
+
+        elif isinstance(command, ActivateCharacterAbility):
+            active_id = self.state.active_player_id
+            self.state.get_player(active_id).character.tap()  # pay cost
+            effect = GrantExtraLootPlayEffect(player_id=active_id)
+            self.push_to_stack(
+                controller_id=active_id,
+                source="character:tap_ability",
+                effect=effect,
+                label="GrantExtraLootPlay",
+            )
+            self.priority.reset_to(active_id)
 
         else:
             raise NotImplementedError(f"Unsupported command: {command}")
