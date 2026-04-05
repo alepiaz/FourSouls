@@ -8,7 +8,7 @@ living spec. The final test is the integration target from the Sprint 2 design:
   → plays second loot → ends turn → next player starts with character recharged.
 """
 from agents.pass_bot import choose_command
-from foursouls.cards.loot import BOMB, LOOT_COIN_1, LOOT_COIN_2
+from foursouls.cards.loot import LOOT_COIN_1, LOOT_COIN_2
 from foursouls.engine.events import EffectFizzled
 from foursouls.engine.rng import RNG
 from foursouls.model.commands import (
@@ -128,13 +128,16 @@ def test_player_can_play_two_loot_after_character_activation():
     _advance_to_action(g)
 
     g.step(ActivateCharacterAbility())
-    g.step(PassPriority()); g.step(PassPriority())
+    g.step(PassPriority())
+    g.step(PassPriority())
 
     g.step(PlayLoot(card_ref=coin1))
-    g.step(PassPriority()); g.step(PassPriority())
+    g.step(PassPriority())
+    g.step(PassPriority())
 
     g.step(PlayLoot(card_ref=coin2))
-    g.step(PassPriority()); g.step(PassPriority())
+    g.step(PassPriority())
+    g.step(PassPriority())
 
     assert p1.cents == 2
     assert g.state.turn_flags.loot_plays_used == 2
@@ -149,7 +152,8 @@ def test_played_loot_goes_to_discard_after_resolution():
     g.step(PlayLoot(card_ref=coin))
     assert len(g.zones.loot_discard.cards) == 0  # not discarded yet
 
-    g.step(PassPriority()); g.step(PassPriority())  # resolves
+    g.step(PassPriority())
+    g.step(PassPriority())  # resolves
 
     assert g.zones.loot_discard.top() == coin
 
@@ -215,7 +219,8 @@ def test_recharge_resets_character_for_next_turn():
     _advance_to_action(g)
 
     g.step(ActivateCharacterAbility())
-    g.step(PassPriority()); g.step(PassPriority())
+    g.step(PassPriority())
+    g.step(PassPriority())
     assert char.is_tapped
 
     g.step(EndTurn())
@@ -266,19 +271,22 @@ def test_sprint2_integration_full_flow():
 
     # ── Play first loot ──
     g.step(PlayLoot(card_ref=coin1))
-    g.step(PassPriority()); g.step(PassPriority())
+    g.step(PassPriority())
+    g.step(PassPriority())
     assert p1.cents == 1
     assert g.state.turn_flags.loot_plays_used == 1
 
     # ── Tap character for extra play ──
     g.step(ActivateCharacterAbility())
-    g.step(PassPriority()); g.step(PassPriority())
+    g.step(PassPriority())
+    g.step(PassPriority())
     assert g.state.turn_flags.loot_plays_allowed == 2
     assert p1.character.is_tapped
 
     # ── Play second loot ──
     g.step(PlayLoot(card_ref=coin2))
-    g.step(PassPriority()); g.step(PassPriority())
+    g.step(PassPriority())
+    g.step(PassPriority())
     assert p1.cents == 2
     assert g.state.turn_flags.loot_plays_used == 2
 

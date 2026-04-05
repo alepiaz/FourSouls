@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 from foursouls.engine.events import (
     AllPlayersPassed,
@@ -14,11 +14,14 @@ from foursouls.engine.events import (
 from foursouls.engine.game_zones import GameZones
 from foursouls.engine.log import EventLog
 from foursouls.engine.priority import PriorityManager
+from foursouls.engine.rng import RNG
 from foursouls.engine.stack import Stack, StackItem
-from foursouls.model.commands import ActivateCharacterAbility, BuyShop, Command, EndTurn, PassPriority, PlayLoot
+from foursouls.model.combat_state import CombatState
+from foursouls.model.commands import ActivateCharacterAbility, AttackMonster, BuyShop, Command, EndTurn, PassPriority, PlayLoot, RollCombat
 from foursouls.model.effects import Effect
 from foursouls.model.game_state import GameState
 from foursouls.rulesets.base_rules import BaseRuleset
+from foursouls.rulesets.common.combat import enter_combat, resolve_roll
 from foursouls.rulesets.common.effects import GrantExtraLootPlayEffect
 from foursouls.rulesets.common.loot import on_play_loot
 from foursouls.rulesets.common.shop import on_buy_shop
@@ -31,6 +34,8 @@ class Game:
     ruleset: BaseRuleset = field(default_factory=BaseRuleset)
 
     zones: Optional[GameZones] = None
+    combat: Optional[CombatState] = None
+    rng: RNG = field(default_factory=RNG)
     stack: Stack = field(default_factory=Stack)
     priority: PriorityManager = field(init=False)
     log: EventLog = field(default_factory=EventLog)
@@ -104,6 +109,12 @@ class Game:
 
         elif isinstance(command, BuyShop):
             on_buy_shop(self, command.slot_index)
+
+        elif isinstance(command, AttackMonster):
+            enter_combat(self, command.slot_index)
+
+        elif isinstance(command, RollCombat):
+            resolve_roll(self)
 
         else:
             raise NotImplementedError(f"Unsupported command: {command}")

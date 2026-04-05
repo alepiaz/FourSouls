@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, List
 
-from foursouls.model.commands import ActivateCharacterAbility, BuyShop, Command, EndTurn, PassPriority, PlayLoot
+from foursouls.model.commands import ActivateCharacterAbility, AttackMonster, BuyShop, Command, EndTurn, PassPriority, PlayLoot, RollCombat
 from foursouls.model.phase import Phase
 
 if TYPE_CHECKING:
@@ -45,5 +45,15 @@ def legal_commands(game: Game) -> List[Command]:
             for idx in game.zones.shop_slots.filled_indices():
                 if active.cents >= TREASURE_COST:
                     cmds.append(BuyShop(slot_index=idx))
+
+        # AttackMonster: one entry per occupied monster slot.
+        # Also requires: attack not yet used this turn, no combat already active.
+        if not flags.attack_used and game.zones is not None and game.combat is None:
+            for idx in game.zones.monster_slots.filled_indices():
+                cmds.append(AttackMonster(slot_index=idx))
+
+        # RollCombat: legal only while combat is active.
+        if game.combat is not None and game.combat.is_active:
+            cmds.append(RollCombat())
 
     return cmds

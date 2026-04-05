@@ -11,7 +11,6 @@ The final test is the integration target from the Sprint 3 design doc:
 """
 from __future__ import annotations
 
-import pytest
 
 import agents.economy_bot as economy_bot
 from agents.pass_bot import choose_command
@@ -21,7 +20,7 @@ from foursouls.model.commands import BuyShop, EndTurn, PassPriority, PlayLoot
 from foursouls.model.game_state import GameState
 from foursouls.model.phase import Phase
 from foursouls.model.player_state import PlayerState
-from foursouls.model.refs import CardId, CardRef, InstanceId, PlayerId
+from foursouls.model.refs import CardRef, InstanceId, PlayerId
 from foursouls.rulesets.common.legality import TREASURE_COST
 from foursouls.rulesets.common.setup import setup_game
 

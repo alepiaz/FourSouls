@@ -34,3 +34,14 @@ class ActivateCharacterAbility(Command):
 class BuyShop(Command):
     slot_index: int
     kind: str = "BUY_SHOP"
+
+
+@dataclass(frozen=True, slots=True)
+class AttackMonster(Command):
+    slot_index: int
+    kind: str = "ATTACK_MONSTER"
+
+
+@dataclass(frozen=True, slots=True)
+class RollCombat(Command):
+    kind: str = "ROLL_COMBAT"

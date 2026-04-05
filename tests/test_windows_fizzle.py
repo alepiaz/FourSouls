@@ -28,7 +28,7 @@ from foursouls.model.item_in_play import ItemInPlay
 from foursouls.model.phase import Phase
 from foursouls.model.player_state import PlayerState
 from foursouls.model.refs import CardId, CardRef, InstanceId, PlayerId
-from foursouls.rulesets.common.effects import GainCentsEffect, PlayLootEffect
+from foursouls.rulesets.common.effects import PlayLootEffect
 from foursouls.rulesets.common.setup import setup_game
 
 
@@ -248,13 +248,16 @@ class TestExtraLootIntegration:
         g = _game_at_action(with_character=True, extra_hand=[coin1, coin2, coin3])
 
         g.step(ActivateCharacterAbility())
-        g.step(PassPriority()); g.step(PassPriority())
+        g.step(PassPriority())
+        g.step(PassPriority())
 
         g.step(PlayLoot(card_ref=coin1))
-        g.step(PassPriority()); g.step(PassPriority())
+        g.step(PassPriority())
+        g.step(PassPriority())
 
         g.step(PlayLoot(card_ref=coin2))
-        g.step(PassPriority()); g.step(PassPriority())
+        g.step(PassPriority())
+        g.step(PassPriority())
 
         # Quota exhausted — third play must be illegal
         cmds = g.legal_commands()
@@ -267,7 +270,8 @@ class TestExtraLootIntegration:
 
         # Use the default play
         g.step(PlayLoot(card_ref=coin))
-        g.step(PassPriority()); g.step(PassPriority())
+        g.step(PassPriority())
+        g.step(PassPriority())
         assert g.state.turn_flags.loot_plays_used == 1
 
         g.step(EndTurn())
@@ -308,7 +312,8 @@ class TestTapCost:
         g = _game_at_action(with_character=True)
 
         g.step(ActivateCharacterAbility())
-        g.step(PassPriority()); g.step(PassPriority())  # resolves
+        g.step(PassPriority())
+        g.step(PassPriority())  # resolves
 
         cmds = g.legal_commands()
         assert ActivateCharacterAbility() not in cmds
@@ -319,7 +324,8 @@ class TestTapCost:
         char = g.state.get_player(PlayerId("P1")).character
 
         g.step(ActivateCharacterAbility())
-        g.step(PassPriority()); g.step(PassPriority())  # resolve
+        g.step(PassPriority())
+        g.step(PassPriority())  # resolve
         g.step(EndTurn())  # P2's turn begins
 
         # Still tapped — it's not P1's turn yet

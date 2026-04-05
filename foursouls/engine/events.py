@@ -116,6 +116,87 @@ class TreasureBought(Event):
 
 
 @dataclass(frozen=True, slots=True)
+class CombatRollResult(Event):
+    attacker_id: PlayerId
+    defender_slot: int
+    roll: int
+    evade: int
+    is_hit: bool
+
+    def __init__(
+        self,
+        attacker_id: PlayerId,
+        defender_slot: int,
+        roll: int,
+        evade: int,
+        is_hit: bool,
+    ) -> None:
+        object.__setattr__(self, "name", "CombatRollResult")
+        object.__setattr__(self, "attacker_id", attacker_id)
+        object.__setattr__(self, "defender_slot", defender_slot)
+        object.__setattr__(self, "roll", roll)
+        object.__setattr__(self, "evade", evade)
+        object.__setattr__(self, "is_hit", is_hit)
+
+
+@dataclass(frozen=True, slots=True)
+class MonsterDied(Event):
+    attacker_id: PlayerId
+    slot_index: int
+    card_ref: CardRef
+
+    def __init__(self, attacker_id: PlayerId, slot_index: int, card_ref: CardRef) -> None:
+        object.__setattr__(self, "name", "MonsterDied")
+        object.__setattr__(self, "attacker_id", attacker_id)
+        object.__setattr__(self, "slot_index", slot_index)
+        object.__setattr__(self, "card_ref", card_ref)
+
+
+@dataclass(frozen=True, slots=True)
+class CombatEntered(Event):
+    attacker_id: PlayerId
+    defender_slot: int
+
+    def __init__(self, attacker_id: PlayerId, defender_slot: int) -> None:
+        object.__setattr__(self, "name", "CombatEntered")
+        object.__setattr__(self, "attacker_id", attacker_id)
+        object.__setattr__(self, "defender_slot", defender_slot)
+
+
+@dataclass(frozen=True, slots=True)
+class RewardGranted(Event):
+    player_id: PlayerId
+    cents: int
+
+    def __init__(self, player_id: PlayerId, cents: int) -> None:
+        object.__setattr__(self, "name", "RewardGranted")
+        object.__setattr__(self, "player_id", player_id)
+        object.__setattr__(self, "cents", cents)
+
+
+@dataclass(frozen=True, slots=True)
+class SoulGranted(Event):
+    player_id: PlayerId
+    card_ref: CardRef
+
+    def __init__(self, player_id: PlayerId, card_ref: CardRef) -> None:
+        object.__setattr__(self, "name", "SoulGranted")
+        object.__setattr__(self, "player_id", player_id)
+        object.__setattr__(self, "card_ref", card_ref)
+
+
+@dataclass(frozen=True, slots=True)
+class PlayerDied(Event):
+    player_id: PlayerId
+    slot_index: int   # the monster slot the player was fighting
+
+    def __init__(self, player_id: PlayerId, slot_index: int) -> None:
+        object.__setattr__(self, "name", "PlayerDied")
+        object.__setattr__(self, "player_id", player_id)
+        object.__setattr__(self, "slot_index", slot_index)
+
+
+@dataclass(frozen=True, slots=True)
 class DebugEvent(Event):
     payload: Any
 

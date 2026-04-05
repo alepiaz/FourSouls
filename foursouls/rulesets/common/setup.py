@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from typing import List, Optional
 
+from foursouls.cards.monsters import make_monster_in_play
 from foursouls.engine.game_loop import Game
 from foursouls.engine.game_zones import GameZones
 from foursouls.engine.rng import RNG
 from foursouls.engine.zones import DeckZone, DiscardZone, SlotsZone
 from foursouls.model.game_state import GameState
+from foursouls.model.monster_in_play import MonsterInPlay
 from foursouls.model.phase import Phase
 from foursouls.model.refs import CardRef, PlayerId
 from foursouls.rulesets.common.turn import enter_start_phase
@@ -53,10 +55,10 @@ def setup_game(
             shop_slots.set(idx, treasure_deck.draw(1)[0])
 
     # Fill monster slots from monster deck
-    m_slots: SlotsZone[CardRef] = SlotsZone(size=monster_slot_count)
+    m_slots: SlotsZone[MonsterInPlay] = SlotsZone(size=monster_slot_count)
     for idx in range(monster_slot_count):
         if not monster_deck.empty():
-            m_slots.set(idx, monster_deck.draw(1)[0])
+            m_slots.set(idx, make_monster_in_play(monster_deck.draw(1)[0]))
 
     # Finalise state
     state.active_player_id = starter_id or state.active_player_id
@@ -73,6 +75,6 @@ def setup_game(
         monster_slots=m_slots,
     )
 
-    game = Game(state=state, zones=zones)
+    game = Game(state=state, zones=zones, rng=rng)
     enter_start_phase(game)
     return game

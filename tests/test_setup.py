@@ -126,7 +126,7 @@ def test_shop_fill_does_not_affect_loot_or_monster_zones():
     monster_ids = {c.instance_id for c in g.zones.monster_deck.cards}
     assert monster_ids.isdisjoint(treasure_ids)
     monster_slot_ids = {
-        g.zones.monster_slots.get(i).instance_id
+        g.zones.monster_slots.get(i).card_ref.instance_id
         for i in g.zones.monster_slots.filled_indices()
     }
     assert monster_slot_ids.isdisjoint(treasure_ids)
@@ -177,7 +177,7 @@ def test_setup_fills_shop_and_monsters():
     ms = g.zones.monster_slots
     assert len(ms) == 2
     assert all(ms.get(i) is not None for i in range(2))
-    assert all(ms.get(i).instance_id.startswith("monster-") for i in range(2))
+    assert all(ms.get(i).card_ref.instance_id.startswith("monster-") for i in range(2))
 
     # Phase is reset to START
     assert g.state.phase == Phase.START

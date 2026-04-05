@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from foursouls.engine.zones import DeckZone, DiscardZone, SlotsZone
+from foursouls.model.monster_in_play import MonsterInPlay
 from foursouls.model.refs import CardRef
 
 
@@ -20,4 +21,4 @@ class GameZones:
     monster_discard: DiscardZone[CardRef]
 
     shop_slots: SlotsZone[CardRef]
-    monster_slots: SlotsZone[CardRef]
+    monster_slots: SlotsZone[MonsterInPlay]

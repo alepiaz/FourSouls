@@ -86,5 +86,8 @@ def on_end_turn(game: Game) -> None:
     # Re-sync priority to new active player (reset_for_new_turn does not touch priority)
     game.priority.reset_to(next_id)
 
+    # Clear any lingering combat context
+    game.combat = None
+
     # Enter START phase: push Loot1 for the new active player
     enter_start_phase(game)
