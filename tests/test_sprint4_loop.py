@@ -168,14 +168,14 @@ def test_miss_does_not_damage_monster():
 
 def test_roll_emits_combat_roll_result_event():
     g = _combat_game(evade=1)
-    events = g.step(RollCombat())
+    events = g.step(RollCombat()).events
     roll_events = [e for e in events if isinstance(e, CombatRollResult)]
     assert len(roll_events) == 1
 
 
 def test_roll_result_event_hit_fields():
     g = _combat_game(evade=1)
-    events = g.step(RollCombat())
+    events = g.step(RollCombat()).events
     ev = next(e for e in events if isinstance(e, CombatRollResult))
     assert ev.is_hit is True
     assert ev.attacker_id == PlayerId("P1")
@@ -186,7 +186,7 @@ def test_roll_result_event_hit_fields():
 
 def test_roll_result_event_miss_fields():
     g = _combat_game(evade=7)
-    events = g.step(RollCombat())
+    events = g.step(RollCombat()).events
     ev = next(e for e in events if isinstance(e, CombatRollResult))
     assert ev.is_hit is False
     assert 1 <= ev.roll <= 6
@@ -233,7 +233,7 @@ def test_alternating_hit_miss_sequence():
     monster_hp_before = g.zones.monster_slots.get(0).current_hp
 
     for _ in range(4):
-        events = g.step(RollCombat())
+        events = g.step(RollCombat()).events
         ev = next(e for e in events if isinstance(e, CombatRollResult))
         p_hp = g.state.get_player(PlayerId("P1")).hp
         m_hp = g.zones.monster_slots.get(0).current_hp

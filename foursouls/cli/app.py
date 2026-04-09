@@ -1,0 +1,194 @@
+"""
+FourSouls CLI — game factory and interactive main loop.
+
+Usage
+-----
+    python -m foursouls.cli            # interactive setup
+    python -m foursouls.cli.app        # same
+
+Programmatic usage::
+
+    from foursouls.cli.app import build_demo_game, run
+    game = build_demo_game(["Alice", "Bob"], seed=42)
+    run(game)
+"""
+from __future__ import annotations
+
+from typing import List, Optional
+
+from foursouls.cards.characters import CAIN, EVE, ISAAC, MAGDALENE
+from foursouls.cards.loot import BOMB, LOOT_COIN_1, LOOT_COIN_2, LOOT_COIN_3
+from foursouls.cards.monsters import FLY, GAPER, HORF, SPIDER
+from foursouls.cli.controller import (
+    display_board,
+    display_events,
+    prompt_action,
+    prompt_num_players,
+    prompt_player_name,
+    prompt_seed,
+)
+from foursouls.engine.events import GameWon
+from foursouls.engine.game_loop import Game
+from foursouls.engine.rng import RNG
+from foursouls.model.game_state import GameState
+from foursouls.model.item_in_play import ItemInPlay
+from foursouls.model.player_state import PlayerState
+from foursouls.model.refs import CardRef, InstanceId, PlayerId
+from foursouls.rulesets.common.setup import setup_game
+
+
+# ─── Deck builders ────────────────────────────────────────────────────────────
+
+def _loot_deck() -> List[CardRef]:
+    """40-card loot deck: mostly coins, a few bombs."""
+    pool = [
+        LOOT_COIN_1, LOOT_COIN_1, LOOT_COIN_1,
+        LOOT_COIN_2, LOOT_COIN_2,
+        LOOT_COIN_3,
+        BOMB,
+    ]
+    cards: List[CardRef] = []
+    iid = 0
+    for _ in range(5):          # 5 copies of the 7-card pool = 35 cards + padding
+        for cid in pool:
+            cards.append(CardRef(InstanceId(f"loot-{iid}"), cid))
+            iid += 1
+    # pad to 40
+    while len(cards) < 40:
+        cards.append(CardRef(InstanceId(f"loot-{iid}"), LOOT_COIN_1))
+        iid += 1
+    return cards
+
+
+def _treasure_deck() -> List[CardRef]:
+    """12-card placeholder treasure deck (buy effects TBD)."""
+    return [CardRef(InstanceId(f"treasure-{i}")) for i in range(12)]
+
+
+def _monster_deck() -> List[CardRef]:
+    """16-card monster deck — mix of normal and soul monsters."""
+    pool = [
+        (FLY,    6),
+        (GAPER,  4),
+        (SPIDER, 4),
+        (HORF,   2),
+    ]
+    cards: List[CardRef] = []
+    iid = 0
+    for cid, count in pool:
+        for _ in range(count):
+            cards.append(CardRef(InstanceId(f"monster-{iid}"), cid))
+            iid += 1
+    return cards
+
+
+# ─── Game factory ─────────────────────────────────────────────────────────────
+
+def build_demo_game(
+    player_ids: Optional[List[str]] = None,
+    *,
+    seed: int = 0,
+) -> Game:
+    """
+    Build a fully initialized game ready for the first step.
+
+    Parameters
+    ----------
+    player_ids:
+        Display names for each player.  Defaults to ``["P1", "P2"]``.
+    seed:
+        RNG seed for reproducibility.
+    """
+    if player_ids is None:
+        player_ids = ["P1", "P2"]
+
+    _CHAR_POOL = [ISAAC, MAGDALENE, CAIN, EVE]
+
+    players = []
+    for i, pid in enumerate(player_ids):
+        p = PlayerState(player_id=PlayerId(pid), max_hp=4, hp=4)
+        char_card_id = _CHAR_POOL[i % len(_CHAR_POOL)]
+        p.character = ItemInPlay(card_ref=CardRef(InstanceId(f"char-{i}"), char_card_id))
+        players.append(p)
+    state = GameState.from_players(players)
+
+    return setup_game(
+        state,
+        loot_cards=_loot_deck(),
+        treasure_cards=_treasure_deck(),
+        monster_cards=_monster_deck(),
+        rng=RNG(seed=seed),
+        starting_hand_size=3,
+        shop_size=3,
+        monster_slot_count=2,
+    )
+
+
+# ─── Main game loop ───────────────────────────────────────────────────────────
+
+def run(game: Optional[Game] = None) -> None:
+    """
+    Run the interactive CLI game loop.
+
+    If *game* is None the user is prompted for setup and a demo game
+    is constructed via :func:`build_demo_game`.
+    """
+    if game is None:
+        _WIDTH = 72
+        print("=" * _WIDTH)
+        print("  Four Souls - CLI")
+        print("=" * _WIDTH)
+        print()
+
+        n = prompt_num_players()
+        player_ids: List[str] = []
+        for i in range(n):
+            player_ids.append(prompt_player_name(i, f"P{i + 1}"))
+
+        seed = prompt_seed()
+        print()
+
+        game = build_demo_game(player_ids, seed=seed)
+
+    winner: Optional[str] = None
+
+    while winner is None:
+        actions = game.get_legal_actions()
+        display_board(game, actions)
+
+        chosen = prompt_action(actions)
+        if chosen is None:
+            print("\nQuit. Goodbye.")
+            return
+
+        result = game.step(chosen.command)
+
+        # Check for game-over event before printing narrative
+        for event in result.events:
+            if isinstance(event, GameWon):
+                winner = event.player_id
+                break
+
+        if result.events:
+            print()
+            display_events(result.events)
+            print()
+
+    _WIDTH = 72
+    print("═" * _WIDTH)
+    print(f"  GAME OVER — {winner} wins!")
+    print("═" * _WIDTH)
+
+
+# ─── Entry point ──────────────────────────────────────────────────────────────
+
+def main() -> None:
+    """Console-script entry point."""
+    try:
+        run()
+    except KeyboardInterrupt:
+        print("\nInterrupted. Goodbye.")
+
+
+if __name__ == "__main__":
+    main()

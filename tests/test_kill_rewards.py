@@ -12,21 +12,21 @@ Reward model:
 
 Covers:
 - reward cents added to attacker.cents on kill
-- zero-reward kill still fires RewardGranted(cents=0)
-- RewardGranted event fields are correct
+- zero-reward kill still fires CoinsGained(cents=0)
+- CoinsGained event fields are correct
 - soul added to attacker.souls on soul-bearing monster kill
 - SoulGranted event emitted with correct fields
 - no soul added for non-soul monster
 - SoulGranted not emitted for non-soul monster
 - cents accumulate correctly across multiple kills in the same turn
 - rewards go to attacker only; other player states unchanged
-- RewardGranted fires exactly once per kill
+- CoinsGained fires exactly once per kill
 - SoulGranted fires exactly once per soul kill
 """
 from __future__ import annotations
 
 from foursouls.cards.monsters import FLY, GAPER, HORF, make_monster_in_play
-from foursouls.engine.events import RewardGranted, SoulGranted
+from foursouls.engine.events import CoinsGained, SoulGranted
 from foursouls.engine.game_loop import Game
 from foursouls.engine.game_zones import GameZones
 from foursouls.engine.rng import RNG
@@ -94,7 +94,7 @@ def _kill(g: Game) -> list:
     """Roll until combat ends; return events from the killing roll."""
     events = []
     while g.combat is not None:
-        events = g.step(RollCombat())
+        events = g.step(RollCombat()).events
     return events
 
 
@@ -121,7 +121,7 @@ def test_reward_granted_event_emitted():
     m = _make_monster("m", reward_cents=5)
     g = _game(m)
     events = _kill(g)
-    reward_events = [e for e in events if isinstance(e, RewardGranted)]
+    reward_events = [e for e in events if isinstance(e, CoinsGained)]
     assert len(reward_events) == 1
 
 
@@ -129,7 +129,7 @@ def test_reward_granted_event_fires_even_for_zero_cents():
     m = _make_monster("m", reward_cents=0)
     g = _game(m)
     events = _kill(g)
-    reward_events = [e for e in events if isinstance(e, RewardGranted)]
+    reward_events = [e for e in events if isinstance(e, CoinsGained)]
     assert len(reward_events) == 1
 
 
@@ -137,7 +137,7 @@ def test_reward_granted_event_fields():
     m = _make_monster("m", reward_cents=7)
     g = _game(m)
     events = _kill(g)
-    ev = next(e for e in events if isinstance(e, RewardGranted))
+    ev = next(e for e in events if isinstance(e, CoinsGained))
     assert ev.player_id == PlayerId("P1")
     assert ev.cents == 7
 
@@ -147,8 +147,8 @@ def test_reward_granted_exactly_once_per_kill():
     g = _game(m)
     all_events: list = []
     while g.combat is not None:
-        all_events.extend(g.step(RollCombat()))
-    reward_events = [e for e in all_events if isinstance(e, RewardGranted)]
+        all_events.extend(g.step(RollCombat()).events)
+    reward_events = [e for e in all_events if isinstance(e, CoinsGained)]
     assert len(reward_events) == 1
 
 
@@ -191,7 +191,7 @@ def test_soul_granted_exactly_once_per_soul_kill():
     g = _game(m)
     all_events: list = []
     while g.combat is not None:
-        all_events.extend(g.step(RollCombat()))
+        all_events.extend(g.step(RollCombat()).events)
     soul_events = [e for e in all_events if isinstance(e, SoulGranted)]
     assert len(soul_events) == 1
 

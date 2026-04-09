@@ -1,0 +1,1 @@
+"""FourSouls terminal interface."""

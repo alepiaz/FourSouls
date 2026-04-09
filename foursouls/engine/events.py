@@ -1,33 +1,78 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Optional, Tuple
 
 from foursouls.model.phase import Phase
-from foursouls.model.refs import CardRef, PlayerId
+from foursouls.model.refs import CardId, CardRef, PlayerId
 
 
 @dataclass(frozen=True, slots=True)
 class Event:
     """
-    Base event. Keep events immutable.
+    Immutable base event.  ``name`` is set automatically to the class name via
+    __post_init__, so subclasses never need to pass it.
     """
-    name: str
+    name: str = field(init=False)
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "name", type(self).__name__)
+
+
+# ---------------------------------------------------------------------------
+# Setup
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True, slots=True)
+class GameSetupCompleted(Event):
+    """Fired once at the end of setup_game(), before the first step()."""
+    player_ids: Tuple[PlayerId, ...]
+    starting_hand_size: int
+    shop_size: int
+    monster_slot_count: int
+
+
+# ---------------------------------------------------------------------------
+# Turn flow
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True, slots=True)
+class TurnStarted(Event):
+    """Fired at the beginning of each player's turn (entering START phase)."""
+    turn_number: int
+    player_id: PlayerId
+
+
+@dataclass(frozen=True, slots=True)
+class TurnEnded(Event):
+    player_id: PlayerId
+    turn_number: int
+
+
+@dataclass(frozen=True, slots=True)
+class ActivePlayerChanged(Event):
+    old_player_id: PlayerId
+    new_player_id: PlayerId
+
+
+@dataclass(frozen=True, slots=True)
+class PhaseChanged(Event):
+    old_phase: Phase
+    new_phase: Phase
+
+
+# ---------------------------------------------------------------------------
+# Priority / stack
+# ---------------------------------------------------------------------------
 
 @dataclass(frozen=True, slots=True)
 class PriorityPassed(Event):
     player_id: PlayerId
 
-    def __init__(self, player_id: PlayerId):
-        object.__setattr__(self, "name", "PriorityPassed")
-        object.__setattr__(self, "player_id", player_id)
-
 
 @dataclass(frozen=True, slots=True)
 class AllPlayersPassed(Event):
-    def __init__(self) -> None:
-        object.__setattr__(self, "name", "AllPlayersPassed")
+    pass
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,22 +81,11 @@ class StackItemPushed(Event):
     controller_id: PlayerId
     label: str = ""
 
-    def __init__(self, stack_id: int, controller_id: PlayerId, label: str = ""):
-        object.__setattr__(self, "name", "StackItemPushed")
-        object.__setattr__(self, "stack_id", stack_id)
-        object.__setattr__(self, "controller_id", controller_id)
-        object.__setattr__(self, "label", label)
-
 
 @dataclass(frozen=True, slots=True)
 class StackItemResolved(Event):
     stack_id: int
     label: str = ""
-
-    def __init__(self, stack_id: int, label: str = ""):
-        object.__setattr__(self, "name", "StackItemResolved")
-        object.__setattr__(self, "stack_id", stack_id)
-        object.__setattr__(self, "label", label)
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,59 +94,99 @@ class EffectFizzled(Event):
     reason: str = "validate_failed"
     label: str = ""
 
-    def __init__(self, stack_id: int, reason: str = "validate_failed", label: str = ""):
-        object.__setattr__(self, "name", "EffectFizzled")
-        object.__setattr__(self, "stack_id", stack_id)
-        object.__setattr__(self, "reason", reason)
-        object.__setattr__(self, "label", label)
 
+# ---------------------------------------------------------------------------
+# Loot / cards
+# ---------------------------------------------------------------------------
 
 @dataclass(frozen=True, slots=True)
-class PhaseChanged(Event):
-    old_phase: Phase
-    new_phase: Phase
-
-    def __init__(self, old_phase: Phase, new_phase: Phase) -> None:
-        object.__setattr__(self, "name", "PhaseChanged")
-        object.__setattr__(self, "old_phase", old_phase)
-        object.__setattr__(self, "new_phase", new_phase)
-
-
-@dataclass(frozen=True, slots=True)
-class TurnEnded(Event):
+class LootPlayed(Event):
+    """Fired when a player plays a loot card from their hand onto the stack."""
     player_id: PlayerId
-    turn_number: int
-
-    def __init__(self, player_id: PlayerId, turn_number: int) -> None:
-        object.__setattr__(self, "name", "TurnEnded")
-        object.__setattr__(self, "player_id", player_id)
-        object.__setattr__(self, "turn_number", turn_number)
+    card_id: Optional[CardId]
+    card_name: str
 
 
 @dataclass(frozen=True, slots=True)
-class ActivePlayerChanged(Event):
-    old_player_id: PlayerId
-    new_player_id: PlayerId
-
-    def __init__(self, old_player_id: PlayerId, new_player_id: PlayerId) -> None:
-        object.__setattr__(self, "name", "ActivePlayerChanged")
-        object.__setattr__(self, "old_player_id", old_player_id)
-        object.__setattr__(self, "new_player_id", new_player_id)
-
-
-@dataclass(frozen=True, slots=True)
-class TreasureBought(Event):
+class CardDrawn(Event):
+    """Fired when a card is drawn from a deck into a player's hand."""
     player_id: PlayerId
     card_ref: CardRef
+    source: str   # e.g. "loot_deck"
+
+
+@dataclass(frozen=True, slots=True)
+class CardDiscarded(Event):
+    """Fired when a card moves to a discard zone."""
+    player_id: PlayerId
+    card_id: Optional[CardId]
+    card_name: str
+    zone: str     # e.g. "loot_discard"
+
+
+# ---------------------------------------------------------------------------
+# Character ability
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True, slots=True)
+class ItemActivated(Event):
+    """Fired when a player taps their character to use its ability."""
+    player_id: PlayerId
+    source: str   # e.g. "character:tap_ability"
+
+
+# ---------------------------------------------------------------------------
+# Shop
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True, slots=True)
+class ShopBought(Event):
+    """Fired when a player buys an item from the shop."""
+    player_id: PlayerId
+    card_ref: CardRef
+    item_name: str
     slot_index: int
     cost: int
 
-    def __init__(self, player_id: PlayerId, card_ref: CardRef, slot_index: int, cost: int) -> None:
-        object.__setattr__(self, "name", "TreasureBought")
-        object.__setattr__(self, "player_id", player_id)
-        object.__setattr__(self, "card_ref", card_ref)
-        object.__setattr__(self, "slot_index", slot_index)
-        object.__setattr__(self, "cost", cost)
+
+@dataclass(frozen=True, slots=True)
+class CoinsGained(Event):
+    """Fired whenever a player gains coins (reward, loot, etc.)."""
+    player_id: PlayerId
+    cents: int
+    reason: str   # e.g. "monster_kill", "loot_card"
+
+
+@dataclass(frozen=True, slots=True)
+class CoinsSpent(Event):
+    """Fired whenever a player spends coins."""
+    player_id: PlayerId
+    amount: int
+    reason: str   # e.g. "shop_buy"
+
+
+# ---------------------------------------------------------------------------
+# Combat
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True, slots=True)
+class AttackDeclared(Event):
+    """Fired the moment a player declares an attack (before combat state is set)."""
+    player_id: PlayerId
+    monster_slot: int
+    monster_id: Optional[CardId]
+    monster_name: str
+
+
+@dataclass(frozen=True, slots=True)
+class CombatEntered(Event):
+    """Fired once combat state is established for an attacker/defender pair."""
+    attacker_id: PlayerId
+    defender_slot: int
+    monster_id: Optional[CardId]
+    monster_name: str
+    monster_hp: int
+    monster_evade: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,83 +197,61 @@ class CombatRollResult(Event):
     evade: int
     is_hit: bool
 
-    def __init__(
-        self,
-        attacker_id: PlayerId,
-        defender_slot: int,
-        roll: int,
-        evade: int,
-        is_hit: bool,
-    ) -> None:
-        object.__setattr__(self, "name", "CombatRollResult")
-        object.__setattr__(self, "attacker_id", attacker_id)
-        object.__setattr__(self, "defender_slot", defender_slot)
-        object.__setattr__(self, "roll", roll)
-        object.__setattr__(self, "evade", evade)
-        object.__setattr__(self, "is_hit", is_hit)
 
+@dataclass(frozen=True, slots=True)
+class DamageDealt(Event):
+    """Fired whenever damage is applied to any game object."""
+    source_player_id: Optional[PlayerId]
+    source_monster_slot: Optional[int]
+    target_player_id: Optional[PlayerId]
+    target_monster_slot: Optional[int]
+    amount: int
+    reason: str   # e.g. "combat_hit", "combat_miss", "loot_bomb"
+
+
+# ---------------------------------------------------------------------------
+# Death / rewards
+# ---------------------------------------------------------------------------
 
 @dataclass(frozen=True, slots=True)
 class MonsterDied(Event):
     attacker_id: PlayerId
     slot_index: int
     card_ref: CardRef
-
-    def __init__(self, attacker_id: PlayerId, slot_index: int, card_ref: CardRef) -> None:
-        object.__setattr__(self, "name", "MonsterDied")
-        object.__setattr__(self, "attacker_id", attacker_id)
-        object.__setattr__(self, "slot_index", slot_index)
-        object.__setattr__(self, "card_ref", card_ref)
+    monster_name: str
+    reward_cents: int
+    had_soul: bool
 
 
 @dataclass(frozen=True, slots=True)
-class CombatEntered(Event):
-    attacker_id: PlayerId
-    defender_slot: int
-
-    def __init__(self, attacker_id: PlayerId, defender_slot: int) -> None:
-        object.__setattr__(self, "name", "CombatEntered")
-        object.__setattr__(self, "attacker_id", attacker_id)
-        object.__setattr__(self, "defender_slot", defender_slot)
-
-
-@dataclass(frozen=True, slots=True)
-class RewardGranted(Event):
+class PlayerDied(Event):
     player_id: PlayerId
-    cents: int
-
-    def __init__(self, player_id: PlayerId, cents: int) -> None:
-        object.__setattr__(self, "name", "RewardGranted")
-        object.__setattr__(self, "player_id", player_id)
-        object.__setattr__(self, "cents", cents)
+    slot_index: int       # monster slot the player was fighting
+    monster_name: str
 
 
 @dataclass(frozen=True, slots=True)
 class SoulGranted(Event):
     player_id: PlayerId
     card_ref: CardRef
+    card_name: str
 
-    def __init__(self, player_id: PlayerId, card_ref: CardRef) -> None:
-        object.__setattr__(self, "name", "SoulGranted")
-        object.__setattr__(self, "player_id", player_id)
-        object.__setattr__(self, "card_ref", card_ref)
 
+# ---------------------------------------------------------------------------
+# Game end
+# ---------------------------------------------------------------------------
 
 @dataclass(frozen=True, slots=True)
-class PlayerDied(Event):
+class GameWon(Event):
+    """Fired when a player reaches the soul win threshold."""
     player_id: PlayerId
-    slot_index: int   # the monster slot the player was fighting
+    soul_count: int
 
-    def __init__(self, player_id: PlayerId, slot_index: int) -> None:
-        object.__setattr__(self, "name", "PlayerDied")
-        object.__setattr__(self, "player_id", player_id)
-        object.__setattr__(self, "slot_index", slot_index)
 
+# ---------------------------------------------------------------------------
+# Debug
+# ---------------------------------------------------------------------------
 
 @dataclass(frozen=True, slots=True)
 class DebugEvent(Event):
-    payload: Any
-
-    def __init__(self, payload: Any):
-        object.__setattr__(self, "name", "DebugEvent")
-        object.__setattr__(self, "payload", payload)
+    payload: object

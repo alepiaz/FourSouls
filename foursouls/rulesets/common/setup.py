@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import List, Optional
 
 from foursouls.cards.monsters import make_monster_in_play
+from foursouls.engine.events import GameSetupCompleted
 from foursouls.engine.game_loop import Game
 from foursouls.engine.game_zones import GameZones
 from foursouls.engine.rng import RNG
@@ -77,4 +78,12 @@ def setup_game(
 
     game = Game(state=state, zones=zones, rng=rng)
     enter_start_phase(game)
+
+    game.log.append(GameSetupCompleted(
+        player_ids=tuple(state.turn_order),
+        starting_hand_size=starting_hand_size,
+        shop_size=shop_size,
+        monster_slot_count=monster_slot_count,
+    ))
+
     return game

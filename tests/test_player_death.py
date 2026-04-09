@@ -133,14 +133,14 @@ def test_attack_used_true_after_player_death():
 
 def test_player_died_event_emitted():
     g = _game(player_hp=1)
-    events = g.step(RollCombat())
+    events = g.step(RollCombat()).events
     death_events = [e for e in events if isinstance(e, PlayerDied)]
     assert len(death_events) == 1
 
 
 def test_player_died_event_fields():
     g = _game(player_hp=1)
-    events = g.step(RollCombat())
+    events = g.step(RollCombat()).events
     ev = next(e for e in events if isinstance(e, PlayerDied))
     assert ev.player_id == PlayerId("P1")
     assert ev.slot_index == 0
@@ -148,7 +148,7 @@ def test_player_died_event_fields():
 
 def test_no_player_died_event_on_surviving_player():
     g = _game(player_hp=5, evade=7)   # survives the first miss
-    events = g.step(RollCombat())
+    events = g.step(RollCombat()).events
     assert not any(isinstance(e, PlayerDied) for e in events)
 
 
@@ -159,7 +159,7 @@ def test_no_player_died_event_on_surviving_player():
 def test_player_death_emits_exactly_one_event():
     """Even if hp is already 0, a second roll must not be possible."""
     g = _game(player_hp=1)
-    events = g.step(RollCombat())   # hp 1 → 0, combat ends
+    events = g.step(RollCombat()).events   # hp 1 → 0, combat ends
     assert len([e for e in events if isinstance(e, PlayerDied)]) == 1
     # Combat is gone; cannot roll again
     assert g.combat is None
@@ -208,7 +208,7 @@ def test_player_dies_after_multiple_misses():
     assert g.state.get_player(PlayerId("P1")).hp == 1
     assert g.combat is not None
 
-    events = g.step(RollCombat())    # killing miss
+    events = g.step(RollCombat()).events    # killing miss
     assert g.state.get_player(PlayerId("P1")).hp == 0
     assert g.combat is None
     assert any(isinstance(e, PlayerDied) for e in events)

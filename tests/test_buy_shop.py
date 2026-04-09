@@ -6,14 +6,14 @@ Covers:
 - chosen treasure removed from shop slot
 - treasure added to player treasure area
 - purchase flag set and prevents second buy
-- TreasureBought event emitted
+- ShopBought event emitted
 - no unrelated state mutates
 """
 from __future__ import annotations
 
 import pytest
 
-from foursouls.engine.events import TreasureBought
+from foursouls.engine.events import ShopBought
 from foursouls.engine.game_loop import Game
 from foursouls.engine.game_zones import GameZones
 from foursouls.engine.zones import DeckZone, DiscardZone, SlotsZone
@@ -148,13 +148,13 @@ def test_buy_illegal_command_raises_before_any_mutation():
 # Event emission
 # ---------------------------------------------------------------------------
 
-def test_buy_emits_treasure_bought_event():
+def test_buy_emits_shop_bought_event():
     card = _card("t0")
     g = _game_in_action(shop_cards=[card, _card("t1"), _card("t2")])
 
-    events = g.step(BuyShop(slot_index=0))
+    events = g.step(BuyShop(slot_index=0)).events
 
-    bought = [e for e in events if isinstance(e, TreasureBought)]
+    bought = [e for e in events if isinstance(e, ShopBought)]
     assert len(bought) == 1
     assert bought[0].player_id == PlayerId("P1")
     assert bought[0].card_ref == card

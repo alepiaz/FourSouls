@@ -85,7 +85,7 @@ def test_end_turn_step_emits_milestone_events():
     while g.state.phase != Phase.ACTION:
         g.step(choose_command(g))
 
-    events = g.step(choose_command(g))  # EndTurn step
+    events = g.step(choose_command(g)).events  # EndTurn step
 
     names = [e.name for e in events]
 

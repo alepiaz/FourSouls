@@ -142,14 +142,14 @@ def test_attack_illegal_combat_active_even_if_attack_not_consumed():
 
 def test_combat_entered_event_emitted():
     g = _game()
-    events = g.step(AttackMonster(slot_index=0))
+    events = g.step(AttackMonster(slot_index=0)).events
     combat_events = [e for e in events if isinstance(e, CombatEntered)]
     assert len(combat_events) == 1
 
 
 def test_combat_entered_event_has_correct_fields():
     g = _game()
-    events = g.step(AttackMonster(slot_index=0))
+    events = g.step(AttackMonster(slot_index=0)).events
     ev = next(e for e in events if isinstance(e, CombatEntered))
     assert ev.attacker_id == PlayerId("P1")
     assert ev.defender_slot == 0

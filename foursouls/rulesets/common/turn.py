@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from foursouls.engine.events import ActivePlayerChanged, PhaseChanged, TurnEnded
+from foursouls.engine.events import ActivePlayerChanged, PhaseChanged, TurnEnded, TurnStarted
 from foursouls.model.phase import Phase
 from foursouls.rulesets.common.effects import DrawLoot1Effect
 
@@ -15,6 +15,7 @@ def enter_start_phase(game: Game) -> None:
     Transition into START phase for the current active player:
       - set phase = START
       - untap the active player's character (recharge)
+      - emit TurnStarted
       - push Loot1 (draw 1 loot) onto the stack
 
     Requires game.zones to be initialised.
@@ -23,12 +24,21 @@ def enter_start_phase(game: Game) -> None:
     game.state.phase = Phase.START
     active_id = game.state.active_player_id
 
+    game.log.append(TurnStarted(
+        turn_number=game.state.turn_number,
+        player_id=active_id,
+    ))
+
     # Recharge: untap character at the start of the active player's turn
     character = game.state.get_player(active_id).character
     if character is not None:
         character.untap()
 
-    effect = DrawLoot1Effect(player_id=active_id, loot_deck=game.zones.loot_deck)
+    effect = DrawLoot1Effect(
+        player_id=active_id,
+        loot_deck=game.zones.loot_deck,
+        log=game.log,
+    )
     game.push_to_stack(
         controller_id=active_id,
         source="turn:start_phase",
@@ -67,8 +77,16 @@ def on_end_turn(game: Game) -> None:
     old_turn_number = state.turn_number
     active = state.get_player(old_active_id)
 
-    # Heal to full
-    active.hp = active.max_hp
+    # All players (including dead) heal to full at end of every turn
+    for player in state.players.values():
+        player.hp = player.max_hp
+
+    # All monsters in slots also heal to full at end of every turn
+    if game.zones is not None:
+        for idx in game.zones.monster_slots.filled_indices():
+            monster = game.zones.monster_slots.get(idx)
+            if monster is not None:
+                monster.current_hp = monster.base_hp
 
     # Discard down to 10
     if len(active.hand) > 10:

@@ -137,7 +137,7 @@ def test_roll_combat_illegal_after_monster_death():
 
 def test_monster_died_event_emitted():
     g = _game()
-    events = g.step(RollCombat())
+    events = g.step(RollCombat()).events
     death_events = [e for e in events if isinstance(e, MonsterDied)]
     assert len(death_events) == 1
 
@@ -145,7 +145,7 @@ def test_monster_died_event_emitted():
 def test_monster_died_event_fields():
     m = _monster("m-evt")
     g = _game(monsters=[m])
-    events = g.step(RollCombat())
+    events = g.step(RollCombat()).events
     ev = next(e for e in events if isinstance(e, MonsterDied))
     assert ev.attacker_id == PlayerId("P1")
     assert ev.slot_index == 0
@@ -154,7 +154,7 @@ def test_monster_died_event_fields():
 
 def test_no_monster_died_event_on_surviving_monster():
     g = _game(monsters=[_monster("m-0", hp=3, evade=1)])
-    events = g.step(RollCombat())    # hp 3 → 2, still alive
+    events = g.step(RollCombat()).events    # hp 3 → 2, still alive
     assert not any(isinstance(e, MonsterDied) for e in events)
 
 

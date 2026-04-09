@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Optional
 
 from foursouls.engine.zones import DeckZone, DiscardZone
 from foursouls.model.effects import Effect
 from foursouls.model.game_state import GameState
 from foursouls.model.refs import CardRef, PlayerId
+
+if TYPE_CHECKING:
+    from foursouls.engine.log import EventLog
 
 
 @dataclass(slots=True)
@@ -13,14 +17,23 @@ class DrawLoot1Effect:
     """Draw 1 card from the loot deck into the target player's hand."""
 
     player_id: PlayerId
-    loot_deck: DeckZone  # mutable reference; mutated on apply
+    loot_deck: DeckZone   # mutable reference; mutated on apply
+    log: Optional[EventLog] = field(default=None)
 
     def validate(self, ctx: GameState) -> bool:
         return not self.loot_deck.empty()
 
     def apply(self, ctx: GameState) -> None:
+        from foursouls.engine.events import CardDrawn
         drawn = self.loot_deck.draw(1)
         ctx.get_player(self.player_id).hand.extend(drawn)
+        if self.log is not None:
+            for card_ref in drawn:
+                self.log.append(CardDrawn(
+                    player_id=self.player_id,
+                    card_ref=card_ref,
+                    source="loot_deck",
+                ))
 
 
 @dataclass(slots=True)
@@ -65,13 +78,24 @@ class PlayLootEffect:
     card_ref: CardRef
     inner: Effect
     loot_discard: DiscardZone
+    player_id: Optional[PlayerId] = field(default=None)
+    log: Optional[EventLog] = field(default=None)
 
     def validate(self, ctx: GameState) -> bool:
         return self.inner.validate(ctx)
 
     def apply(self, ctx: GameState) -> None:
+        from foursouls.engine.events import CardDiscarded
         self.inner.apply(ctx)
         self.loot_discard.add(self.card_ref)
+        if self.log is not None and self.player_id is not None:
+            card_name = str(self.card_ref.card_id or "unknown")
+            self.log.append(CardDiscarded(
+                player_id=self.player_id,
+                card_id=self.card_ref.card_id,
+                card_name=card_name,
+                zone="loot_discard",
+            ))
 
 
 @dataclass(slots=True)

@@ -19,11 +19,11 @@ def test_pass_pass_resolves_one_item():
 
     g.push_to_stack(controller_id=PlayerId("P1"), source="test", effect=AppendMarkerEffect("A"), label="A")
 
-    e1 = g.step(PassPriority())
+    e1 = g.step(PassPriority()).events
     assert any(isinstance(e, PriorityPassed) for e in e1)
     assert g.state.debug_markers == []
 
-    e2 = g.step(PassPriority())
+    e2 = g.step(PassPriority()).events
     assert any(isinstance(e, StackItemResolved) for e in e2)
     assert g.state.debug_markers == ["A"]
 
@@ -51,7 +51,7 @@ def test_effect_fizzles_emits_event():
     g.push_to_stack(controller_id=PlayerId("P1"), source="test", effect=AlwaysFizzleEffect(), label="F")
 
     g.step(PassPriority())
-    events = g.step(PassPriority())
+    events = g.step(PassPriority()).events
 
     assert any(isinstance(e, EffectFizzled) for e in events)
     assert g.state.debug_markers == []
@@ -61,6 +61,6 @@ def test_all_players_passed_emitted_when_stack_empty():
     g = _game_two_players_active_p1()
 
     g.step(PassPriority())
-    events = g.step(PassPriority())
+    events = g.step(PassPriority()).events
 
     assert any(isinstance(e, AllPlayersPassed) for e in events)

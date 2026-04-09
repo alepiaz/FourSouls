@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from foursouls.engine.events import TreasureBought
+from foursouls.engine.events import CoinsSpent, ShopBought
 from foursouls.rulesets.common.legality import TREASURE_COST
 
 if TYPE_CHECKING:
@@ -17,7 +17,7 @@ def on_buy_shop(game: Game, slot_index: int) -> None:
       3. Move the card to the active player's treasure area.
       4. Mark purchase as used for this turn.
       5. Refill the emptied slot from the treasure deck (if non-empty).
-      6. Emit TreasureBought.
+      6. Emit CoinsSpent then ShopBought.
 
     This is an immediate action — no stack push, no priority window.
     """
@@ -37,9 +37,17 @@ def on_buy_shop(game: Game, slot_index: int) -> None:
     if not game.zones.treasure_deck.empty():
         game.zones.shop_slots.set(slot_index, game.zones.treasure_deck.draw(1)[0])
 
-    game.log.append(TreasureBought(
+    item_name = str(card_ref.card_id or "unknown")
+
+    game.log.append(CoinsSpent(
+        player_id=active_id,
+        amount=TREASURE_COST,
+        reason="shop_buy",
+    ))
+    game.log.append(ShopBought(
         player_id=active_id,
         card_ref=card_ref,
+        item_name=item_name,
         slot_index=slot_index,
         cost=TREASURE_COST,
     ))

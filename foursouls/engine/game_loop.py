@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from foursouls.engine.events import (
     AllPlayersPassed,
     EffectFizzled,
     Event,
+    ItemActivated,
     PriorityPassed,
     StackItemPushed,
     StackItemResolved,
@@ -29,12 +30,25 @@ from foursouls.rulesets.common.turn import on_all_passed_empty_stack, on_end_tur
 
 
 @dataclass(slots=True)
+class StepResult:
+    """
+    The value returned by Game.step().
+
+    Carries the list of events emitted during that command.  The extra
+    wrapper leaves room to add warnings, illegal-reason metadata, or
+    timing info without changing the call-site signature later.
+    """
+    events: List[Event]
+
+
+@dataclass(slots=True)
 class Game:
     state: GameState
     ruleset: BaseRuleset = field(default_factory=BaseRuleset)
 
     zones: Optional[GameZones] = None
     combat: Optional[CombatState] = None
+    game_over: bool = False
     rng: RNG = field(default_factory=RNG)
     stack: Stack = field(default_factory=Stack)
     priority: PriorityManager = field(init=False)
@@ -47,12 +61,17 @@ class Game:
     def legal_commands(self) -> list[Command]:
         return self.ruleset.legal_commands(self)
 
+    def get_legal_actions(self) -> list:
+        """Return legal actions enriched with display context. See engine.actions."""
+        from foursouls.engine.actions import get_legal_actions
+        return get_legal_actions(self)
+
     def push_to_stack(self, *, controller_id, source: Any, effect: Effect, label: str = "") -> StackItem:
         item = self.stack.push(controller_id=controller_id, source=source, effect=effect, label=label)
         self.log.append(StackItemPushed(stack_id=item.stack_id, controller_id=item.controller_id, label=item.label))
         return item
 
-    def step(self, command: Command) -> list[Event]:
+    def step(self, command: Command) -> StepResult:
         """
         Apply one command and perform any automatic resolution (on all-pass).
 
@@ -84,6 +103,10 @@ class Game:
                         self.log.append(EffectFizzled(stack_id=item.stack_id, reason="validate_failed", label=item.label))
 
                     self.priority.reset_to(self.state.active_player_id)
+                    # After resolution, if the stack is now empty auto-advance
+                    # phase so START does not require a second empty-stack pass.
+                    if self.stack.empty():
+                        on_all_passed_empty_stack(self)
                 else:
                     self.log.append(AllPlayersPassed())
                     on_all_passed_empty_stack(self)
@@ -98,6 +121,7 @@ class Game:
         elif isinstance(command, ActivateCharacterAbility):
             active_id = self.state.active_player_id
             self.state.get_player(active_id).character.tap()  # pay cost
+            self.log.append(ItemActivated(player_id=active_id, source="character:tap_ability"))
             effect = GrantExtraLootPlayEffect(player_id=active_id)
             self.push_to_stack(
                 controller_id=active_id,
@@ -119,4 +143,4 @@ class Game:
         else:
             raise NotImplementedError(f"Unsupported command: {command}")
 
-        return list(self.log.events)
+        return StepResult(events=list(self.log.events))

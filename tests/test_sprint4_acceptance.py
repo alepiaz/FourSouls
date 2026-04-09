@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import agents.combat_bot as combat_bot
 from agents.pass_bot import choose_command as pass_command
-from foursouls.engine.events import MonsterDied, PlayerDied, RewardGranted, SoulGranted
+from foursouls.engine.events import CoinsGained, MonsterDied, PlayerDied, SoulGranted
 from foursouls.engine.rng import RNG
 from foursouls.model.commands import AttackMonster, EndTurn, RollCombat
 from foursouls.model.game_state import GameState
@@ -113,7 +113,7 @@ def _drive_p1_turn(g, *, max_steps: int = 30) -> list:
     for _ in range(max_steps):
         if g.state.turn_number != turn_before:
             break
-        all_events.extend(g.step(combat_bot.choose_command(g)))
+        all_events.extend(g.step(combat_bot.choose_command(g)).events)
     else:
         raise AssertionError("combat_bot did not finish P1's turn within step limit")
     return all_events
@@ -212,7 +212,7 @@ def test_win_reward_granted_event_in_log():
 
     events = _drive_p1_turn(g)
 
-    reward_evts = [e for e in events if isinstance(e, RewardGranted)]
+    reward_evts = [e for e in events if isinstance(e, CoinsGained)]
     assert len(reward_evts) == 1
     assert reward_evts[0].cents == 5
 
@@ -303,7 +303,7 @@ def test_death_no_reward_on_player_death():
 
     events = _drive_p1_turn(g)
 
-    assert not any(isinstance(e, RewardGranted) for e in events)
+    assert not any(isinstance(e, CoinsGained) for e in events)
     assert p1.cents == cents_before
 
 
@@ -433,7 +433,7 @@ def test_sprint4_integration_full_win_flow():
 
     # Events fired exactly once each
     assert len([e for e in p1_events if isinstance(e, MonsterDied)]) == 1
-    assert len([e for e in p1_events if isinstance(e, RewardGranted)]) == 1
+    assert len([e for e in p1_events if isinstance(e, CoinsGained)]) == 1
     assert len([e for e in p1_events if isinstance(e, SoulGranted)]) == 1
 
     # Turn advanced
@@ -476,8 +476,8 @@ def test_sprint4_integration_full_death_flow():
 
     # Drive only the combat (attack + one roll); stop before EndTurn.
     combat_events: list = []
-    combat_events.extend(g.step(AttackMonster(slot_index=0)))
-    combat_events.extend(g.step(RollCombat()))   # hp 1 → 0; player dies
+    combat_events.extend(g.step(AttackMonster(slot_index=0)).events)
+    combat_events.extend(g.step(RollCombat()).events)   # hp 1 → 0; player dies
 
     # Player died; combat cleared — checked before EndTurn heals.
     assert g.combat is None
@@ -488,7 +488,7 @@ def test_sprint4_integration_full_death_flow():
     assert m.current_hp == 5
 
     # No rewards
-    assert not any(isinstance(e, RewardGranted) for e in combat_events)
+    assert not any(isinstance(e, CoinsGained) for e in combat_events)
     assert not any(isinstance(e, SoulGranted) for e in combat_events)
     assert g.state.get_player(PlayerId("P1")).cents == p1_cents_before
     assert g.state.get_player(PlayerId("P1")).souls == []

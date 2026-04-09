@@ -3,11 +3,22 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from foursouls.cards.monsters import make_monster_in_play
-from foursouls.engine.events import CombatEntered, CombatRollResult, MonsterDied, PlayerDied, RewardGranted, SoulGranted
+from foursouls.engine.events import (
+    CoinsGained,
+    CombatEntered,
+    CombatRollResult,
+    DamageDealt,
+    GameWon,
+    MonsterDied,
+    PlayerDied,
+    SoulGranted,
+)
 from foursouls.model.combat_state import CombatState
 
 if TYPE_CHECKING:
     from foursouls.engine.game_loop import Game
+
+SOULS_TO_WIN = 4
 
 
 def enter_combat(game: Game, slot_index: int) -> None:
@@ -39,7 +50,15 @@ def enter_combat(game: Game, slot_index: int) -> None:
         monster_ref=monster.card_ref,
     )
 
-    game.log.append(CombatEntered(attacker_id=attacker_id, defender_slot=slot_index))
+    monster_name = str(monster.card_ref.card_id or "unknown")
+    game.log.append(CombatEntered(
+        attacker_id=attacker_id,
+        defender_slot=slot_index,
+        monster_id=monster.card_ref.card_id,
+        monster_name=monster_name,
+        monster_hp=monster.current_hp,
+        monster_evade=monster.evade,
+    ))
     game.priority.reset_to(attacker_id)
 
 
@@ -49,8 +68,8 @@ def resolve_roll(game: Game) -> None:
     - Roll d6.
     - Hit (roll >= monster.evade): monster takes 1 damage.
     - Miss (roll < monster.evade): attacker takes 1 damage.
-    - Log CombatRollResult.
-    - Combat remains active; death detection is Release 4.4.
+    - Log CombatRollResult and DamageDealt.
+    - Check for death.
     """
     assert game.combat is not None and game.combat.is_active
     assert game.zones is not None
@@ -64,9 +83,25 @@ def resolve_roll(game: Game) -> None:
 
     if is_hit:
         monster.take_damage(1)
+        game.log.append(DamageDealt(
+            source_player_id=combat.attacker_id,
+            source_monster_slot=None,
+            target_player_id=None,
+            target_monster_slot=combat.defender_slot,
+            amount=1,
+            reason="combat_hit",
+        ))
     else:
         attacker = game.state.get_player(combat.attacker_id)
         attacker.hp = max(0, attacker.hp - 1)
+        game.log.append(DamageDealt(
+            source_player_id=None,
+            source_monster_slot=combat.defender_slot,
+            target_player_id=combat.attacker_id,
+            target_monster_slot=None,
+            amount=1,
+            reason="combat_miss",
+        ))
 
     game.log.append(CombatRollResult(
         attacker_id=combat.attacker_id,
@@ -92,11 +127,12 @@ def resolve_monster_death(game: Game) -> None:
     - Clear the slot.
     - Refill the slot from the monster deck (make_monster_in_play on the drawn ref).
     - If the deck is empty, leave the slot empty.
-    - Grant cent reward to attacker and log RewardGranted (always fired, even if 0).
+    - Grant cent reward to attacker and log CoinsGained (always fired, even if 0).
     - Grant soul to attacker and log SoulGranted if monster has_soul.
     - End combat (game.combat = None).
     - Log MonsterDied.
     - Reset priority to the attacker.
+    - Check for game win and emit GameWon if threshold reached.
     """
     assert game.combat is not None
     assert game.zones is not None
@@ -105,6 +141,8 @@ def resolve_monster_death(game: Game) -> None:
     slot_index = combat.defender_slot
     dead_monster = game.zones.monster_slots.get(slot_index)
     assert dead_monster is not None
+
+    monster_name = str(dead_monster.card_ref.card_id or "unknown")
 
     # Discard card, clear slot
     game.zones.monster_discard.add(dead_monster.card_ref)
@@ -122,19 +160,37 @@ def resolve_monster_death(game: Game) -> None:
         attacker_id=attacker_id,
         slot_index=slot_index,
         card_ref=dead_monster.card_ref,
+        monster_name=monster_name,
+        reward_cents=dead_monster.reward_cents,
+        had_soul=dead_monster.has_soul,
     ))
 
     # Grant cent reward (always, even if 0 — keeps the path uniform).
     attacker.cents += dead_monster.reward_cents
-    game.log.append(RewardGranted(player_id=attacker_id, cents=dead_monster.reward_cents))
+    game.log.append(CoinsGained(
+        player_id=attacker_id,
+        cents=dead_monster.reward_cents,
+        reason="monster_kill",
+    ))
 
     # Grant soul if the monster carries one.
     if dead_monster.has_soul:
         attacker.souls.append(dead_monster.card_ref)
-        game.log.append(SoulGranted(player_id=attacker_id, card_ref=dead_monster.card_ref))
+        game.log.append(SoulGranted(
+            player_id=attacker_id,
+            card_ref=dead_monster.card_ref,
+            card_name=monster_name,
+        ))
 
     game.combat = None
     game.priority.reset_to(attacker_id)
+
+    # Check win condition
+    if len(attacker.souls) >= SOULS_TO_WIN:
+        game.log.append(GameWon(
+            player_id=attacker_id,
+            soul_count=len(attacker.souls),
+        ))
 
 
 def resolve_player_death(game: Game) -> None:
@@ -149,11 +205,19 @@ def resolve_player_death(game: Game) -> None:
     - Full death-penalty ecosystem (item loss, re-spawn, etc.) is out of scope.
     """
     assert game.combat is not None
+    assert game.zones is not None
 
     combat = game.combat
     attacker_id = combat.attacker_id
     slot_index = combat.defender_slot
 
-    game.log.append(PlayerDied(player_id=attacker_id, slot_index=slot_index))
+    monster = game.zones.monster_slots.get(slot_index)
+    monster_name = str(monster.card_ref.card_id or "unknown") if monster is not None else "unknown"
+
+    game.log.append(PlayerDied(
+        player_id=attacker_id,
+        slot_index=slot_index,
+        monster_name=monster_name,
+    ))
     game.combat = None
     game.priority.reset_to(attacker_id)

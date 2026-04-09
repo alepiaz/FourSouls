@@ -99,7 +99,7 @@ class TestResponseWindow:
 
         g.step(PlayLoot(card_ref=coin))
         g.step(PassPriority())  # P1
-        events = g.step(PassPriority())  # P2 → all passed → resolves
+        events = g.step(PassPriority()).events  # P2 → all passed → resolves
 
         assert g.stack.empty()
         assert p1.cents == 1
@@ -169,7 +169,7 @@ class TestFizzle:
 
         self._push_fizzling_loot(g, coin)
         g.step(PassPriority())
-        events = g.step(PassPriority())
+        events = g.step(PassPriority()).events
 
         assert any(isinstance(e, EffectFizzled) for e in events)
 

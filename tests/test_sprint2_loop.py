@@ -178,7 +178,7 @@ def test_loot_effect_can_fizzle_if_target_invalid():
     g.priority.reset_to(PlayerId("P1"))
 
     g.step(PassPriority())
-    events = g.step(PassPriority())
+    events = g.step(PassPriority()).events
 
     assert any(isinstance(e, EffectFizzled) for e in events)
     assert len(g.zones.loot_discard.cards) == 0  # card in limbo, not discarded
