@@ -15,8 +15,8 @@ Sprints 0–5 are complete. Sprints 6–15 are planned. Sprints 16+ are sketched
 | 3 | Shop | ✅ done |
 | 4 | Combat — attack, roll, death, rewards, souls | ✅ done |
 | 5 | CLI + legal actions API + event enrichment | ✅ done |
-| 6 | Win condition & game termination | 🔄 in progress |
-| 7 | Correct player death penalty | 📋 planned |
+| 6 | Win condition & game termination | ✅ done |
+| 7 | Correct player death penalty | ✅ done |
 | 8 | ATK stat & correct combat damage | 📋 planned |
 | 9 | Event cards in monster deck | 📋 planned |
 | 10 | Loot card diversity + targeting system | 📋 planned |
@@ -58,7 +58,7 @@ Priority manager, pass cycles, AllPlayersPassed detection, stack infrastructure.
 - R6.1 — Healing timing: all players **and all monsters** heal to full at end of every turn ✅
 - R6.2 — `game_over` flag on `Game`; `legal_commands()` short-circuits when set
 - R6.3 — `game_over = True` triggered by soul win condition in `resolve_monster_death`
-- R6.4 — CLI exit on `game_over`; `test_sprint6_acceptance.py`
+- R6.4 — CLI exit on `game_over`; `test_sprint6_acceptance.py` ✅
 
 **Key files:** `foursouls/engine/game_loop.py`, `foursouls/rulesets/common/combat.py`, `foursouls/rulesets/common/legality.py`, `foursouls/cli/app.py`
 
@@ -78,10 +78,10 @@ Priority manager, pass cycles, AllPlayersPassed detection, stack infrastructure.
 - Active player: cleanup (stack must empty) → end phase
 
 **Releases:**
-- R7.1 — `eternal: bool` flag on `ItemInPlay`; starting items are eternal; legality guards in death penalty
-- R7.2 — Death penalty applied in `resolve_player_death`; new `DeathPenaltyPaid` event
-- R7.3 — Active-player death: cancel combat → drain stack → advance to end phase
-- R7.4 — `died_this_turn` guard on `TurnFlags` (a player can only die once per turn); acceptance test
+- R7.1 — `eternal: bool` flag on `ItemInPlay`; starting items are eternal; legality guards in death penalty ✅
+- R7.2 — Death penalty applied in `resolve_player_death`; new `DeathPenaltyPaid` event ✅
+- R7.3 — Active-player death: cancel combat → drain stack → advance to end phase ✅
+- R7.4 — `died_this_turn` guard on `TurnFlags` (a player can only die once per turn); acceptance test ✅
 
 **Key files:** `foursouls/rulesets/common/combat.py`, `foursouls/model/item_in_play.py`, `foursouls/model/phase.py`
 

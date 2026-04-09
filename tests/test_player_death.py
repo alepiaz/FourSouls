@@ -175,10 +175,11 @@ def test_end_turn_legal_after_player_death():
     assert EndTurn() in legal_commands(g)
 
 
-def test_phase_unchanged_after_player_death():
+def test_phase_is_end_after_active_player_death():
+    # R7.3: active-player death advances phase from ACTION to END.
     g = _game(player_hp=1)
     g.step(RollCombat())
-    assert g.state.phase == Phase.ACTION
+    assert g.state.phase == Phase.END
 
 
 def test_priority_on_attacker_after_player_death():

@@ -2,6 +2,156 @@
 
 ---
 
+## Sprint 7 — Correct Player Death Penalty
+
+### 1) Sprint / commit context
+
+**Sprint:** Sprint 7  
+**What's done vs partial:**
+
+Done:
+- R7.1 — `eternal: bool = False` on `ItemInPlay`; character items in `build_demo_game` created with `eternal=True`
+- R7.2 — Four-step death penalty in `resolve_player_death`: destroy 1 non-eternal item, discard 1 loot, lose 1¢, untap all ↷ items; new `DeathPenaltyPaid` event
+- R7.3 — Active-player death advances phase ACTION → END; `EndTurn` legal in END phase; all offensive actions remain ACTION-only; `PhaseChanged(END→START)` on EndTurn
+- R7.4 — `died_this_turn: bool` on `TurnFlags`; set on death, cleared on new turn; guards against double-death trigger in same turn
+
+Partial / skipped:
+- Death penalty destroys first item (not player-chosen); full targeting deferred to Sprint 10
+- Untap loop covers character only; treasure `ItemInPlay` wrappers not yet in place (Sprint 11)
+
+---
+
+### 2) Files changed
+
+**New files**
+
+- `tests/test_r71_eternal.py` — 5 tests: `eternal` default, setting True, tap orthogonality, `build_demo_game` characters eternal, freely constructed item not eternal
+- `tests/test_r72_death_penalty.py` — 13 tests: event ordering, all four steps (happy path + edge cases), eternal character excluded from destroy pool, full four-step path
+- `tests/test_r73_active_death_end_phase.py` — 14 tests: END phase after death, `PhaseChanged(ACTION→END)`, legality in END, EndTurn from END advances turn, full bot flow
+- `tests/test_r74_died_this_turn.py` — 7 tests: default False, set on death, one-event guarantees, guard suppresses second trigger, reset on new turn, sprint-7 acceptance lifecycle
+
+**Modified files**
+
+- `foursouls/model/item_in_play.py` — `eternal: bool = False` added
+- `foursouls/model/phase.py` — `died_this_turn: bool = False` on `TurnFlags`; cleared in `reset()`
+- `foursouls/engine/events.py` — `DeathPenaltyPaid(player_id, item_destroyed, loot_discarded, cents_lost, items_deactivated)` added
+- `foursouls/rulesets/common/combat.py` — `resolve_player_death`: full penalty, `died_this_turn=True`, active-player stack drain + END phase; `resolve_roll`: guard on `died_this_turn`
+- `foursouls/rulesets/common/legality.py` — `EndTurn` legal in `Phase.ACTION` or `Phase.END`
+- `foursouls/rulesets/common/turn.py` — capture `old_phase` before reset for accurate `PhaseChanged`
+- `foursouls/cli/app.py` — character `ItemInPlay` constructed with `eternal=True`
+- `tests/test_player_death.py` — phase-after-death assertion updated to `Phase.END`
+- `tests/test_legality.py` — `test_end_turn_illegal_outside_action_phase` split into START (illegal) and END (legal) tests
+
+---
+
+### 3) Public API changes
+
+```python
+# New field on ItemInPlay:
+ItemInPlay(card_ref, is_tapped=False, eternal=False)
+
+# New field on TurnFlags:
+turn_flags.died_this_turn: bool
+
+# New event:
+DeathPenaltyPaid(player_id, item_destroyed, loot_discarded, cents_lost, items_deactivated)
+
+# Phase after active-player death:
+game.state.phase == Phase.END   # EndTurn is now legal here
+```
+
+---
+
+### 4) Behavioral rules implemented
+
+- **Four-step death penalty** applied automatically in `resolve_player_death` (destroy item → discard loot → lose 1¢ → untap ↷ items). Each step degrades gracefully when there is nothing to consume.
+- **Active-player death → END phase:** stack drained, `PhaseChanged(ACTION, END)` emitted, `phase = END`. Only `PassPriority` and `EndTurn` are legal. `EndTurn` from END advances the turn normally.
+- **One death per turn:** `died_this_turn` flag prevents `resolve_player_death` from firing twice in one turn. Cleared by `TurnFlags.reset()` at turn boundary.
+
+---
+
+### 5) Critical decisions
+
+| Decision | Choice | Why |
+|---|---|---|
+| `eternal` on `ItemInPlay` instance | Not on `CardRef` | Same card may be eternal as a starting item but not if obtained later |
+| Only `player.items` in destroy pool | Never touch `player.character` | Character is always eternal; cleaner than checking the flag at destroy time |
+| Explicit END phase (not auto-EndTurn) | Preserve explicit call site | Leaves room for future on-death triggers before the turn ends |
+| `died_this_turn` on `TurnFlags` | Turn-scoped, not player-scoped | `TurnFlags.reset()` already handles all turn-boundary cleanup |
+
+---
+
+### 6) Tests
+
+39 tests added (4 new files); 2 existing tests updated. Full suite: 392 passed.
+
+---
+
+### 7) Problems / open questions
+
+- Death penalty item choice is deterministic (first in list), not player-chosen. Targeting deferred to Sprint 10.
+- Untap loop covers character only; Sprint 11 adds tap-able treasure items.
+- `AttackDeclared` still dead code; treasure items still inert; character HP not differentiated (all carried from Sprint 5).
+
+---
+
+## Sprint 6 — Win Condition & Game Termination
+
+### 1) Sprint / commit context
+
+**Sprint:** Sprint 6  
+**What's done vs partial:**
+
+Done:
+- R6.1 — Heal timing confirmed: all players and all monsters heal to full at end of every turn
+- R6.2 — `game_over: bool = False` on `Game`; `legal_commands()` → `[]`; `step()` → `ValueError`; `get_legal_actions()` → `[]`
+- R6.3 — `game_over = True` triggered in `resolve_monster_death` when soul count ≥ 4; `GameWon` emitted
+- R6.4 — CLI loop guard `while winner is None and not game.game_over`; `test_sprint6_acceptance.py`
+
+Partial / skipped: nothing; all R6 releases complete.
+
+---
+
+### 2) Files changed
+
+**New files**
+
+- `tests/test_game_over.py` — 6 tests: `legal_commands/get_legal_actions == []` when `game_over`, `step()` raises `ValueError`, 4th soul kill sets flag, non-winning kill does not, non-soul kill does not
+- `tests/test_sprint6_acceptance.py` — `combat_bot` pre-loaded with 3 souls kills guaranteed soul monster → `game_over=True`, `get_legal_actions()==[]`, one `GameWon` event
+
+**Modified files**
+
+- `foursouls/engine/game_loop.py` — `game_over: bool = False`; short-circuit in `legal_commands()`; guard in `step()`
+- `foursouls/rulesets/common/combat.py` — `GameWon` + `game.game_over = True` in `resolve_monster_death`
+- `foursouls/cli/app.py` — loop condition adds `and not game.game_over`
+
+---
+
+### 3) Public API changes
+
+```python
+game.game_over: bool           # False until win condition met
+game.legal_commands()          # → [] when game_over
+game.get_legal_actions()       # → [] when game_over
+game.step(cmd)                 # → raises ValueError when game_over
+GameWon(player_id, soul_count) # emitted on win
+```
+
+---
+
+### 4) Behavioral rules implemented
+
+- **Game-over lock:** `game_over=True` → no further commands. `step()` raises `ValueError`; CLI loop exits.
+- **Win condition:** `resolve_monster_death` checks `len(attacker.souls) >= SOULS_TO_WIN` (4). `GameWon` emitted before `game_over` is set.
+
+---
+
+### 5) Tests
+
+7 tests added (2 new files). Full suite at end of sprint: 353 passed.
+
+---
+
 ## Sprint 5 — CLI + Event Enrichment + Win Condition
 
 ### 1) Sprint / commit context
@@ -159,6 +309,8 @@ Board displays turn/phase/priority, all players (HP/coins/souls/hand/character),
 
 ## Older sprints
 
+- [Sprint 6](changelogs/sprint6.md) — Win Condition & Game Termination
+- [Sprint 5](changelogs/sprint5.md) — CLI + Event Enrichment + Win Condition
 - [Sprint 4](changelogs/sprint4.md) — Combat
 - [Sprint 3](changelogs/sprint3.md) — Shop
 - [Sprint 2](changelogs/sprint2.md) — Loot Play + Character Abilities

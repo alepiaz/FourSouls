@@ -22,14 +22,19 @@ def legal_commands(game: Game) -> List[Command]:
     - ActivateCharacterAbility: legal when phase is ACTION, stack is empty,
         and the active player's character exists and is not tapped.
     """
+    if game.game_over:
+        return []
+
     state = game.state
     stack = game.stack
 
     cmds: List[Command] = [PassPriority()]
 
-    if state.phase == Phase.ACTION and stack.empty():
+    # EndTurn is legal in ACTION (normal) or END (after active-player death)
+    if state.phase in (Phase.ACTION, Phase.END) and stack.empty():
         cmds.append(EndTurn())
 
+    if state.phase == Phase.ACTION and stack.empty():
         active = state.get_player(state.active_player_id)
         flags = state.turn_flags
 

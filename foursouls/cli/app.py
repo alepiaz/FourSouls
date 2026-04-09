@@ -108,7 +108,7 @@ def build_demo_game(
     for i, pid in enumerate(player_ids):
         p = PlayerState(player_id=PlayerId(pid), max_hp=4, hp=4)
         char_card_id = _CHAR_POOL[i % len(_CHAR_POOL)]
-        p.character = ItemInPlay(card_ref=CardRef(InstanceId(f"char-{i}"), char_card_id))
+        p.character = ItemInPlay(card_ref=CardRef(InstanceId(f"char-{i}"), char_card_id), eternal=True)
         players.append(p)
     state = GameState.from_players(players)
 
@@ -152,7 +152,7 @@ def run(game: Optional[Game] = None) -> None:
 
     winner: Optional[str] = None
 
-    while winner is None:
+    while winner is None and not game.game_over:
         actions = game.get_legal_actions()
         display_board(game, actions)
 

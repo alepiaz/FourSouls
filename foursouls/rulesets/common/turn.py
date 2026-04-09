@@ -96,10 +96,11 @@ def on_end_turn(game: Game) -> None:
 
     # Advance turn
     next_id = state.next_player_id(old_active_id)
+    old_phase = state.phase  # capture before reset_for_new_turn overwrites it
     state.reset_for_new_turn(next_id)  # sets phase=START, increments turn_number, resets flags
 
     game.log.append(ActivePlayerChanged(old_player_id=old_active_id, new_player_id=next_id))
-    game.log.append(PhaseChanged(old_phase=Phase.ACTION, new_phase=Phase.START))
+    game.log.append(PhaseChanged(old_phase=old_phase, new_phase=Phase.START))
 
     # Re-sync priority to new active player (reset_for_new_turn does not touch priority)
     game.priority.reset_to(next_id)

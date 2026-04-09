@@ -40,10 +40,16 @@ def test_end_turn_illegal_when_stack_not_empty():
     assert not any(isinstance(c, EndTurn) for c in cmds)
 
 
-def test_end_turn_illegal_outside_action_phase():
-    for phase in (Phase.START, Phase.END):
-        cmds = legal_commands(_game(phase))
-        assert not any(isinstance(c, EndTurn) for c in cmds), f"EndTurn should not be legal in {phase}"
+def test_end_turn_illegal_in_start_phase():
+    # START phase: Loot1 is resolving; EndTurn must not be legal.
+    cmds = legal_commands(_game(Phase.START))
+    assert not any(isinstance(c, EndTurn) for c in cmds)
+
+
+def test_end_turn_legal_in_end_phase():
+    # END phase: reached after active-player death (R7.3); EndTurn must be legal.
+    cmds = legal_commands(_game(Phase.END))
+    assert any(isinstance(c, EndTurn) for c in cmds)
 
 
 # ── PlayLoot legality ──────────────────────────────────────────────────────────

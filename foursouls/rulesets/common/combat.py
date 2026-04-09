@@ -8,11 +8,15 @@ from foursouls.engine.events import (
     CombatEntered,
     CombatRollResult,
     DamageDealt,
+    DeathPenaltyPaid,
+    EffectFizzled,
     GameWon,
     MonsterDied,
+    PhaseChanged,
     PlayerDied,
     SoulGranted,
 )
+from foursouls.model.phase import Phase
 from foursouls.model.combat_state import CombatState
 
 if TYPE_CHECKING:
@@ -113,7 +117,8 @@ def resolve_roll(game: Game) -> None:
 
     if not monster.is_alive():
         resolve_monster_death(game)
-    elif not is_hit and not game.state.get_player(combat.attacker_id).is_alive():
+    elif not is_hit and not game.state.get_player(combat.attacker_id).is_alive() \
+            and not game.state.turn_flags.died_this_turn:
         resolve_player_death(game)
     else:
         game.priority.reset_to(combat.attacker_id)
@@ -191,18 +196,24 @@ def resolve_monster_death(game: Game) -> None:
             player_id=attacker_id,
             soul_count=len(attacker.souls),
         ))
+        game.game_over = True
 
 
 def resolve_player_death(game: Game) -> None:
     """
     Clean up after the attacking player's hp reaches 0.
 
-    - End combat (game.combat = None); the monster survives in place.
     - Log PlayerDied.
+    - Apply the four-step death penalty:
+        1. Destroy 1 non-eternal item (first in player.items, if any).
+        2. Discard 1 loot card from hand (first in hand, if any).
+        3. Lose 1¢ (floor 0).
+        4. Deactivate (untap) all ↷ items.
+    - Log DeathPenaltyPaid.
+    - End combat (game.combat = None); the monster survives in place.
     - Reset priority to the (now dead) attacker so the turn can still end.
     - attack_used stays True: the attack was spent.
     - Turn continues; the player must issue EndTurn explicitly.
-    - Full death-penalty ecosystem (item loss, re-spawn, etc.) is out of scope.
     """
     assert game.combat is not None
     assert game.zones is not None
@@ -219,5 +230,53 @@ def resolve_player_death(game: Game) -> None:
         slot_index=slot_index,
         monster_name=monster_name,
     ))
+
+    player = game.state.get_player(attacker_id)
+
+    # 1. Destroy 1 non-eternal item (all CardRefs in player.items are non-eternal)
+    item_destroyed = None
+    if player.items:
+        item_destroyed = player.items.pop(0)
+        game.zones.treasure_discard.add(item_destroyed)
+
+    # 2. Discard 1 loot card from hand
+    loot_discarded = None
+    if player.hand:
+        loot_discarded = player.hand.pop(0)
+        game.zones.loot_discard.add(loot_discarded)
+
+    # 3. Lose 1¢
+    cents_lost = min(1, player.cents)
+    player.cents = max(0, player.cents - 1)
+
+    # 4. Deactivate (untap) all ↷ items
+    items_deactivated = 0
+    if player.character is not None and player.character.is_tapped:
+        player.character.untap()
+        items_deactivated += 1
+
+    game.log.append(DeathPenaltyPaid(
+        player_id=attacker_id,
+        item_destroyed=item_destroyed,
+        loot_discarded=loot_discarded,
+        cents_lost=cents_lost,
+        items_deactivated=items_deactivated,
+    ))
+
+    game.state.turn_flags.died_this_turn = True
     game.combat = None
+
+    # Active-player death: drain the stack then advance to END phase.
+    # (Stack is always empty here in the current model, but cleared defensively.)
+    if attacker_id == game.state.active_player_id:
+        while not game.stack.empty():
+            item = game.stack.pop()
+            game.log.append(EffectFizzled(
+                stack_id=item.stack_id,
+                reason="active_player_death",
+                label=item.label,
+            ))
+        game.log.append(PhaseChanged(old_phase=Phase.ACTION, new_phase=Phase.END))
+        game.state.phase = Phase.END
+
     game.priority.reset_to(attacker_id)

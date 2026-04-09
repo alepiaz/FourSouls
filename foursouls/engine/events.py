@@ -238,6 +238,26 @@ class SoulGranted(Event):
 
 
 # ---------------------------------------------------------------------------
+# Death penalty
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True, slots=True)
+class DeathPenaltyPaid(Event):
+    """
+    Fired immediately after PlayerDied, once the four-step penalty is applied:
+      1. Destroy one non-eternal item (item_destroyed=None if the player had none).
+      2. Discard one loot card from hand (loot_discarded=None if hand was empty).
+      3. Lose 1¢ (cents_lost=0 if the player was already broke).
+      4. Deactivate (untap) all ↷ items (items_deactivated is the count untapped).
+    """
+    player_id: PlayerId
+    item_destroyed: Optional[CardRef]   # None if no destroyable items available
+    loot_discarded: Optional[CardRef]   # None if hand was empty
+    cents_lost: int
+    items_deactivated: int
+
+
+# ---------------------------------------------------------------------------
 # Game end
 # ---------------------------------------------------------------------------
 
