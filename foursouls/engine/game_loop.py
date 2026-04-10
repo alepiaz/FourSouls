@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import Optional
 
 from foursouls.engine.events import (
     AllPlayersPassed,
     EffectFizzled,
     Event,
-    ItemActivated,
-    PriorityPassed,
     StackItemPushed,
     StackItemResolved,
+    PriorityPassed,
 )
 from foursouls.engine.game_zones import GameZones
 from foursouls.engine.log import EventLog
@@ -21,12 +20,12 @@ from foursouls.model.combat_state import CombatState
 from foursouls.model.commands import ActivateCharacterAbility, AttackMonster, BuyShop, Command, EndTurn, PassPriority, PlayLoot, RollCombat
 from foursouls.model.effects import Effect
 from foursouls.model.game_state import GameState
+from foursouls.model.refs import PlayerId
 from foursouls.rulesets.base_rules import BaseRuleset
 from foursouls.rulesets.common.combat import enter_combat, resolve_roll
-from foursouls.rulesets.common.effects import GrantExtraLootPlayEffect
 from foursouls.rulesets.common.loot import on_play_loot
 from foursouls.rulesets.common.shop import on_buy_shop
-from foursouls.rulesets.common.turn import on_all_passed_empty_stack, on_end_turn
+from foursouls.rulesets.common.turn import on_activate_character_ability, on_all_passed_empty_stack, on_end_turn
 
 
 @dataclass(slots=True)
@@ -34,11 +33,11 @@ class StepResult:
     """
     The value returned by Game.step().
 
-    Carries the list of events emitted during that command.  The extra
+    Carries the tuple of events emitted during that command.  The extra
     wrapper leaves room to add warnings, illegal-reason metadata, or
     timing info without changing the call-site signature later.
     """
-    events: List[Event]
+    events: tuple[Event, ...]
 
 
 @dataclass(slots=True)
@@ -55,6 +54,12 @@ class Game:
     log: EventLog = field(default_factory=EventLog)
 
     def __post_init__(self) -> None:
+        if not self.state.turn_order:
+            raise ValueError("Game requires at least one player in turn_order")
+        if self.state.active_player_id not in self.state.turn_order:
+            raise ValueError(
+                f"active_player_id {self.state.active_player_id!r} is not in turn_order"
+            )
         self.priority = PriorityManager(self.state.turn_order)
         self.priority.reset_to(self.state.active_player_id)
 
@@ -66,7 +71,7 @@ class Game:
         from foursouls.engine.actions import get_legal_actions
         return get_legal_actions(self)
 
-    def push_to_stack(self, *, controller_id, source: Any, effect: Effect, label: str = "") -> StackItem:
+    def push_to_stack(self, *, controller_id: PlayerId, source: object, effect: Effect, label: str = "") -> StackItem:
         item = self.stack.push(controller_id=controller_id, source=source, effect=effect, label=label)
         self.log.append(StackItemPushed(stack_id=item.stack_id, controller_id=item.controller_id, label=item.label))
         return item
@@ -94,19 +99,17 @@ class Game:
             if self.priority.all_passed():
                 if not self.stack.empty():
                     item = self.stack.pop()
-                    eff: Effect = item.effect  # type: ignore[assignment]
-
-                    if eff.validate(self.state):
-                        eff.apply(self.state)
+                    if item.effect.validate(self.state):
+                        item.effect.apply(self.state)
                         self.log.append(StackItemResolved(stack_id=item.stack_id, label=item.label))
                     else:
                         self.log.append(EffectFizzled(stack_id=item.stack_id, reason="validate_failed", label=item.label))
 
-                    self.priority.reset_to(self.state.active_player_id)
-                    # After resolution, if the stack is now empty auto-advance
-                    # phase so START does not require a second empty-stack pass.
+                    # Auto-advance phase after resolution so START does not
+                    # require a second empty-stack pass.
                     if self.stack.empty():
                         on_all_passed_empty_stack(self)
+                    self.priority.reset_to(self.state.active_player_id)
                 else:
                     self.log.append(AllPlayersPassed())
                     on_all_passed_empty_stack(self)
@@ -116,20 +119,10 @@ class Game:
             on_end_turn(self)
 
         elif isinstance(command, PlayLoot):
-            on_play_loot(self, command.card_ref)
+            on_play_loot(self, command.card_ref, target=command.target)
 
         elif isinstance(command, ActivateCharacterAbility):
-            active_id = self.state.active_player_id
-            self.state.get_player(active_id).character.tap()  # pay cost
-            self.log.append(ItemActivated(player_id=active_id, source="character:tap_ability"))
-            effect = GrantExtraLootPlayEffect(player_id=active_id)
-            self.push_to_stack(
-                controller_id=active_id,
-                source="character:tap_ability",
-                effect=effect,
-                label="GrantExtraLootPlay",
-            )
-            self.priority.reset_to(active_id)
+            on_activate_character_ability(self)
 
         elif isinstance(command, BuyShop):
             on_buy_shop(self, command.slot_index)
@@ -143,4 +136,4 @@ class Game:
         else:
             raise NotImplementedError(f"Unsupported command: {command}")
 
-        return StepResult(events=list(self.log.events))
+        return StepResult(events=tuple(self.log.events))

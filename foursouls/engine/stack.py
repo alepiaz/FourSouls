@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional
 
+from foursouls.model.effects import Effect
 from foursouls.model.refs import PlayerId
 
 
@@ -13,12 +14,12 @@ class StackItem:
 
     - controller_id: who controls this stack item (for later rules / ownership)
     - source: where it came from (card ref, ability ref, etc.) - opaque for now
-    - effect: what will happen on resolution - opaque for now
+    - effect: what will happen on resolution
     """
     stack_id: int
     controller_id: PlayerId
-    source: Any
-    effect: Any
+    source: object
+    effect: Effect
     label: str = ""
 
 
@@ -36,7 +37,7 @@ class Stack:
     def top(self) -> Optional[StackItem]:
         return self._items[-1] if self._items else None
 
-    def push(self, *, controller_id: PlayerId, source: Any, effect: Any, label: str = "") -> StackItem:
+    def push(self, *, controller_id: PlayerId, source: object, effect: Effect, label: str = "") -> StackItem:
         item = StackItem(
             stack_id=self._next_id,
             controller_id=controller_id,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Optional, Sequence
 
 from foursouls.rulesets.common.combat import place_monster_card
 from foursouls.engine.events import GameSetupCompleted
@@ -10,44 +10,45 @@ from foursouls.engine.rng import RNG
 from foursouls.engine.zones import DeckZone, DiscardZone, SlotsZone
 from foursouls.model.game_state import GameState
 from foursouls.model.monster_in_play import MonsterInPlay
-from foursouls.model.phase import Phase
 from foursouls.model.refs import CardRef, PlayerId
 from foursouls.rulesets.common.turn import enter_start_phase
+
+
+def _make_deck(cards: Sequence[CardRef]) -> tuple[DeckZone[CardRef], DiscardZone[CardRef]]:
+    return DeckZone(cards=list(cards)), DiscardZone()
 
 
 def setup_game(
     state: GameState,
     *,
-    loot_cards: List[CardRef],
-    treasure_cards: List[CardRef],
-    monster_cards: List[CardRef],
+    loot_cards: Sequence[CardRef],
+    treasure_cards: Sequence[CardRef],
+    monster_cards: Sequence[CardRef],
     rng: RNG,
     starting_hand_size: int = 3,
-    shop_size: int = 3,
+    shop_size: int = 2,
     monster_slot_count: int = 2,
     starter_id: Optional[PlayerId] = None,
 ) -> Game:
     """
     Shuffle decks, deal starting hands, fill shop and monster slots.
-    Returns a fully initialised Game (Option A: zones live on Game).
+    Returns a fully initialised Game (zones live on Game).
     """
-    loot_deck: DeckZone[CardRef] = DeckZone(cards=list(loot_cards))
-    loot_discard: DiscardZone[CardRef] = DiscardZone()
-
-    treasure_deck: DeckZone[CardRef] = DeckZone(cards=list(treasure_cards))
-    treasure_discard: DiscardZone[CardRef] = DiscardZone()
-
-    monster_deck: DeckZone[CardRef] = DeckZone(cards=list(monster_cards))
-    monster_discard: DiscardZone[CardRef] = DiscardZone()
+    loot_deck, loot_discard = _make_deck(loot_cards)
+    treasure_deck, treasure_discard = _make_deck(treasure_cards)
+    monster_deck, monster_discard = _make_deck(monster_cards)
 
     loot_deck.shuffle(rng)
     treasure_deck.shuffle(rng)
     monster_deck.shuffle(rng)
 
-    # Deal starting loot hand to each player (in turn order)
+    # Deal starting loot hands, guarded against short decks
     for player_id in state.turn_order:
         player = state.get_player(player_id)
-        player.hand.extend(loot_deck.draw(starting_hand_size))
+        for _ in range(starting_hand_size):
+            if loot_deck.empty():
+                break
+            player.hand.extend(loot_deck.draw(1))
 
     # Fill shop slots from treasure deck
     shop_slots: SlotsZone[CardRef] = SlotsZone(size=shop_size)
@@ -55,12 +56,10 @@ def setup_game(
         if not treasure_deck.empty():
             shop_slots.set(idx, treasure_deck.draw(1)[0])
 
-    # Finalise state
-    state.active_player_id = starter_id or state.active_player_id
-    state.phase = Phase.START
+    # Resolve starting player: explicit starter_id takes priority, else keep existing
+    if starter_id is not None:
+        state.active_player_id = starter_id
 
-    # Monster slots start empty; filled after game creation so that event
-    # cards can push triggers onto the stack via place_monster_card.
     m_slots: SlotsZone[MonsterInPlay] = SlotsZone(size=monster_slot_count)
 
     zones = GameZones(
@@ -75,13 +74,16 @@ def setup_game(
     )
 
     game = Game(state=state, zones=zones, rng=rng)
-    enter_start_phase(game)
 
-    # Fill initial monster slots (triggers EventEntered for event cards)
+    # Fill initial monster slots before entering START phase so the board
+    # exists when the first turn begins.
     for idx in range(monster_slot_count):
         if not game.zones.monster_deck.empty():
             ref = game.zones.monster_deck.draw(1)[0]
             place_monster_card(game, idx, ref)
+
+    # Phase transition is enter_start_phase's responsibility.
+    enter_start_phase(game)
 
     game.log.append(GameSetupCompleted(
         player_ids=tuple(state.turn_order),
