@@ -54,7 +54,7 @@ def _monster_always_miss(hp: int = 5) -> MonsterInPlay:
         base_hp=hp,
         current_hp=hp,
         evade=7,
-        reward_cents=0,
+        reward_coin=0,
         has_soul=False,
     )
 

@@ -120,7 +120,7 @@ def render_monsters(game: "Game") -> str:
         else:
             name   = pretty_name(str(m.card_ref.card_id) if m.card_ref.card_id else None)
             soul   = "  [soul]" if m.has_soul else ""
-            reward = f"  +{m.reward_cents}c" if m.reward_cents else ""
+            reward = f"  +{m.reward_coin}c" if m.reward_coin else ""
             lines.append(
                 f"  [{idx}] {name:<12} HP {m.current_hp}/{m.base_hp}"
                 f"  Evade {m.evade}{reward}{soul}"
@@ -267,7 +267,7 @@ def render_event(event: "Event") -> str:
         return f"  > {e.amount} damage dealt"
     if isinstance(e, MonsterDied):
         soul_str   = "  [soul claimed!]" if e.had_soul else ""
-        reward_str = f"  +{e.reward_cents}c" if e.reward_cents else ""
+        reward_str = f"  +{e.reward_coin}c" if e.reward_coin else ""
         return f"  > {e.monster_name} dies!{reward_str}{soul_str}"
     if isinstance(e, SoulGranted):
         return f"  > {e.player_id} claims a soul!"

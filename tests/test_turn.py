@@ -127,7 +127,7 @@ def test_monsters_heal_to_full_at_end_of_turn():
         base_hp=3,
         current_hp=1,
         evade=1,
-        reward_cents=0,
+        reward_coin=0,
         has_soul=False,
     )
     g.zones.monster_slots.set(0, monster)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from foursouls.cards.monsters import make_monster_in_play
+from foursouls.cards.monsters import get_monster_def, make_monster_in_play
 from foursouls.engine.events import (
     CoinsGained,
     CombatEntered,
@@ -10,6 +10,7 @@ from foursouls.engine.events import (
     DamageDealt,
     DeathPenaltyPaid,
     EffectFizzled,
+    EventEntered,
     GameWon,
     MonsterDied,
     PhaseChanged,
@@ -18,11 +19,58 @@ from foursouls.engine.events import (
 )
 from foursouls.model.phase import Phase
 from foursouls.model.combat_state import CombatState
+from foursouls.model.refs import CardRef
 
 if TYPE_CHECKING:
     from foursouls.engine.game_loop import Game
 
 SOULS_TO_WIN = 4
+
+
+def place_monster_card(game: Game, slot_index: int, card_ref: CardRef) -> None:
+    """
+    Place a card into a monster slot.
+
+    For normal monsters: create MonsterInPlay and set the slot.
+    For event cards: additionally emit EventEntered and push the triggered
+    ability onto the stack, wrapped in EventCardEffect so the slot is cleared
+    and the card discarded when the effect resolves.
+    """
+    from foursouls.rulesets.common.effects import EventCardEffect
+
+    monster = make_monster_in_play(card_ref)
+    game.zones.monster_slots.set(slot_index, monster)
+
+    if monster.is_event:
+        defn = get_monster_def(card_ref.card_id)
+        inner = defn.event_effect(game) if defn.event_effect is not None else _NoOpEffect()
+        wrapped = EventCardEffect(
+            card_ref=card_ref,
+            slot_index=slot_index,
+            inner=inner,
+            monster_slots=game.zones.monster_slots,
+            monster_discard=game.zones.monster_discard,
+        )
+        card_name = str(card_ref.card_id or "event")
+        game.log.append(EventEntered(
+            slot_index=slot_index,
+            card_ref=card_ref,
+            card_name=card_name,
+        ))
+        game.push_to_stack(
+            controller_id=game.state.active_player_id,
+            source=f"event:{card_ref.card_id}",
+            effect=wrapped,
+            label=card_name,
+        )
+
+
+class _NoOpEffect:
+    """Fallback effect for event cards with no defined effect."""
+    def validate(self, ctx) -> bool:  # noqa: ARG002
+        return True
+    def apply(self, ctx) -> None:
+        pass
 
 
 def enter_combat(game: Game, slot_index: int) -> None:
@@ -70,8 +118,9 @@ def resolve_roll(game: Game) -> None:
     """
     Execute one combat exchange:
     - Roll d6.
-    - Hit (roll >= monster.evade): monster takes 1 damage.
-    - Miss (roll < monster.evade): attacker takes 1 damage.
+    - Hit (roll >= monster.evade): monster takes attacker.attack + attack_bonus damage.
+    - Miss (roll < monster.evade): attacker takes monster.attack damage.
+    - Skip the damage step if the computed amount is 0.
     - Log CombatRollResult and DamageDealt.
     - Check for death.
     """
@@ -82,30 +131,38 @@ def resolve_roll(game: Game) -> None:
     monster = game.zones.monster_slots.get(combat.defender_slot)
     assert monster is not None, f"Monster slot {combat.defender_slot} is empty"
 
+    attacker = game.state.get_player(combat.attacker_id)
     roll = game.rng.roll_d6()
     is_hit = roll >= monster.evade
 
     if is_hit:
-        monster.take_damage(1)
-        game.log.append(DamageDealt(
-            source_player_id=combat.attacker_id,
-            source_monster_slot=None,
-            target_player_id=None,
-            target_monster_slot=combat.defender_slot,
-            amount=1,
-            reason="combat_hit",
-        ))
+        damage = attacker.attack + attacker.attack_bonus
+        if damage > 0:
+            monster.take_damage(damage)
+            game.log.append(DamageDealt(
+                source_player_id=combat.attacker_id,
+                source_monster_slot=None,
+                target_player_id=None,
+                target_monster_slot=combat.defender_slot,
+                amount=damage,
+                reason="combat_hit",
+                damage_type="combat",
+            ))
+        attack_stat = damage
     else:
-        attacker = game.state.get_player(combat.attacker_id)
-        attacker.hp = max(0, attacker.hp - 1)
-        game.log.append(DamageDealt(
-            source_player_id=None,
-            source_monster_slot=combat.defender_slot,
-            target_player_id=combat.attacker_id,
-            target_monster_slot=None,
-            amount=1,
-            reason="combat_miss",
-        ))
+        damage = monster.attack
+        if damage > 0:
+            attacker.hp = max(0, attacker.hp - damage)
+            game.log.append(DamageDealt(
+                source_player_id=None,
+                source_monster_slot=combat.defender_slot,
+                target_player_id=combat.attacker_id,
+                target_monster_slot=None,
+                amount=damage,
+                reason="combat_miss",
+                damage_type="combat",
+            ))
+        attack_stat = damage
 
     game.log.append(CombatRollResult(
         attacker_id=combat.attacker_id,
@@ -113,6 +170,7 @@ def resolve_roll(game: Game) -> None:
         roll=roll,
         evade=monster.evade,
         is_hit=is_hit,
+        attack_stat=attack_stat,
     ))
 
     if not monster.is_alive():
@@ -156,7 +214,7 @@ def resolve_monster_death(game: Game) -> None:
     # Refill from deck if possible
     if not game.zones.monster_deck.empty():
         new_ref = game.zones.monster_deck.draw(1)[0]
-        game.zones.monster_slots.set(slot_index, make_monster_in_play(new_ref))
+        place_monster_card(game, slot_index, new_ref)
 
     attacker_id = combat.attacker_id
     attacker = game.state.get_player(attacker_id)
@@ -166,17 +224,43 @@ def resolve_monster_death(game: Game) -> None:
         slot_index=slot_index,
         card_ref=dead_monster.card_ref,
         monster_name=monster_name,
-        reward_cents=dead_monster.reward_cents,
+        reward_coin=dead_monster.reward_coin,
         had_soul=dead_monster.has_soul,
+        reward_loot=dead_monster.reward_loot,
+        reward_treasure=dead_monster.reward_treasure,
     ))
 
     # Grant cent reward (always, even if 0 — keeps the path uniform).
-    attacker.cents += dead_monster.reward_cents
+    attacker.cents += dead_monster.reward_coin
     game.log.append(CoinsGained(
         player_id=attacker_id,
-        cents=dead_monster.reward_cents,
+        cents=dead_monster.reward_coin,
         reason="monster_kill",
     ))
+
+    # Grant loot reward (e.g. Spider: draw 1 loot on kill).
+    if dead_monster.reward_loot > 0 and not game.zones.loot_deck.empty():
+        from foursouls.engine.events import CardDrawn
+        drawn = game.zones.loot_deck.draw(dead_monster.reward_loot)
+        attacker.hand.extend(drawn)
+        for card_ref in drawn:
+            game.log.append(CardDrawn(
+                player_id=attacker_id,
+                card_ref=card_ref,
+                source="monster_kill_loot",
+            ))
+
+    # Grant treasure reward (e.g. Headless Horseman: draw 1 treasure on kill).
+    if dead_monster.reward_treasure > 0 and not game.zones.treasure_deck.empty():
+        from foursouls.engine.events import CardDrawn
+        drawn = game.zones.treasure_deck.draw(dead_monster.reward_treasure)
+        attacker.items.extend(drawn)
+        for card_ref in drawn:
+            game.log.append(CardDrawn(
+                player_id=attacker_id,
+                card_ref=card_ref,
+                source="monster_kill_treasure",
+            ))
 
     # Grant soul if the monster carries one.
     if dead_monster.has_soul:

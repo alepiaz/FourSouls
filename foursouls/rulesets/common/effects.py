@@ -56,6 +56,7 @@ class DealDamageEffect:
 
     player_id: PlayerId
     amount: int
+    damage_type: str = "ability"   # "combat" | "ability"
 
     def validate(self, ctx: GameState) -> bool:  # noqa: ARG002
         return True
@@ -96,6 +97,31 @@ class PlayLootEffect:
                 card_name=card_name,
                 zone="loot_discard",
             ))
+
+
+@dataclass(slots=True)
+class EventCardEffect:
+    """
+    Wrapper for an event card's triggered ability.
+
+    On resolution: apply inner effect (if it validates), then always clear
+    the event's monster slot and move the card to monster discard.
+    """
+
+    card_ref: CardRef
+    slot_index: int
+    inner: Effect
+    monster_slots: object    # SlotsZone[MonsterInPlay]
+    monster_discard: object  # DiscardZone[CardRef]
+
+    def validate(self, ctx: GameState) -> bool:  # noqa: ARG002
+        return True  # event resolution never cancels
+
+    def apply(self, ctx: GameState) -> None:
+        if self.inner.validate(ctx):
+            self.inner.apply(ctx)
+        self.monster_slots.clear(self.slot_index)
+        self.monster_discard.add(self.card_ref)
 
 
 @dataclass(slots=True)

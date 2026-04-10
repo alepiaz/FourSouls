@@ -16,9 +16,9 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from foursouls.cards.characters import CAIN, EVE, ISAAC, MAGDALENE
+from foursouls.cards.characters import CAIN, EVE, ISAAC, MAGDALENE, get_character_def
 from foursouls.cards.loot import BOMB, LOOT_COIN_1, LOOT_COIN_2, LOOT_COIN_3
-from foursouls.cards.monsters import FLY, GAPER, HORF, SPIDER
+from foursouls.cards.monsters import FEAST, FLY, GAPER, HEADLESS_HORSEMAN, HORF, MONSTRO, PLAGUE, SPIDER, WANDERING
 from foursouls.cli.controller import (
     display_board,
     display_events,
@@ -66,12 +66,17 @@ def _treasure_deck() -> List[CardRef]:
 
 
 def _monster_deck() -> List[CardRef]:
-    """16-card monster deck — mix of normal and soul monsters."""
+    """21-card monster deck — basic monsters, bosses (soul), and events."""
     pool = [
-        (FLY,    6),
-        (GAPER,  4),
-        (SPIDER, 4),
-        (HORF,   2),
+        (FLY,               6),
+        (GAPER,             4),
+        (SPIDER,            4),
+        (HORF,              2),
+        (MONSTRO,           1),
+        (HEADLESS_HORSEMAN, 1),
+        (FEAST,             1),
+        (PLAGUE,            1),
+        (WANDERING,         1),
     ]
     cards: List[CardRef] = []
     iid = 0
@@ -106,8 +111,14 @@ def build_demo_game(
 
     players = []
     for i, pid in enumerate(player_ids):
-        p = PlayerState(player_id=PlayerId(pid), max_hp=4, hp=4)
         char_card_id = _CHAR_POOL[i % len(_CHAR_POOL)]
+        char_def = get_character_def(char_card_id)
+        p = PlayerState(
+            player_id=PlayerId(pid),
+            max_hp=char_def.base_hp,
+            hp=char_def.base_hp,
+            attack=char_def.attack,
+        )
         p.character = ItemInPlay(card_ref=CardRef(InstanceId(f"char-{i}"), char_card_id), eternal=True)
         players.append(p)
     state = GameState.from_players(players)

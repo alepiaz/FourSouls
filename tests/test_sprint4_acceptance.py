@@ -81,7 +81,7 @@ def _setup(*, player_hp: int = 5, n_players: int = 1, seed: int = 0):
 
 
 def _inject_monster(g, *, hp: int, evade: int,
-                    reward_cents: int = 0, has_soul: bool = False,
+                    reward_coin: int = 0, has_soul: bool = False,
                     name: str = "m-injected") -> MonsterInPlay:
     """Replace the monster in slot 0 with a precisely defined one."""
     m = MonsterInPlay(
@@ -89,7 +89,7 @@ def _inject_monster(g, *, hp: int, evade: int,
         base_hp=hp,
         current_hp=hp,
         evade=evade,
-        reward_cents=reward_cents,
+        reward_coin=reward_coin,
         has_soul=has_soul,
     )
     g.zones.monster_slots.set(0, m)
@@ -160,10 +160,10 @@ def test_win_slot_refills_from_deck():
     assert g.zones.monster_slots.is_occupied(0)
 
 
-def test_win_reward_cents_granted():
-    """Attacker gains reward_cents on kill."""
+def test_win_reward_coin_granted():
+    """Attacker gains reward_coin on kill."""
     g = _setup()
-    _inject_monster(g, hp=1, evade=1, reward_cents=7)
+    _inject_monster(g, hp=1, evade=1, reward_coin=7)
     p1 = g.state.get_player(PlayerId("P1"))
     p1.cents = 0
     _advance_to_action(g)
@@ -207,7 +207,7 @@ def test_win_monster_died_event_in_log():
 
 def test_win_reward_granted_event_in_log():
     g = _setup()
-    _inject_monster(g, hp=1, evade=1, reward_cents=5)
+    _inject_monster(g, hp=1, evade=1, reward_coin=5)
     _advance_to_action(g)
 
     events = _drive_p1_turn(g)
@@ -296,7 +296,7 @@ def test_death_player_died_event_in_log():
 def test_death_no_reward_on_player_death():
     """When the player dies, no RewardGranted event is emitted."""
     g = _setup(player_hp=1)
-    _inject_monster(g, hp=5, evade=7, reward_cents=10)
+    _inject_monster(g, hp=5, evade=7, reward_coin=10)
     p1 = g.state.get_player(PlayerId("P1"))
     cents_before = p1.cents
     _advance_to_action(g)
@@ -410,7 +410,7 @@ def test_sprint4_integration_full_win_flow():
       → P1's second turn: attack_used = False
     """
     g = _setup(n_players=2, seed=42)
-    m = _inject_monster(g, hp=1, evade=1, reward_cents=7, has_soul=True, name="m-target")
+    m = _inject_monster(g, hp=1, evade=1, reward_coin=7, has_soul=True, name="m-target")
     deck_size_before = len(g.zones.monster_deck)
     _advance_to_action(g)
 
@@ -469,7 +469,7 @@ def test_sprint4_integration_full_death_flow():
       → P1's second turn: attack_used = False, hp healed to max
     """
     g = _setup(player_hp=1, n_players=2, seed=0)
-    m = _inject_monster(g, hp=5, evade=7, reward_cents=10, has_soul=True, name="m-unkillable")
+    m = _inject_monster(g, hp=5, evade=7, reward_coin=10, has_soul=True, name="m-unkillable")
     _advance_to_action(g)
 
     p1_cents_before = g.state.get_player(PlayerId("P1")).cents

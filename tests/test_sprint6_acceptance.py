@@ -55,7 +55,7 @@ def test_sprint6_combat_bot_wins_at_four_souls():
         base_hp=1,
         current_hp=1,
         evade=1,
-        reward_cents=0,
+        reward_coin=0,
         has_soul=True,
     ))
 

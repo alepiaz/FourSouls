@@ -51,11 +51,13 @@ def legal_commands(game: Game) -> List[Command]:
                 if active.cents >= TREASURE_COST:
                     cmds.append(BuyShop(slot_index=idx))
 
-        # AttackMonster: one entry per occupied monster slot.
+        # AttackMonster: one entry per occupied non-event monster slot.
         # Also requires: attack not yet used this turn, no combat already active.
         if not flags.attack_used and game.zones is not None and game.combat is None:
             for idx in game.zones.monster_slots.filled_indices():
-                cmds.append(AttackMonster(slot_index=idx))
+                monster = game.zones.monster_slots.get(idx)
+                if monster is not None and not monster.is_event:
+                    cmds.append(AttackMonster(slot_index=idx))
 
         # RollCombat: legal only while combat is active.
         if game.combat is not None and game.combat.is_active:

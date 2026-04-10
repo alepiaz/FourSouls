@@ -64,8 +64,8 @@ def test_fly_stats():
     assert m.card_ref is ref
     assert m.base_hp == 1
     assert m.current_hp == 1
-    assert m.evade == 1
-    assert m.reward_cents == 0
+    assert m.evade == 2
+    assert m.reward_coin == 1
     assert m.has_soul is False
 
 
@@ -74,15 +74,16 @@ def test_gaper_stats():
     m = make_monster_in_play(ref)
     assert m.base_hp == 2
     assert m.current_hp == 2
-    assert m.evade == 1
-    assert m.reward_cents == 5
+    assert m.evade == 4
+    assert m.reward_coin == 3
 
 
 def test_spider_stats():
     ref = _monster_card(SPIDER, "spider-1")
     m = make_monster_in_play(ref)
-    assert m.base_hp == 2
-    assert m.evade == 2
+    assert m.base_hp == 1
+    assert m.evade == 4
+    assert m.reward_loot == 1
 
 
 def test_unknown_card_id_uses_default():

@@ -13,6 +13,8 @@ class PlayerState:
     max_hp: int
     hp: int
     cents: int = 0
+    attack: int = 1         # base attack from character definition
+    attack_bonus: int = 0   # bonus from items/effects
 
     hand: List[CardRef] = field(default_factory=list)
     character: Optional[ItemInPlay] = None          # character card in play

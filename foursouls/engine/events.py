@@ -196,6 +196,7 @@ class CombatRollResult(Event):
     roll: int
     evade: int
     is_hit: bool
+    attack_stat: int = 1    # effective ATK used for damage this roll
 
 
 @dataclass(frozen=True, slots=True)
@@ -206,7 +207,20 @@ class DamageDealt(Event):
     target_player_id: Optional[PlayerId]
     target_monster_slot: Optional[int]
     amount: int
-    reason: str   # e.g. "combat_hit", "combat_miss", "loot_bomb"
+    reason: str             # e.g. "combat_hit", "combat_miss", "loot_bomb"
+    damage_type: str = "combat"   # "combat" | "ability"
+
+
+# ---------------------------------------------------------------------------
+# Events (monster-deck event cards)
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True, slots=True)
+class EventEntered(Event):
+    """Fired when an event card enters a monster slot and its trigger is pushed."""
+    slot_index: int
+    card_ref: CardRef
+    card_name: str
 
 
 # ---------------------------------------------------------------------------
@@ -219,8 +233,10 @@ class MonsterDied(Event):
     slot_index: int
     card_ref: CardRef
     monster_name: str
-    reward_cents: int
     had_soul: bool
+    reward_coin: int = 0
+    reward_loot: int = 0
+    reward_treasure: int = 0
 
 
 @dataclass(frozen=True, slots=True)

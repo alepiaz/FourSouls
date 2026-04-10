@@ -41,7 +41,7 @@ def _monster(evade: int = 7, hp: int = 5) -> MonsterInPlay:
         base_hp=hp,
         current_hp=hp,
         evade=evade,
-        reward_cents=0,
+        reward_coin=0,
         has_soul=False,
     )
 

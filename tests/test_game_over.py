@@ -93,7 +93,7 @@ def test_killing_4th_soul_sets_game_over():
         base_hp=1,
         current_hp=1,
         evade=1,
-        reward_cents=0,
+        reward_coin=0,
         has_soul=True,
     ))
 
@@ -114,7 +114,7 @@ def test_killing_non_winning_soul_does_not_set_game_over():
         base_hp=1,
         current_hp=1,
         evade=1,
-        reward_cents=0,
+        reward_coin=0,
         has_soul=True,
     ))
 
@@ -138,7 +138,7 @@ def test_killing_non_soul_monster_never_sets_game_over():
         base_hp=1,
         current_hp=1,
         evade=1,
-        reward_cents=0,
+        reward_coin=0,
         has_soul=False,
     ))
 

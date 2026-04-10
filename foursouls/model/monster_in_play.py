@@ -13,8 +13,13 @@ class MonsterInPlay:
     base_hp: int
     current_hp: int
     evade: int          # minimum roll value needed to hit
-    reward_cents: int
     has_soul: bool
+    reward_coin: int = 0
+    attack: int = 1           # damage dealt to attacker on miss
+    reward_loot: int = 0      # loot cards drawn by attacker on kill (e.g. Spider)
+    reward_treasure: int = 0  # treasure cards drawn by attacker on kill (e.g. Headless Horseman)
+    is_boss: bool = False
+    is_event: bool = False
 
     def is_alive(self) -> bool:
         return self.current_hp > 0

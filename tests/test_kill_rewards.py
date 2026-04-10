@@ -6,7 +6,7 @@ Strategy:
   Monster with hp=1 dies on the first roll.
 
 Reward model:
-  - reward_cents is granted to the attacker on every monster kill (even if 0).
+  - reward_coin is granted to the attacker on every monster kill (even if 0).
   - soul (card_ref) is added to attacker.souls only when has_soul=True.
   - Both events fire exactly once per kill.
 
@@ -44,13 +44,13 @@ from foursouls.model.refs import CardRef, InstanceId, PlayerId
 # ---------------------------------------------------------------------------
 
 def _make_monster(name: str, *, hp: int = 1, evade: int = 1,
-                  reward_cents: int = 0, has_soul: bool = False) -> MonsterInPlay:
+                  reward_coin: int = 0, has_soul: bool = False) -> MonsterInPlay:
     return MonsterInPlay(
         card_ref=CardRef(InstanceId(name)),
         base_hp=hp,
         current_hp=hp,
         evade=evade,
-        reward_cents=reward_cents,
+        reward_coin=reward_coin,
         has_soul=has_soul,
     )
 
@@ -102,8 +102,8 @@ def _kill(g: Game) -> list:
 # Cent reward
 # ---------------------------------------------------------------------------
 
-def test_reward_cents_added_to_attacker():
-    m = _make_monster("m", reward_cents=5)
+def test_reward_coin_added_to_attacker():
+    m = _make_monster("m", reward_coin=5)
     g = _game(m)
     g.state.get_player(PlayerId("P1")).cents = 0
     _kill(g)
@@ -111,14 +111,14 @@ def test_reward_cents_added_to_attacker():
 
 
 def test_zero_reward_monster_cents_unchanged():
-    m = _make_monster("m", reward_cents=0)
+    m = _make_monster("m", reward_coin=0)
     g = _game(m, player_cents=3)
     _kill(g)
     assert g.state.get_player(PlayerId("P1")).cents == 3
 
 
 def test_reward_granted_event_emitted():
-    m = _make_monster("m", reward_cents=5)
+    m = _make_monster("m", reward_coin=5)
     g = _game(m)
     events = _kill(g)
     reward_events = [e for e in events if isinstance(e, CoinsGained)]
@@ -126,7 +126,7 @@ def test_reward_granted_event_emitted():
 
 
 def test_reward_granted_event_fires_even_for_zero_cents():
-    m = _make_monster("m", reward_cents=0)
+    m = _make_monster("m", reward_coin=0)
     g = _game(m)
     events = _kill(g)
     reward_events = [e for e in events if isinstance(e, CoinsGained)]
@@ -134,7 +134,7 @@ def test_reward_granted_event_fires_even_for_zero_cents():
 
 
 def test_reward_granted_event_fields():
-    m = _make_monster("m", reward_cents=7)
+    m = _make_monster("m", reward_coin=7)
     g = _game(m)
     events = _kill(g)
     ev = next(e for e in events if isinstance(e, CoinsGained))
@@ -143,7 +143,7 @@ def test_reward_granted_event_fields():
 
 
 def test_reward_granted_exactly_once_per_kill():
-    m = _make_monster("m", hp=3, evade=1, reward_cents=5)
+    m = _make_monster("m", hp=3, evade=1, reward_coin=5)
     g = _game(m)
     all_events: list = []
     while g.combat is not None:
@@ -214,28 +214,28 @@ def test_soul_granted_not_emitted_for_non_soul_monster():
 # Registry-backed monsters (GAPER, HORF)
 # ---------------------------------------------------------------------------
 
-def test_gaper_grants_5_cents():
+def test_gaper_grants_3_cents():
     m = make_monster_in_play(CardRef(InstanceId("g"), GAPER))
     g = _game(m)
     _kill(g)
-    assert g.state.get_player(PlayerId("P1")).cents == 5
+    assert g.state.get_player(PlayerId("P1")).cents == 3
 
 
-def test_horf_grants_soul_and_10_cents():
+def test_horf_grants_3_cents_no_soul():
     m = make_monster_in_play(CardRef(InstanceId("h"), HORF))
     g = _game(m)
     _kill(g)
     p = g.state.get_player(PlayerId("P1"))
-    assert p.cents == 10
-    assert len(p.souls) == 1
+    assert p.cents == 3
+    assert len(p.souls) == 0
 
 
-def test_fly_grants_zero_cents_no_soul():
+def test_fly_grants_1_cent_no_soul():
     m = make_monster_in_play(CardRef(InstanceId("f"), FLY))
     g = _game(m)
     _kill(g)
     p = g.state.get_player(PlayerId("P1"))
-    assert p.cents == 0
+    assert p.cents == 1
     assert p.souls == []
 
 
@@ -243,8 +243,8 @@ def test_fly_grants_zero_cents_no_soul():
 # Isolation: rewards go to attacker only
 # ---------------------------------------------------------------------------
 
-def test_reward_cents_do_not_change_other_player():
-    m = _make_monster("m", reward_cents=5)
+def test_reward_coin_do_not_change_other_player():
+    m = _make_monster("m", reward_coin=5)
     g = _game(m, n_players=2)
     g.state.get_player(PlayerId("P2")).cents = 0
     _kill(g)

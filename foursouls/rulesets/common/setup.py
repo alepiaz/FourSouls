@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from foursouls.cards.monsters import make_monster_in_play
+from foursouls.rulesets.common.combat import place_monster_card
 from foursouls.engine.events import GameSetupCompleted
 from foursouls.engine.game_loop import Game
 from foursouls.engine.game_zones import GameZones
@@ -55,15 +55,13 @@ def setup_game(
         if not treasure_deck.empty():
             shop_slots.set(idx, treasure_deck.draw(1)[0])
 
-    # Fill monster slots from monster deck
-    m_slots: SlotsZone[MonsterInPlay] = SlotsZone(size=monster_slot_count)
-    for idx in range(monster_slot_count):
-        if not monster_deck.empty():
-            m_slots.set(idx, make_monster_in_play(monster_deck.draw(1)[0]))
-
     # Finalise state
     state.active_player_id = starter_id or state.active_player_id
     state.phase = Phase.START
+
+    # Monster slots start empty; filled after game creation so that event
+    # cards can push triggers onto the stack via place_monster_card.
+    m_slots: SlotsZone[MonsterInPlay] = SlotsZone(size=monster_slot_count)
 
     zones = GameZones(
         loot_deck=loot_deck,
@@ -78,6 +76,12 @@ def setup_game(
 
     game = Game(state=state, zones=zones, rng=rng)
     enter_start_phase(game)
+
+    # Fill initial monster slots (triggers EventEntered for event cards)
+    for idx in range(monster_slot_count):
+        if not game.zones.monster_deck.empty():
+            ref = game.zones.monster_deck.draw(1)[0]
+            place_monster_card(game, idx, ref)
 
     game.log.append(GameSetupCompleted(
         player_ids=tuple(state.turn_order),
