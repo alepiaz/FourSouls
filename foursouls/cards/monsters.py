@@ -10,6 +10,15 @@ if TYPE_CHECKING:
     from foursouls.engine.game_loop import Game
     from foursouls.model.effects import Effect
 
+# Type aliases for monster trigger callbacks (used only for documentation;
+# TYPE_CHECKING guards keep these from being imported at runtime).
+#
+#   on_death(game, roll) -> None          — fires after combat confirms kill
+#   on_miss(game, roll) -> int            — returns (possibly modified) miss damage
+#   on_would_take_combat_damage(game, roll, amount) -> int
+#                                         — returns (possibly modified) hit damage
+#   on_would_die(game) -> bool            — returns True if death is prevented
+
 # ── Card ID constants ─────────────────────────────────────────────────────────
 
 FLY    = CardId("FLY")
@@ -44,6 +53,18 @@ class MonsterDef:
     is_event: bool = False
     # Callable[[Game], Effect] — not part of equality or hash
     event_effect: object = field(default=None, compare=False, hash=False)
+    # ── Sprint 13 trigger hooks (R13.1 substrate) ─────────────────────────────
+    # None means "no trigger for this monster".  Callables are excluded from
+    # equality and hashing so MonsterDef instances remain safely comparable.
+    #
+    # on_death(game, roll) -> None
+    on_death: object = field(default=None, compare=False, hash=False)
+    # on_miss(game, roll) -> int   (return value = final miss damage)
+    on_miss: object = field(default=None, compare=False, hash=False)
+    # on_would_take_combat_damage(game, roll, amount) -> int   (return = final damage)
+    on_would_take_combat_damage: object = field(default=None, compare=False, hash=False)
+    # on_would_die(game) -> bool   (return True = death prevented)
+    on_would_die: object = field(default=None, compare=False, hash=False)
 
 
 # ── Event effect factories ─────────────────────────────────────────────────────

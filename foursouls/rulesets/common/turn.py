@@ -113,13 +113,17 @@ def on_end_turn(game: Game) -> None:
         player.hp = player.max_hp
         player.prevent_damage = 0
 
-    # All monsters in slots also heal to full and clear damage shields at end of every turn
+    # All monsters in slots also heal to full and clear per-turn state at end of every turn
     if game.zones is not None:
         for idx in game.zones.monster_slots.filled_indices():
             monster = game.zones.monster_slots.get(idx)
             if monster is not None:
                 monster.current_hp = monster.base_hp
                 monster.prevent_damage = 0
+                # Sprint 13 (R13.1): reset trigger-derived per-turn flags
+                monster.prevent_death_used = False
+                monster.evade_bonus = 0
+                monster.attack_bonus = 0
 
     # Discard down to 10
     if len(active.hand) > 10:

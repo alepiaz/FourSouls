@@ -21,6 +21,10 @@ class MonsterInPlay:
     prevent_damage: int = 0      # damage shield; consumed before HP loss; resets at EndTurn
     is_boss: bool = False
     is_event: bool = False
+    # ── Sprint 13 per-turn trigger state (R13.1 substrate) ────────────────────
+    prevent_death_used: bool = False  # True once on_would_die has fired this turn
+    evade_bonus: int = 0              # temporary evade modifier (e.g. Headless Horseman)
+    attack_bonus: int = 0             # temporary attack modifier (e.g. Headless Horseman)
 
     def is_alive(self) -> bool:
         return self.current_hp > 0

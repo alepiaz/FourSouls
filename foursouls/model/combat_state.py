@@ -18,3 +18,4 @@ class CombatState:
     defender_slot: int
     monster_ref: CardRef    # identity of the monster being fought
     is_active: bool = True
+    last_combat_roll: int = 0   # most recent d6 result; read by monster trigger callbacks

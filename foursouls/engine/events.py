@@ -285,6 +285,28 @@ class GameWon(Event):
 
 
 # ---------------------------------------------------------------------------
+# Monster triggers (Sprint 13)
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True, slots=True)
+class MonsterTriggerFired(Event):
+    """
+    Fired when a monster's trigger callback is invoked by the combat engine.
+
+    Fields
+    ------
+    card_id  : the triggering monster's card ID (None for unknown/stub monsters)
+    trigger  : one of ``"on_death"``, ``"on_miss"``,
+               ``"on_would_take_combat_damage"``, ``"on_would_die"``
+    roll     : the d6 result that caused the trigger (0 for triggers that are
+               not roll-dependent, e.g. ``on_would_die``)
+    """
+    card_id: Optional[CardId]
+    trigger: str
+    roll: int
+
+
+# ---------------------------------------------------------------------------
 # Debug
 # ---------------------------------------------------------------------------
 
