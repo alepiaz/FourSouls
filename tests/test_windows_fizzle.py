@@ -13,7 +13,8 @@ test_loot_play.py and test_activated_abilities.py:
      (or not) cannot undo the tap.
 """
 from agents.pass_bot import choose_command
-from foursouls.cards.loot import BOMB, LOOT_COIN_1, LOOT_COIN_2
+from foursouls.cards.loot import BOMB_BANG, LOOT_COIN_1, LOOT_COIN_2
+from foursouls.model.target import PlayerTarget
 from foursouls.engine.events import EffectFizzled, StackItemResolved
 from foursouls.engine.rng import RNG
 from foursouls.model.commands import (
@@ -124,12 +125,12 @@ class TestResponseWindow:
 
     def test_response_window_bomb_resolves_after_full_cycle(self):
         """Bomb follows same pass-to-resolve pattern as coins."""
-        bomb = _ref("bomb-w1", BOMB)
+        bomb = _ref("bomb-w1", BOMB_BANG)
         g = _game_at_action(extra_hand=[bomb])
         p1 = g.state.get_player(PlayerId("P1"))
         hp_before = p1.hp
 
-        g.step(PlayLoot(card_ref=bomb))
+        g.step(PlayLoot(card_ref=bomb, target=PlayerTarget(PlayerId("P1"))))
         g.step(PassPriority())  # P1
         g.step(PassPriority())  # P2 → resolves
 

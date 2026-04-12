@@ -17,8 +17,8 @@ from __future__ import annotations
 from typing import List, Optional
 
 from foursouls.cards.characters import CAIN, EVE, ISAAC, MAGDALENE, get_character_def
-from foursouls.cards.loot import BOMB, LOOT_COIN_1, LOOT_COIN_2, LOOT_COIN_3
-from foursouls.cards.monsters import FEAST, FLY, GAPER, HEADLESS_HORSEMAN, HORF, MONSTRO, PLAGUE, SPIDER, WANDERING
+from foursouls.cards.loot import BLANK_RUNE, BOMB_BANG, LOOT_COIN_1, LOOT_COIN_2, LOOT_COIN_3, SOUL_HEART
+from foursouls.cards.monsters import CURSED_CHEST, FEAST, FLY, GAPER, HEADLESS_HORSEMAN, HORF, MONSTRO, PLAGUE, SPIDER, WANDERING, WE_NEED_TO_GO_DEEPER
 from foursouls.cli.controller import (
     display_board,
     display_events,
@@ -45,7 +45,9 @@ def _loot_deck() -> List[CardRef]:
         LOOT_COIN_1, LOOT_COIN_1, LOOT_COIN_1,
         LOOT_COIN_2, LOOT_COIN_2,
         LOOT_COIN_3,
-        BOMB,
+        BOMB_BANG,
+        SOUL_HEART,
+        BLANK_RUNE,
     ]
     cards: List[CardRef] = []
     iid = 0
@@ -74,9 +76,11 @@ def _monster_deck() -> List[CardRef]:
         (HORF,              2),
         (MONSTRO,           1),
         (HEADLESS_HORSEMAN, 1),
-        (FEAST,             1),
-        (PLAGUE,            1),
-        (WANDERING,         1),
+        (FEAST,                  1),
+        (PLAGUE,                 1),
+        (WANDERING,              1),
+        (CURSED_CHEST,           1),
+        (WE_NEED_TO_GO_DEEPER,   1),
     ]
     cards: List[CardRef] = []
     iid = 0

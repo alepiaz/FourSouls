@@ -97,7 +97,8 @@ def test_buy_adds_treasure_to_player_area():
 
     g.step(BuyShop(slot_index=0))
 
-    assert card in g.state.get_player(PlayerId("P1")).treasures
+    p1 = g.state.get_player(PlayerId("P1"))
+    assert any(i.card_ref == card for i in p1.treasures)
 
 
 def test_bought_card_matches_slot_content():
@@ -106,9 +107,11 @@ def test_bought_card_matches_slot_content():
 
     g.step(BuyShop(slot_index=2))
 
-    assert t2 in g.state.get_player(PlayerId("P1")).treasures
-    assert t0 not in g.state.get_player(PlayerId("P1")).treasures
-    assert t1 not in g.state.get_player(PlayerId("P1")).treasures
+    p1 = g.state.get_player(PlayerId("P1"))
+    refs = [i.card_ref for i in p1.treasures]
+    assert t2 in refs
+    assert t0 not in refs
+    assert t1 not in refs
 
 
 def test_buy_sets_purchase_used_flag():

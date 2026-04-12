@@ -16,9 +16,12 @@ class PlayerState:
     attack: int = 1         # base attack from character definition
     attack_bonus: int = 0   # bonus from items/effects
 
+    prevent_damage: int = 0      # damage shield; consumed before HP loss; resets at EndTurn
+    damage_cap: int = 0          # 0 = no cap; >0 = max damage per hit (e.g. Dry Baby: cap=1)
+
     hand: List[CardRef] = field(default_factory=list)
     character: Optional[ItemInPlay] = None          # character card in play
-    items: List[CardRef] = field(default_factory=list)  # treasures/trinkets/etc in play
+    items: List[ItemInPlay] = field(default_factory=list)  # treasures/trinkets/etc in play
     souls: List[CardRef] = field(default_factory=list)  # collected souls (bosses/bonus)
 
     def __post_init__(self) -> None:
@@ -30,11 +33,11 @@ class PlayerState:
     def is_alive(self) -> bool:
         return self.hp > 0
 
-    def gain_treasure(self, ref: CardRef) -> None:
+    def gain_treasure(self, ref: CardRef, *, eternal: bool = False) -> None:
         """Move a treasure card into this player's treasure area."""
-        self.items.append(ref)
+        self.items.append(ItemInPlay(card_ref=ref, eternal=eternal))
 
     @property
-    def treasures(self) -> List[CardRef]:
+    def treasures(self) -> List[ItemInPlay]:
         """Read-only view of the player's treasure area (alias for items)."""
         return self.items

@@ -2,6 +2,188 @@
 
 ---
 
+## Sprint 11 — Treasure Card Effects + Starting Eternal Items (R11.1)
+
+### R11.1 — TreasureDef skeleton + ActivateItem command + player.items promotion
+
+**What's done:**
+- `TreasureDef` dataclass in `foursouls/cards/treasures.py`; card-ID constants for all Sprint 11 treasure cards and starting Eternals
+- `ActivateItem(instance_id: InstanceId)` command in `foursouls/model/commands.py`
+- `ItemInPlay` gains `recharge_on: str = "start_of_turn"` and `counters: Dict[str, int]` fields
+- `player.items` promoted from `List[CardRef]` to `List[ItemInPlay]`; `gain_treasure` wraps `CardRef` in `ItemInPlay(card_ref=..., eternal=...)`
+- Death penalty (step 1) now correctly filters for non-eternal items; `DeathPenaltyPaid.item_destroyed` remains `Optional[CardRef]` (extracted from the removed `ItemInPlay`)
+- All affected callsites updated: `combat.py`, `render.py`; all affected tests updated: `test_r72_death_penalty.py`, `test_shop_state.py`, `test_monster_scaffold.py`, `test_buy_shop.py`, `test_sprint3_loop.py`
+
+**Partial / deferred:**
+- `TreasureDef` hooks (`on_enters_play`, `on_roll`, etc.) are defined but no cards wire them up yet — that happens in R11.2+
+- `ActivateItem` legality and resolution not yet implemented
+
+---
+
+## Sprint 11 — R11.2: ActivateItem infrastructure + Mama Mega + Yum Heart
+
+**What's done:**
+- `ActivateItem(instance_id, target)` — target field added; legality emits one command per valid target (none / player / player_or_monster) based on `TreasureDef.tap_target_type`
+- `TreasureDef` gains `tap_target_type: Optional[str]` and `make_tap_effect: Callable[[target, game], Effect]`
+- `TREASURE_REGISTRY: Dict[CardId, TreasureDef]` in `foursouls/cards/treasures.py` for engine lookup
+- `AoDamageEffect(amount, monster_slots)` — deals damage to all players and all monsters
+- `PreventDamageToMonsterEffect(slot_index, amount, monster_slots)` — adds shield to a monster
+- `TreasureActivateEffect` — wrapper: applies inner effect, destroys item if `is_one_use`
+- `on_activate_item` in `foursouls/rulesets/common/items.py` — taps item, builds effect, pushes stack
+- `ActivateItem` dispatch added to `game_loop.py`
+- `on_end_turn`: untaps items with `recharge_on == "end_of_turn"` for the player whose turn just ended
+- `enter_start_phase`: untaps items with `recharge_on == "start_of_turn"` for the new active player
+- `MAMA_MEGA_DEF` (one-use, no-target, AoDamage 3) and `YUM_HEART_DEF` (eternal, end_of_turn, player_or_monster prevent-1) defined
+- 13 new acceptance tests in `tests/test_sprint11_acceptance.py`
+
+**Partial / deferred:**
+- Starting Eternal items assigned at setup (R11.3)
+- Remaining card defs (Dry Baby, Eye Of Greed, Dead Cat, Tech X, Magic Mushroom, Meat!, Lucky Foot, Lil Battery, The D6, Sleight Of Hand, The Curse) — R11.3+
+
+---
+
+## Sprint 11 — R11.3: Starting Eternals + Dry Baby + Meat! + damage_cap
+
+**What's done:**
+- `CharacterDef.starting_eternal: Optional[CardId]`; registry maps Isaac→The D6, Magdalene→Yum Heart, Cain→Sleight Of Hand, Eve→The Curse
+- `_assign_starting_eternals(game)` in `setup_game`: creates `ItemInPlay(eternal=True, recharge_on=...)` per player, copies `starting_counters`, fires `on_enters_play`
+- `fire_on_enters_play(game, player_id, item)` and `fire_on_start_of_turn(game)` in `foursouls/rulesets/common/items.py`
+- `on_buy_shop` fires `on_enters_play` for the newly acquired item
+- `enter_start_phase` fires `fire_on_start_of_turn` (hook infrastructure for The Curse etc.)
+- `damage_cap: int = 0` on `PlayerState` (0 = no cap); cap applied first in `DealDamageEffect`, `AllPlayersTakeDamageEffect`, `AoDamageEffect`
+- `DRY_BABY_DEF` (`on_enters_play` sets `damage_cap=1`), `MEAT_BANG_DEF` (`on_enters_play` increments `attack_bonus`), `THE_D6_DEF` (eternal stub), `LUCKY_FOOT_DEF` (stub), `SLEIGHT_OF_HAND_DEF` (eternal stub), `THE_CURSE_DEF` (eternal stub)
+- 10 new acceptance tests
+
+**Partial / deferred:**
+- Eye Of Greed `on_roll` hook, The Dead Cat counter absorption, Tech X paid effect, Magic Mushroom modal effect, Lil Battery `ItemTarget` — R11.4+
+- Sleight Of Hand auto-shuffle + DeckTarget, The Curse `on_start_of_turn` auto-discard — R11.4+
+
+---
+
+## Sprint 10 — Loot Card Diversity + Targeting System
+
+### 1) Sprint / commit context
+
+**Sprint:** Sprint 10  
+**What's done vs partial:**
+
+Done:
+- R10.1 — `PlayerTarget`, `MonsterTarget`, `AnyTarget` in `foursouls/model/target.py`; `PlayLoot.target: Optional[AnyTarget] = None`
+- R10.2 — `BOMB` renamed to `Bomb!` (`BOMB_BANG`); `Gold Bomb!!` (`GOLD_BOMB_BANG_BANG`) added; `legal_commands()` emits one `PlayLoot` per valid target for targeted cards; `make_loot_effect` accepts `target`, `monster_slots`, `rng`, `loot_deck`, `log`
+- R10.3 — `Soul Heart` card (`PreventDamageEffect`); `prevent_damage: int = 0` on `PlayerState` and `MonsterInPlay`; shield consumed by `DealDamageEffect`, `DealDamageToMonsterEffect`, and combat miss; resets at `EndTurn`
+- R10.4 — `Blank Rune` card; `LootRollEffect(branches: Dict[int, Effect], rng)`; `AllPlayersGainCentsEffect`, `AllPlayersTakeDamageEffect`, `AllPlayersDrawLootEffect`; `Cursed Chest` and `We Need To Go Deeper!` event cards; `ResetAttackEffect`
+
+Partial / skipped:
+- `Gold Bomb!!` (`GOLD_BOMB_BANG_BANG`) is defined but not yet in the CLI loot deck (reserved for Sprint 11 item diversity)
+- `Blank Rune` roll=6 (Guppy item search) is a stub no-op; deferred to Sprint 11
+- Cursed Chest roll=6 is a stub no-op for the same reason
+
+---
+
+### 2) Files changed
+
+**New files**
+
+- `foursouls/model/target.py` — `PlayerTarget(player_id)`, `MonsterTarget(slot_index)`, `AnyTarget = Union[...]`
+- `tests/test_sprint10_acceptance.py` — 16 tests covering all four releases (R10.1–R10.4)
+
+**Modified files**
+
+- `foursouls/cards/loot.py` — `BOMB → BOMB_BANG`; added `GOLD_BOMB_BANG_BANG`, `SOUL_HEART`, `BLANK_RUNE`; `requires_target()`, `allows_monster_target()` helpers; `make_loot_effect` extended with target/rng/loot_deck/log kwargs
+- `foursouls/cards/monsters.py` — `CURSED_CHEST` and `WE_NEED_TO_GO_DEEPER` card IDs + blueprints + registry entries
+- `foursouls/cli/app.py` — loot deck updated (`BOMB_BANG`, `SOUL_HEART`, `BLANK_RUNE`); monster deck gains `CURSED_CHEST`, `WE_NEED_TO_GO_DEEPER`
+- `foursouls/cli/render.py` — display names for all new cards
+- `foursouls/model/commands.py` — `PlayLoot.target: Optional[AnyTarget] = None`
+- `foursouls/model/monster_in_play.py` — `prevent_damage: int = 0`; `take_damage` consumes shield before HP
+- `foursouls/model/player_state.py` — `prevent_damage: int = 0`
+- `foursouls/rulesets/common/combat.py` — combat miss consumes `prevent_damage` before HP
+- `foursouls/rulesets/common/effects.py` — `DealDamageEffect` consumes shield; added `DealDamageToMonsterEffect`, `PreventDamageEffect`, `ResetAttackEffect`, `AllPlayersGainCentsEffect`, `AllPlayersTakeDamageEffect`, `AllPlayersDrawLootEffect`, `LootRollEffect`
+- `foursouls/rulesets/common/legality.py` — targeted cards emit one `PlayLoot` per valid target (player or non-event monster slot)
+- `foursouls/rulesets/common/loot.py` — `on_play_loot` forwards target, monster_slots, rng, loot_deck, log to `make_loot_effect`
+- `tests/test_loot_play.py` — bomb tests updated: self-target → `PlayerTarget`; added monster-target test
+- `tests/test_setup.py`, `tests/test_shop_state.py`, `tests/test_sprint3_loop.py`, `tests/test_windows_fizzle.py` — `BOMB → BOMB_BANG` rename
+- `ROADMAP.md` — Sprint 10 releases marked ✅; Sprint 16 (priority auto-advance) added; future table renumbered
+
+---
+
+### 3) Public API changes
+
+```python
+# New module: foursouls.model.target
+PlayerTarget(player_id: PlayerId)
+MonsterTarget(slot_index: int)
+AnyTarget = Union[PlayerTarget, MonsterTarget]
+
+# Extended command:
+PlayLoot(card_ref, target: Optional[AnyTarget] = None)
+
+# New effects:
+DealDamageToMonsterEffect(slot_index, amount, monster_slots, damage_type="ability")
+PreventDamageEffect(player_id, amount)
+ResetAttackEffect()
+AllPlayersGainCentsEffect(amount)
+AllPlayersTakeDamageEffect(amount, damage_type="ability")
+AllPlayersDrawLootEffect(count, loot_deck, log=None)
+LootRollEffect(branches: Dict[int, Effect], rng)
+
+# New card IDs:
+BOMB_BANG          # was BOMB
+GOLD_BOMB_BANG_BANG
+SOUL_HEART
+BLANK_RUNE
+CURSED_CHEST       # event card
+WE_NEED_TO_GO_DEEPER  # event card
+
+# New helpers in foursouls.cards.loot:
+requires_target(card_id) -> bool
+allows_monster_target(card_id) -> bool
+
+# New fields:
+PlayerState.prevent_damage: int    # damage shield; resets at EndTurn
+MonsterInPlay.prevent_damage: int  # damage shield; resets at EndTurn
+```
+
+---
+
+### 4) Behavioral rules implemented
+
+- **Targeting:** `PlayLoot` carries an optional target. `legal_commands()` expands targeted cards into one command per valid target (both players + all non-event monster slots for bombs; players only for Soul Heart).
+- **Bomb damage:** `Bomb!` deals 1 damage to the chosen `PlayerTarget` or `MonsterTarget`. `Gold Bomb!!` deals 3.
+- **Damage prevention shield:** `prevent_damage` on player and monster absorbs incoming damage before HP. Consumed greedily per hit. Resets to 0 at `EndTurn` for all players and monsters.
+- **Soul Heart:** adds 1 to the target player's `prevent_damage`.
+- **Blank Rune:** rolls d6 and delegates to one of six branch effects (all-players cents gain, draw, or damage). Roll=6 stub is a no-op pending Sprint 11.
+- **Cursed Chest (event):** rolls d6 on entry; 1–3 → 1 damage to active player; 4–5 → 2 damage; 6 → no-op stub.
+- **We Need To Go Deeper! (event):** resets `turn_flags.attack_used = False`, allowing a second attack this turn.
+
+---
+
+### 5) Critical decisions
+
+| Decision | Choice | Why |
+|---|---|---|
+| `target` optional on `PlayLoot` | `None` default | Untargeted cards (coins, Blank Rune) stay backward-compatible; callers don't supply a target |
+| One `PlayLoot` per target in legality | Expand in `legal_commands()` | UI sees distinct selectable actions; engine routes by command identity |
+| `prevent_damage` on both player and monster | Symmetric field | Simplifies `DealDamageToMonsterEffect` and future monster shield items |
+| `LootRollEffect` holds the live `rng` | Captured at push time | Roll happens at resolution, not at play time — correct stack ordering |
+| `DealDamageEffect.damage_type` | Added `"ability"` default | Separates ability damage from combat damage for future rule hooks |
+
+---
+
+### 6) Tests
+
+16 tests added in `test_sprint10_acceptance.py`; 4 existing test files updated (BOMB→BOMB_BANG rename + new monster-target test). Full suite: 421 passed, 1 skipped.
+
+---
+
+### 7) Problems / open questions
+
+- `Gold Bomb!!` not yet in the CLI demo deck; adding it is a one-liner once the deck composition is revisited.
+- Blank Rune roll=6 and Cursed Chest roll=6 are no-ops; both need Guppy item search (Sprint 11).
+- `AllPlayersDrawLootEffect` draws from a single shared loot deck — if the deck runs out mid-loop, later players get fewer cards. A reshuffle-on-empty hook is deferred.
+- Death penalty item choice (destroy first item) is still deterministic; full player-chosen targeting deferred.
+
+---
+
 ## Sprint 7 — Correct Player Death Penalty
 
 ### 1) Sprint / commit context

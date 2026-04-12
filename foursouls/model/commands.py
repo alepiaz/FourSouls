@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Optional
 
-from .refs import CardRef
+from .refs import CardRef, InstanceId
+from .target import AnyTarget
 
 
 class Command:
@@ -22,6 +24,7 @@ class EndTurn(Command):
 @dataclass(frozen=True, slots=True)
 class PlayLoot(Command):
     card_ref: CardRef
+    target: Optional[AnyTarget] = None
     kind: str = "PLAY_LOOT"
 
 
@@ -45,3 +48,10 @@ class AttackMonster(Command):
 @dataclass(frozen=True, slots=True)
 class RollCombat(Command):
     kind: str = "ROLL_COMBAT"
+
+
+@dataclass(frozen=True, slots=True)
+class ActivateItem(Command):
+    instance_id: InstanceId
+    target: Optional[AnyTarget] = None
+    kind: str = "ACTIVATE_ITEM"

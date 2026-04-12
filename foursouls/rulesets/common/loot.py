@@ -1,17 +1,18 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from foursouls.cards.loot import make_loot_effect
 from foursouls.engine.events import LootPlayed
 from foursouls.model.refs import CardRef
+from foursouls.model.target import AnyTarget
 from foursouls.rulesets.common.effects import PlayLootEffect
 
 if TYPE_CHECKING:
     from foursouls.engine.game_loop import Game
 
 
-def on_play_loot(game: Game, card_ref: CardRef) -> None:
+def on_play_loot(game: Game, card_ref: CardRef, target: Optional[AnyTarget] = None) -> None:
     """
     Handle a PlayLoot command:
       1. Remove the card from the active player's hand (cost).
@@ -37,7 +38,15 @@ def on_play_loot(game: Game, card_ref: CardRef) -> None:
         card_name=card_name,
     ))
 
-    inner = make_loot_effect(card_ref.card_id, active_id)
+    inner = make_loot_effect(
+        card_ref.card_id,
+        active_id,
+        target=target,
+        monster_slots=game.zones.monster_slots,
+        rng=game.rng,
+        loot_deck=game.zones.loot_deck,
+        log=game.log,
+    )
     effect = PlayLootEffect(
         card_ref=card_ref,
         inner=inner,

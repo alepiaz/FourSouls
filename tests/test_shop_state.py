@@ -108,8 +108,8 @@ class TestShopSetupState:
             rng=RNG(seed=0),
         )
         shop = g.zones.shop_slots
-        assert len(shop) == 3
-        assert shop.filled_indices() == [0, 1, 2]
+        assert len(shop) == 2
+        assert shop.filled_indices() == [0, 1]
         assert shop.empty_indices() == []
 
     def test_shop_slots_hold_treasure_refs(self):
@@ -121,7 +121,7 @@ class TestShopSetupState:
             rng=RNG(seed=0),
         )
         shop = g.zones.shop_slots
-        for i in range(3):
+        for i in range(2):
             ref = shop.get(i)
             assert ref is not None
             assert isinstance(ref, CardRef)
@@ -149,7 +149,7 @@ class TestShopSetupState:
         )
         g1 = setup_game(_two_player_state(), **kwargs, rng=RNG(seed=7))
         g2 = setup_game(_two_player_state(), **kwargs, rng=RNG(seed=7))
-        for i in range(3):
+        for i in range(2):
             assert g1.zones.shop_slots.get(i) == g2.zones.shop_slots.get(i)
 
 
@@ -170,7 +170,7 @@ class TestPlayerTreasureArea:
         p = self._player()
         card = _ref("treasure-X")
         p.gain_treasure(card)
-        assert card in p.treasures
+        assert p.treasures[0].card_ref == card
         assert len(p.treasures) == 1
 
     def test_gain_multiple_treasures(self):
@@ -178,7 +178,7 @@ class TestPlayerTreasureArea:
         cards = [_ref(f"t{i}") for i in range(3)]
         for c in cards:
             p.gain_treasure(c)
-        assert p.treasures == cards
+        assert [i.card_ref for i in p.treasures] == cards
 
     def test_treasures_is_same_list_as_items(self):
         """treasures property is a live view of items — no copy."""
@@ -190,5 +190,5 @@ class TestPlayerTreasureArea:
         p2 = PlayerState(player_id=PlayerId("P2"), max_hp=2, hp=2)
         card = _ref("shared-treasure")
         p1.gain_treasure(card)
-        assert card in p1.treasures
-        assert card not in p2.treasures
+        assert any(i.card_ref == card for i in p1.treasures)
+        assert not any(i.card_ref == card for i in p2.treasures)

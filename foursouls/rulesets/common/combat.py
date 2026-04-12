@@ -152,7 +152,9 @@ def resolve_roll(game: Game) -> None:
     else:
         damage = monster.attack
         if damage > 0:
-            attacker.hp = max(0, attacker.hp - damage)
+            absorbed = min(attacker.prevent_damage, damage)
+            attacker.prevent_damage = max(0, attacker.prevent_damage - damage)
+            attacker.hp = max(0, attacker.hp - (damage - absorbed))
             game.log.append(DamageDealt(
                 source_player_id=None,
                 source_monster_slot=combat.defender_slot,
@@ -254,8 +256,8 @@ def resolve_monster_death(game: Game) -> None:
     if dead_monster.reward_treasure > 0 and not game.zones.treasure_deck.empty():
         from foursouls.engine.events import CardDrawn
         drawn = game.zones.treasure_deck.draw(dead_monster.reward_treasure)
-        attacker.items.extend(drawn)
         for card_ref in drawn:
+            attacker.gain_treasure(card_ref)
             game.log.append(CardDrawn(
                 player_id=attacker_id,
                 card_ref=card_ref,
@@ -317,10 +319,13 @@ def resolve_player_death(game: Game) -> None:
 
     player = game.state.get_player(attacker_id)
 
-    # 1. Destroy 1 non-eternal item (all CardRefs in player.items are non-eternal)
+    # 1. Destroy 1 non-eternal item (first non-eternal entry in player.items).
     item_destroyed = None
-    if player.items:
-        item_destroyed = player.items.pop(0)
+    destroyable = [i for i in player.items if not i.eternal]
+    if destroyable:
+        item_to_destroy = destroyable[0]
+        player.items.remove(item_to_destroy)
+        item_destroyed = item_to_destroy.card_ref
         game.zones.treasure_discard.add(item_destroyed)
 
     # 2. Discard 1 loot card from hand

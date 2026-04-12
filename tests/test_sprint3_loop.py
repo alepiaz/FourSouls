@@ -119,7 +119,8 @@ def test_buy_removes_treasure_from_shop():
     g.step(BuyShop(slot_index=slot))
 
     assert original_card not in [g.zones.shop_slots.get(i) for i in range(g.zones.shop_slots.size)]
-    assert original_card in g.state.get_player(PlayerId("P1")).treasures
+    p1 = g.state.get_player(PlayerId("P1"))
+    assert any(i.card_ref == original_card for i in p1.treasures)
 
 
 def test_buy_refills_slot_from_deck():
@@ -137,14 +138,14 @@ def test_buy_refills_slot_from_deck():
 
 def test_buy_leaves_slot_empty_when_deck_exhausted():
     """When the treasure deck runs out, the bought slot stays empty."""
-    # Give enough treasure for shop fill (3) but nothing left over for refill
+    # Give enough treasure for shop fill (2) but nothing left over for refill
     p1 = PlayerState(player_id=PlayerId("P1"), max_hp=3, hp=3, cents=TREASURE_COST)
     p2 = PlayerState(player_id=PlayerId("P2"), max_hp=3, hp=3)
     state = GameState.from_players([p1, p2], active_player_id=PlayerId("P1"))
     g = setup_game(
         state,
         loot_cards=_make_loot_cards(40),
-        treasure_cards=_make_treasure_cards(3),   # exactly fills 3 slots, deck empty after
+        treasure_cards=_make_treasure_cards(2),   # exactly fills 2 slots, deck empty after
         monster_cards=_make_monster_cards(10),
         rng=RNG(seed=0),
     )
@@ -307,8 +308,8 @@ def test_sprint3_integration_full_flow():
     g.step(BuyShop(slot_index=slot))
 
     assert g.state.get_player(PlayerId("P1")).cents == 0
-    assert shop_card_before in g.state.get_player(PlayerId("P1")).treasures
-    assert shop_card_before not in [g.zones.shop_slots.get(i) for i in range(3)]
+    assert any(i.card_ref == shop_card_before for i in g.state.get_player(PlayerId("P1")).treasures)
+    assert shop_card_before not in [g.zones.shop_slots.get(i) for i in range(2)]
     assert g.zones.shop_slots.is_occupied(slot)                        # refilled
     assert len(g.zones.treasure_deck) == deck_size_after_setup - 1     # one drawn for refill
     assert g.state.turn_flags.purchase_used
@@ -392,7 +393,7 @@ def test_sprint3_acceptance_economy_bot():
 
     # Shop integrity
     filled = g.zones.shop_slots.filled_indices()
-    assert len(filled) == 3                                               # all 3 slots occupied
+    assert len(filled) == 2                                               # all 2 slots occupied
     assert len(g.zones.treasure_deck) == deck_size_after_setup - 1       # one refill draw
 
     # Turn advanced correctly

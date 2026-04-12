@@ -9,9 +9,46 @@ from foursouls.engine.game_zones import GameZones
 from foursouls.engine.rng import RNG
 from foursouls.engine.zones import DeckZone, DiscardZone, SlotsZone
 from foursouls.model.game_state import GameState
+from foursouls.model.item_in_play import ItemInPlay
 from foursouls.model.monster_in_play import MonsterInPlay
-from foursouls.model.refs import CardRef, PlayerId
+from foursouls.model.refs import CardRef, InstanceId, PlayerId
 from foursouls.rulesets.common.turn import enter_start_phase
+
+
+def _assign_starting_eternals(game: Game) -> None:
+    """
+    For each player whose character has a `starting_eternal` CardId defined,
+    create an ItemInPlay (eternal=True, recharge_on from TreasureDef) and add it
+    to their items. Fire on_enters_play immediately.
+    """
+    from foursouls.cards.treasures import TREASURE_REGISTRY
+    from foursouls.rulesets.common.items import fire_on_enters_play
+
+    for i, player_id in enumerate(game.state.turn_order):
+        player = game.state.get_player(player_id)
+        char = player.character
+        if char is None or char.card_ref.card_id is None:
+            continue
+
+        from foursouls.cards.characters import get_character_def
+        char_def = get_character_def(char.card_ref.card_id)
+        if char_def.starting_eternal is None:
+            continue
+
+        eternal_card_id = char_def.starting_eternal
+        defn = TREASURE_REGISTRY.get(eternal_card_id)
+        recharge_on = defn.recharge_on if defn is not None else "end_of_turn"
+
+        item = ItemInPlay(
+            card_ref=CardRef(InstanceId(f"eternal-{i}"), eternal_card_id),
+            eternal=True,
+            recharge_on=recharge_on,
+        )
+        if defn is not None:
+            item.counters.update(defn.starting_counters)
+
+        player.items.append(item)
+        fire_on_enters_play(game, player_id, item)
 
 
 def _make_deck(cards: Sequence[CardRef]) -> tuple[DeckZone[CardRef], DiscardZone[CardRef]]:
@@ -74,6 +111,9 @@ def setup_game(
     )
 
     game = Game(state=state, zones=zones, rng=rng)
+
+    # Assign starting Eternal items from each player's character definition.
+    _assign_starting_eternals(game)
 
     # Fill initial monster slots before entering START phase so the board
     # exists when the first turn begins.

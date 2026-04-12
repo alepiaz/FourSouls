@@ -18,6 +18,7 @@ class MonsterInPlay:
     attack: int = 1           # damage dealt to attacker on miss
     reward_loot: int = 0      # loot cards drawn by attacker on kill (e.g. Spider)
     reward_treasure: int = 0  # treasure cards drawn by attacker on kill (e.g. Headless Horseman)
+    prevent_damage: int = 0      # damage shield; consumed before HP loss; resets at EndTurn
     is_boss: bool = False
     is_event: bool = False
 
@@ -25,4 +26,6 @@ class MonsterInPlay:
         return self.current_hp > 0
 
     def take_damage(self, amount: int) -> None:
-        self.current_hp = max(0, self.current_hp - amount)
+        absorbed = min(self.prevent_damage, amount)
+        self.prevent_damage = max(0, self.prevent_damage - amount)
+        self.current_hp = max(0, self.current_hp - (amount - absorbed))

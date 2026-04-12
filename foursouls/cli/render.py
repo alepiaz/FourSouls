@@ -23,7 +23,13 @@ _CARD_NAMES: dict[str, str] = {
     "LOOT_COIN_1": "Loot Coin",
     "LOOT_COIN_2": "2 Loot Coins",
     "LOOT_COIN_3": "3 Loot Coins",
-    "BOMB":        "Bomb",
+    "BOMB!":       "Bomb!",
+    "GOLD_BOMB!!": "Gold Bomb!!",
+    "SOUL_HEART":  "Soul Heart",
+    "BLANK_RUNE":  "Blank Rune",
+    # Event cards
+    "CURSED_CHEST":         "Cursed Chest",
+    "WE_NEED_TO_GO_DEEPER": "We Need To Go Deeper!",
     # Monsters
     "FLY":         "Fly",
     "GAPER":       "Gaper",
@@ -78,7 +84,7 @@ def render_player_row(game: "Game", player_id: str) -> str:
         char_part = f"  Char: {char_name}{tap_state}"
 
     item_names = [
-        pretty_name(str(r.card_id) if r.card_id else None)
+        pretty_name(str(r.card_ref.card_id) if r.card_ref.card_id else None)
         for r in player.items
     ]
     items_part = ("  Items: " + ", ".join(item_names)) if item_names else ""

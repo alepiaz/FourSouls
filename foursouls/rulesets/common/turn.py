@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from foursouls.engine.events import ActivePlayerChanged, ItemActivated, PhaseChanged, TurnEnded, TurnStarted
 from foursouls.model.phase import Phase
 from foursouls.rulesets.common.effects import DrawLoot1Effect, GrantExtraLootPlayEffect
+from foursouls.rulesets.common.items import fire_on_start_of_turn
 
 if TYPE_CHECKING:
     from foursouls.engine.game_loop import Game
@@ -29,10 +30,16 @@ def enter_start_phase(game: Game) -> None:
         player_id=active_id,
     ))
 
-    # Recharge: untap character at the start of the active player's turn
-    character = game.state.get_player(active_id).character
-    if character is not None:
-        character.untap()
+    # Recharge: untap character and start_of_turn items at the start of the active player's turn
+    player = game.state.get_player(active_id)
+    if player.character is not None:
+        player.character.untap()
+    for item in player.items:
+        if item.is_tapped and item.recharge_on == "start_of_turn":
+            item.untap()
+
+    # Fire on_start_of_turn hooks (e.g. The Curse auto-discard)
+    fire_on_start_of_turn(game)
 
     effect = DrawLoot1Effect(
         player_id=active_id,
@@ -111,6 +118,11 @@ def on_end_turn(game: Game) -> None:
     # Discard down to 10
     if len(active.hand) > 10:
         del active.hand[10:]
+
+    # Recharge: untap end_of_turn items for the player whose turn just ended
+    for item in active.items:
+        if item.is_tapped and item.recharge_on == "end_of_turn":
+            item.untap()
 
     game.log.append(TurnEnded(player_id=old_active_id, turn_number=old_turn_number))
 

@@ -2,7 +2,7 @@
 R7.2 — Death penalty applied in resolve_player_death; DeathPenaltyPaid event.
 
 Official rules penalty (applied automatically in priority order):
-  1. Destroy 1 non-eternal item  → first CardRef in player.items, if any
+  1. Destroy 1 non-eternal item  → first non-eternal ItemInPlay in player.items, if any
   2. Discard 1 loot card          → first CardRef in player.hand, if any
   3. Lose 1¢                      → floor 0
   4. Deactivate all ↷ items       → untap character (only ↷ item in current model)
@@ -50,7 +50,7 @@ def _game(
     *,
     player_hp: int = 1,
     cents: int = 0,
-    items: list[CardRef] | None = None,
+    items: list[CardRef | ItemInPlay] | None = None,
     hand: list[CardRef] | None = None,
     character_tapped: bool = False,
 ) -> Game:
@@ -61,7 +61,8 @@ def _game(
     p1 = PlayerState(player_id=PlayerId("P1"), max_hp=player_hp, hp=player_hp)
     p1.cents = cents
     if items is not None:
-        p1.items.extend(items)
+        for it in items:
+            p1.items.append(it if isinstance(it, ItemInPlay) else ItemInPlay(card_ref=it))
     if hand is not None:
         p1.hand.extend(hand)
 
@@ -125,7 +126,7 @@ def test_item_destroyed_when_player_has_items():
 
     ev = next(e for e in result.events if isinstance(e, DeathPenaltyPaid))
     assert ev.item_destroyed == item_ref
-    assert item_ref not in p1.items
+    assert not any(i.card_ref == item_ref for i in p1.items)
     assert item_ref in g.zones.treasure_discard.cards
 
 
@@ -137,8 +138,8 @@ def test_first_item_destroyed_when_multiple():
 
     _die(g)
 
-    assert first not in p1.items
-    assert second in p1.items          # only first is destroyed
+    assert not any(i.card_ref == first for i in p1.items)
+    assert any(i.card_ref == second for i in p1.items)   # only first is destroyed
 
 
 def test_item_destroyed_none_when_no_items():
@@ -255,7 +256,7 @@ def test_full_penalty_all_four_steps():
     assert ev.cents_lost == 1
     assert ev.items_deactivated == 1
 
-    assert item_ref not in p1.items
+    assert not any(i.card_ref == item_ref for i in p1.items)
     assert loot_ref not in p1.hand
     assert p1.cents == 2
     assert not p1.character.is_tapped

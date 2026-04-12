@@ -142,13 +142,13 @@ def test_shop_fill_order_is_deterministic():
     g1 = setup_game(_two_player_state(), **kwargs, rng=RNG(seed=5))
     g2 = setup_game(_two_player_state(), **kwargs, rng=RNG(seed=5))
 
-    for i in range(3):
+    for i in range(2):
         assert g1.zones.shop_slots.get(i) == g2.zones.shop_slots.get(i)
 
     # Different seed must produce a different arrangement (statistically certain with 10 cards)
     g3 = setup_game(_two_player_state(), **kwargs, rng=RNG(seed=99))
-    contents1 = [g1.zones.shop_slots.get(i) for i in range(3)]
-    contents3 = [g3.zones.shop_slots.get(i) for i in range(3)]
+    contents1 = [g1.zones.shop_slots.get(i) for i in range(2)]
+    contents3 = [g3.zones.shop_slots.get(i) for i in range(2)]
     assert contents1 != contents3
 
 
@@ -167,11 +167,11 @@ def test_setup_fills_shop_and_monsters():
 
     assert g.zones is not None
 
-    # Shop: 3 slots, all filled
+    # Shop: 2 slots, all filled
     shop = g.zones.shop_slots
-    assert len(shop) == 3
-    assert all(shop.get(i) is not None for i in range(3))
-    assert all(shop.get(i).instance_id.startswith("treasure-") for i in range(3))
+    assert len(shop) == 2
+    assert all(shop.get(i) is not None for i in range(2))
+    assert all(shop.get(i).instance_id.startswith("treasure-") for i in range(2))
 
     # Monster slots: 2 slots, all filled
     ms = g.zones.monster_slots
@@ -185,8 +185,8 @@ def test_setup_fills_shop_and_monsters():
     # Loot deck is smaller: 20 cards - (2 players * 3) dealt
     assert len(g.zones.loot_deck) == 20 - 2 * 3
 
-    # Treasure deck is smaller: 10 - 3 shop fills
-    assert len(g.zones.treasure_deck) == 10 - 3
+    # Treasure deck is smaller: 10 - 2 shop fills
+    assert len(g.zones.treasure_deck) == 10 - 2
 
     # Monster deck is smaller: 10 - 2 slot fills
     assert len(g.zones.monster_deck) == 10 - 2

@@ -1,7 +1,7 @@
 # Four Souls Engine — Sprint Roadmap
 
 This document is the living sprint plan for the project.  
-Sprints 0–9 are complete. Sprints 10–15 are planned. Sprints 16+ are sketched.
+Sprints 0–9 are complete. Sprints 10–16 are planned. Sprints 17+ are sketched.
 
 ---
 
@@ -25,7 +25,8 @@ Sprints 0–9 are complete. Sprints 10–15 are planned. Sprints 16+ are sketche
 | 13 | Monster abilities | 📋 planned |
 | 14 | Statistics pipeline | 📋 planned |
 | 15 | Heuristic bot | 📋 planned |
-| 16+ | Dice on stack, trinkets, steal, curses, rooms | 🔮 future |
+| 16 | Priority auto-advance | 📋 planned |
+| 17+ | Dice on stack, trinkets, steal, curses, rooms | 🔮 future |
 
 ---
 
@@ -159,6 +160,12 @@ Death penalty (destroy 1 non-eternal item, discard 1 loot, lose 1¢, deactivate 
 
 **Damage prevention:** `prevent_damage: int = 0` on both `PlayerState` and `MonsterInPlay`; `DealDamageEffect` consumes 1 shield before applying damage and skips if fully prevented; shield resets to 0 at `EndTurn`. Required by Soul Heart (this sprint) and Yum Heart (Sprint 11).
 
+**Releases:**
+- R10.1 — `PlayerTarget`, `MonsterTarget`, `AnyTarget` in `foursouls/model/target.py`; `PlayLoot` extended with `target: Optional[AnyTarget] = None` ✅
+- R10.2 — BOMB correction: rename to `Bomb!`, add `Gold Bomb!!`; `legal_commands()` emits one `PlayLoot` per valid target for targeted cards; `make_loot_effect` accepts target ✅
+- R10.3 — Soul Heart card; `prevent_damage: int = 0` on `PlayerState` and `MonsterInPlay`; shield consumed by `DealDamageEffect`, `DealDamageToMonsterEffect`, and combat miss; resets at `EndTurn` ✅
+- R10.4 — Blank Rune card; `LootRollEffect(branches: Dict[int, Effect])`; all-players effects; `Cursed Chest` and `We Need To Go Deeper!` event cards; acceptance test ✅
+
 **Key files:** `foursouls/model/target.py` (new), `foursouls/model/monster_in_play.py`, `foursouls/model/player_state.py`, `foursouls/cards/loot.py`, `foursouls/rulesets/common/effects.py`, `foursouls/rulesets/common/legality.py`
 
 ---
@@ -259,7 +266,12 @@ Death penalty (destroy 1 non-eternal item, discard 1 loot, lose 1¢, deactivate 
 - **Start-of-turn item trigger**: `on_start_of_turn: Optional[Callable[[Game], None]]` on `TreasureDef`; called from `enter_start_phase` (or the START-phase resolver) for each item the active player controls. Required by The Curse's auto-discard.
 - **Peek and reorder** (Sleight Of Hand): `PeekEffect(deck_target, count=5)` temporarily exposes the top N cards; `ReorderCards(order: List[InstanceId])` command submits the chosen sequence and puts them back. The game enters a `PendingReorder` sub-state while waiting for `ReorderCards`. In Sprint 11 this is simplified to **auto-shuffle** the top 5 (no player choice) — full interactive reorder deferred to Sprint 16+.
 
-**Key files:** `foursouls/cards/treasures.py` (new), `foursouls/model/item_in_play.py`, `foursouls/model/player_state.py`, `foursouls/engine/game_loop.py`, `foursouls/rulesets/common/legality.py`, `foursouls/rulesets/common/setup.py`
+**Releases:**
+- R11.1 — `TreasureDef` skeleton in `foursouls/cards/treasures.py`; card-ID constants for all Sprint 11 treasure cards; `ActivateItem(instance_id)` command; `ItemInPlay` gains `recharge_on: str` and `counters: Dict[str, int]`; `player.items` promoted from `List[CardRef]` to `List[ItemInPlay]`; `gain_treasure` wraps `CardRef` in `ItemInPlay`; death penalty filters for non-eternal; all callsites and affected tests updated ✅
+- R11.2 — `ActivateItem(instance_id, target)` legality and resolution; `TreasureDef` gains `tap_target_type` and `make_tap_effect`; `TREASURE_REGISTRY`; `AoDamageEffect`, `PreventDamageToMonsterEffect`, `TreasureActivateEffect` in `effects.py`; `on_activate_item` in `items.py`; `end_of_turn` items untap in `on_end_turn`; `start_of_turn` items untap in `enter_start_phase`; `Mama Mega` and `Yum Heart` card definitions; acceptance test ✅
+- R11.3 — `CharacterDef.starting_eternal`; `_assign_starting_eternals` in `setup_game`; `fire_on_enters_play` + `fire_on_start_of_turn` helpers; `damage_cap: int = 0` on `PlayerState`; cap applied in `DealDamageEffect`, `AllPlayersTakeDamageEffect`, `AoDamageEffect`; `Dry Baby`, `Meat!`, `The D6`, `Lucky Foot`, `Sleight Of Hand` (stub), `The Curse` (stub) card defs; `on_buy_shop` fires `on_enters_play`; acceptance test ✅
+
+**Key files:** `foursouls/cards/treasures.py` (new), `foursouls/model/item_in_play.py`, `foursouls/model/player_state.py`, `foursouls/model/commands.py`, `foursouls/engine/game_loop.py`, `foursouls/rulesets/common/legality.py`, `foursouls/rulesets/common/setup.py`
 
 ---
 
@@ -346,17 +358,33 @@ Death penalty (destroy 1 non-eternal item, discard 1 loot, lose 1¢, deactivate 
 
 ---
 
-## Sprints 16+ — Future mechanics
+## Sprint 16 — Priority auto-advance
+**Goal:** Players with no meaningful actions are automatically skipped. The engine runs to quiescence after every command — callers no longer drive a manual `PassPriority` loop.
+
+**Rules:**
+- A player with only `PassPriority` available is auto-skipped; priority advances to the next player.
+- A player who *has* other actions may still explicitly pass priority without playing anything.
+- After any priority reset, `Game._run_to_quiescence()` loops: auto-pass each player whose only legal command is `PassPriority()`, until someone has a real action or all have passed.
+- If all pass, the existing resolution logic fires (resolve stack top, or call `on_all_passed_empty_stack`), then quiescence re-runs.
+- `step()` returns only when a player with real choices holds priority, or when the game is over.
+
+**Impact:** All existing tests that manually drive `PassPriority` pairs to resolve a stack item need updating — the stack resolves automatically inside `step(PlayLoot(...))`. Tests simplify from three calls to one.
+
+**Key files:** `foursouls/engine/game_loop.py`
+
+---
+
+## Sprints 17+ — Future mechanics
 
 These are scoped but not yet scheduled. They extend rules parity and are ordered by dependency.
 
 | Sprint | Name | Depends on | Key mechanic |
 |--------|------|------------|--------------|
-| 16 | Dice on the stack | — | Rolls become real stack items; players can respond; reroll items become functional (The D6 tap); I. The Magician (set roll value); Mutant Spider (roll 4 dice, choose 1) |
-| 17 | Trinkets | Sprint 10 (loot diversity) | Loot-to-item zone transition on resolution; canonical example: Curved Horn (+1ATK on first attack roll each turn) |
-| 18 | Player interaction | Sprint 10 (targeting) | Steal item, give item, swap cents — give/steal/swap mechanic |
-| 19 | Curses | Sprint 9 (events) | Persistent curse events assigned to a player; discarded on death |
-| 20 | Rooms | Sprint 9 (events) | Optional room deck, room slot, end-phase room discard |
+| 17 | Dice on the stack | — | Rolls become real stack items; players can respond; reroll items become functional (The D6 tap); I. The Magician (set roll value); Mutant Spider (roll 4 dice, choose 1) |
+| 18 | Trinkets | Sprint 10 (loot diversity) | Loot-to-item zone transition on resolution; canonical example: Curved Horn (+1ATK on first attack roll each turn) |
+| 19 | Player interaction | Sprint 10 (targeting) | Steal item, give item, swap cents — give/steal/swap mechanic |
+| 20 | Curses | Sprint 9 (events) | Persistent curse events assigned to a player; discarded on death |
+| 21 | Rooms | Sprint 9 (events) | Optional room deck, room slot, end-phase room discard |
 
 ---
 

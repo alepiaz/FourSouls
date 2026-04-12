@@ -22,9 +22,11 @@ MONSTRO           = CardId("MONSTRO")            # Base Game V2
 HEADLESS_HORSEMAN = CardId("HEADLESS_HORSEMAN")  # Four Souls+ V2
 
 # Event card IDs
-FEAST     = CardId("FEAST")      # positive: active player gains 5¢
-PLAGUE    = CardId("PLAGUE")     # negative: active player takes 2 damage
-WANDERING = CardId("WANDERING")  # neutral:  active player draws 1 loot
+FEAST          = CardId("FEAST")           # positive: active player gains 5¢
+PLAGUE         = CardId("PLAGUE")          # negative: active player takes 2 damage
+WANDERING      = CardId("WANDERING")       # neutral:  active player draws 1 loot
+CURSED_CHEST   = CardId("CURSED_CHEST")   # bad: roll d6 — 1-3: 1 dmg; 4-5: 2 dmg; 6: stub
+WE_NEED_TO_GO_DEEPER = CardId("WE_NEED_TO_GO_DEEPER")  # good: reset attack_used
 
 # ── Blueprint ─────────────────────────────────────────────────────────────────
 
@@ -65,6 +67,25 @@ def _wandering_effect(game: "Game") -> "Effect":
     )
 
 
+def _cursed_chest_effect(game: "Game") -> "Effect":
+    from foursouls.rulesets.common.effects import DealDamageEffect, LootRollEffect
+    active_id = game.state.active_player_id
+    branches = {
+        1: DealDamageEffect(player_id=active_id, amount=1),
+        2: DealDamageEffect(player_id=active_id, amount=1),
+        3: DealDamageEffect(player_id=active_id, amount=1),
+        4: DealDamageEffect(player_id=active_id, amount=2),
+        5: DealDamageEffect(player_id=active_id, amount=2),
+        # 6: search for Guppy item — deferred to Sprint 11
+    }
+    return LootRollEffect(branches=branches, rng=game.rng)
+
+
+def _we_need_to_go_deeper_effect(game: "Game") -> "Effect":
+    from foursouls.rulesets.common.effects import ResetAttackEffect
+    return ResetAttackEffect()
+
+
 # ── Registry ──────────────────────────────────────────────────────────────────
 
 _REGISTRY: Dict[CardId, MonsterDef] = {
@@ -87,6 +108,8 @@ _REGISTRY: Dict[CardId, MonsterDef] = {
     FEAST:     MonsterDef(card_id=FEAST,     base_hp=0, evade=0, attack=0, reward_coin=0, has_soul=False, is_event=True, event_effect=_feast_effect),
     PLAGUE:    MonsterDef(card_id=PLAGUE,    base_hp=0, evade=0, attack=0, reward_coin=0, has_soul=False, is_event=True, event_effect=_plague_effect),
     WANDERING: MonsterDef(card_id=WANDERING, base_hp=0, evade=0, attack=0, reward_coin=0, has_soul=False, is_event=True, event_effect=_wandering_effect),
+    CURSED_CHEST:         MonsterDef(card_id=CURSED_CHEST,         base_hp=0, evade=0, attack=0, reward_coin=0, has_soul=False, is_event=True, event_effect=_cursed_chest_effect),
+    WE_NEED_TO_GO_DEEPER: MonsterDef(card_id=WE_NEED_TO_GO_DEEPER, base_hp=0, evade=0, attack=0, reward_coin=0, has_soul=False, is_event=True, event_effect=_we_need_to_go_deeper_effect),
 }
 
 # Used when a CardRef has no card_id or an unrecognised one (e.g. test stubs).

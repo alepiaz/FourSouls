@@ -17,7 +17,7 @@ from foursouls.engine.priority import PriorityManager
 from foursouls.engine.rng import RNG
 from foursouls.engine.stack import Stack, StackItem
 from foursouls.model.combat_state import CombatState
-from foursouls.model.commands import ActivateCharacterAbility, AttackMonster, BuyShop, Command, EndTurn, PassPriority, PlayLoot, RollCombat
+from foursouls.model.commands import ActivateCharacterAbility, ActivateItem, AttackMonster, BuyShop, Command, EndTurn, PassPriority, PlayLoot, RollCombat
 from foursouls.model.effects import Effect
 from foursouls.model.game_state import GameState
 from foursouls.model.refs import PlayerId
@@ -25,6 +25,7 @@ from foursouls.rulesets.base_rules import BaseRuleset
 from foursouls.rulesets.common.combat import enter_combat, resolve_roll
 from foursouls.rulesets.common.loot import on_play_loot
 from foursouls.rulesets.common.shop import on_buy_shop
+from foursouls.rulesets.common.items import on_activate_item
 from foursouls.rulesets.common.turn import on_activate_character_ability, on_all_passed_empty_stack, on_end_turn
 
 
@@ -126,6 +127,9 @@ class Game:
 
         elif isinstance(command, BuyShop):
             on_buy_shop(self, command.slot_index)
+
+        elif isinstance(command, ActivateItem):
+            on_activate_item(self, command.instance_id, command.target)
 
         elif isinstance(command, AttackMonster):
             enter_combat(self, command.slot_index)

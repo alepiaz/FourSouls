@@ -2,7 +2,8 @@
 Tests for S2.5: PlayLoot dispatch, GainCentsEffect, DealDamageEffect, discard.
 """
 from agents.pass_bot import choose_command
-from foursouls.cards.loot import BOMB, LOOT_COIN_1, LOOT_COIN_2
+from foursouls.cards.loot import BOMB_BANG, LOOT_COIN_1, LOOT_COIN_2
+from foursouls.model.target import PlayerTarget
 from foursouls.engine.rng import RNG
 from foursouls.model.commands import PassPriority, PlayLoot
 from foursouls.model.game_state import GameState
@@ -66,32 +67,47 @@ def test_play_coin_2_and_coin_3_are_both_one_cent():
         assert p1.cents == 1
 
 
-# ── DealDamageEffect ──────────────────────────────────────────────────────────
+# ── DealDamageEffect (targeted) ───────────────────────────────────────────────
 
-def test_play_bomb_deals_one_damage_to_controller():
-    bomb = _ref("bomb-a", BOMB)
+def test_play_bomb_deals_one_damage_to_target_player():
+    bomb = _ref("bomb-a", BOMB_BANG)
+    g = _game_at_action(extra_loot=[bomb])
+    p2 = g.state.get_player(PlayerId("P2"))
+    hp_before = p2.hp
+
+    g.step(PlayLoot(card_ref=bomb, target=PlayerTarget(PlayerId("P2"))))
+    g.step(PassPriority())
+    g.step(PassPriority())
+
+    assert p2.hp == hp_before - 1
+
+
+def test_bomb_self_target():
+    bomb = _ref("bomb-b", BOMB_BANG)
     g = _game_at_action(extra_loot=[bomb])
     p1 = g.state.get_player(PlayerId("P1"))
-    assert p1.hp == 3
+    hp_before = p1.hp
 
-    g.step(PlayLoot(card_ref=bomb))
+    g.step(PlayLoot(card_ref=bomb, target=PlayerTarget(PlayerId("P1"))))
     g.step(PassPriority())
     g.step(PassPriority())
 
-    assert p1.hp == 2
+    assert p1.hp == hp_before - 1
 
 
-def test_bomb_damage_clamped_at_zero():
-    bomb = _ref("bomb-b", BOMB)
+def test_bomb_deals_damage_to_monster():
+    from foursouls.model.target import MonsterTarget
+    bomb = _ref("bomb-m", BOMB_BANG)
     g = _game_at_action(extra_loot=[bomb])
-    p1 = g.state.get_player(PlayerId("P1"))
-    p1.hp = 1
+    monster = g.zones.monster_slots.get(0)
+    assert monster is not None
+    hp_before = monster.current_hp
 
-    g.step(PlayLoot(card_ref=bomb))
+    g.step(PlayLoot(card_ref=bomb, target=MonsterTarget(slot_index=0)))
     g.step(PassPriority())
     g.step(PassPriority())
 
-    assert p1.hp == 0
+    assert monster.current_hp == hp_before - 1
 
 
 # ── Hand / discard mechanics ──────────────────────────────────────────────────

@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from foursouls.engine.events import CoinsSpent, ShopBought
+from foursouls.rulesets.common.items import fire_on_enters_play
 from foursouls.rulesets.common.legality import TREASURE_COST
 
 if TYPE_CHECKING:
@@ -32,6 +33,9 @@ def on_buy_shop(game: Game, slot_index: int) -> None:
     game.zones.shop_slots.clear(slot_index)
     active.cents -= TREASURE_COST
     active.gain_treasure(card_ref)
+    # Fire on_enters_play for the newly acquired item
+    new_item = active.items[-1]
+    fire_on_enters_play(game, active_id, new_item)
     game.state.turn_flags.purchase_used = True
 
     if not game.zones.treasure_deck.empty():

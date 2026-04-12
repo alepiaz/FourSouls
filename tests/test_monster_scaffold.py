@@ -197,7 +197,7 @@ def test_monster_state_not_in_player_zones():
         player = g.state.get_player(pid)
         hand_ids = {c.instance_id for c in player.hand}
         assert hand_ids.isdisjoint(monster_ids)
-        item_ids = {c.instance_id for c in player.items}
+        item_ids = {i.card_ref.instance_id for i in player.items}
         assert item_ids.isdisjoint(monster_ids)
 
 
