@@ -169,4 +169,9 @@ def make_monster_in_play(card_ref: CardRef) -> MonsterInPlay:
         reward_treasure=defn.reward_treasure,
         is_boss=defn.is_boss,
         is_event=defn.is_event,
+        # Sprint 13 R13.2: copy trigger hooks from the definition
+        on_death=defn.on_death,
+        on_miss=defn.on_miss,
+        on_would_take_combat_damage=defn.on_would_take_combat_damage,
+        on_would_die=defn.on_would_die,
     )

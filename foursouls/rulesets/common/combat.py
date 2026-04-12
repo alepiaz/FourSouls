@@ -13,6 +13,7 @@ from foursouls.engine.events import (
     EventEntered,
     GameWon,
     MonsterDied,
+    MonsterTriggerFired,
     PhaseChanged,
     PlayerDied,
     SoulGranted,
@@ -118,11 +119,13 @@ def resolve_roll(game: Game) -> None:
     """
     Execute one combat exchange:
     - Roll d6.
-    - Hit (roll >= monster.evade): monster takes attacker.attack + attack_bonus damage.
-    - Miss (roll < monster.evade): attacker takes monster.attack damage.
-    - Skip the damage step if the computed amount is 0.
+    - Hit (roll >= monster.evade + evade_bonus): invoke on_would_take_combat_damage
+      (if defined), then apply final damage to monster.
+    - Miss (roll < evade): invoke on_miss (if defined) to determine final miss
+      damage, then apply to attacker.
+    - Skip the damage step if the final amount is 0.
     - Log CombatRollResult and DamageDealt.
-    - Check for death.
+    - Check for death; invoke on_would_die before resolving monster death.
     """
     assert game.combat is not None and game.combat.is_active
     assert game.zones is not None
@@ -133,10 +136,21 @@ def resolve_roll(game: Game) -> None:
 
     attacker = game.state.get_player(combat.attacker_id)
     roll = game.rng.roll_d6()
-    is_hit = roll >= monster.evade
+    combat.last_combat_roll = roll                              # R13.1 substrate
+
+    effective_evade = monster.evade + monster.evade_bonus      # R13.1 substrate
+    is_hit = roll >= effective_evade
 
     if is_hit:
         damage = attacker.attack + attacker.attack_bonus
+        # on_would_take_combat_damage: let the monster modify incoming damage
+        if monster.on_would_take_combat_damage is not None:
+            game.log.append(MonsterTriggerFired(
+                card_id=monster.card_ref.card_id,
+                trigger="on_would_take_combat_damage",
+                roll=roll,
+            ))
+            damage = monster.on_would_take_combat_damage(game, roll, damage)  # type: ignore[call-arg]
         if damage > 0:
             monster.take_damage(damage)
             game.log.append(DamageDealt(
@@ -150,7 +164,15 @@ def resolve_roll(game: Game) -> None:
             ))
         attack_stat = damage
     else:
-        damage = monster.attack
+        damage = monster.attack + monster.attack_bonus         # R13.1 substrate
+        # on_miss: let the monster modify miss damage
+        if monster.on_miss is not None:
+            game.log.append(MonsterTriggerFired(
+                card_id=monster.card_ref.card_id,
+                trigger="on_miss",
+                roll=roll,
+            ))
+            damage = monster.on_miss(game, roll)               # type: ignore[call-arg]
         if damage > 0:
             absorbed = min(attacker.prevent_damage, damage)
             attacker.prevent_damage = max(0, attacker.prevent_damage - damage)
@@ -170,12 +192,26 @@ def resolve_roll(game: Game) -> None:
         attacker_id=combat.attacker_id,
         defender_slot=combat.defender_slot,
         roll=roll,
-        evade=monster.evade,
+        evade=effective_evade,
         is_hit=is_hit,
         attack_stat=attack_stat,
     ))
 
+    # ── Death checks ─────────────────────────────────────────────────────────
+    monster_death_prevented = False
     if not monster.is_alive():
+        # on_would_die fires once per turn before death resolves
+        if monster.on_would_die is not None and not monster.prevent_death_used:
+            game.log.append(MonsterTriggerFired(
+                card_id=monster.card_ref.card_id,
+                trigger="on_would_die",
+                roll=0,
+            ))
+            monster_death_prevented = monster.on_would_die(game)  # type: ignore[call-arg]
+            if monster_death_prevented:
+                monster.prevent_death_used = True
+
+    if not monster.is_alive() and not monster_death_prevented:
         resolve_monster_death(game)
     elif not is_hit and not game.state.get_player(combat.attacker_id).is_alive() \
             and not game.state.turn_flags.died_this_turn:
@@ -272,6 +308,16 @@ def resolve_monster_death(game: Game) -> None:
             card_ref=dead_monster.card_ref,
             card_name=monster_name,
         ))
+
+    # on_death: fires after rewards; callback receives the triggering roll
+    kill_roll = combat.last_combat_roll
+    if dead_monster.on_death is not None:
+        game.log.append(MonsterTriggerFired(
+            card_id=dead_monster.card_ref.card_id,
+            trigger="on_death",
+            roll=kill_roll,
+        ))
+        dead_monster.on_death(game, kill_roll)                 # type: ignore[call-arg]
 
     game.combat = None
     game.priority.reset_to(attacker_id)
