@@ -12,9 +12,9 @@
 | 7 | Correct player death penalty | ✅ done |
 | 8 | ATK stat & correct combat damage | ✅ done |
 | 9 | Event cards in monster deck | ✅ done |
-| 10 | Loot card diversity + targeting system | 📋 planned |
-| 11 | Treasure card effects + starting eternal items | 📋 planned |
-| 12 | Character stats and ability window | 📋 planned |
+| 10 | Loot card diversity + targeting system | ✅ done |
+| 11 | Treasure card effects + starting eternal items | ✅ done |
+| 12 | Character stats and ability window | ✅ done |
 | 13 | Monster abilities + expansion pack | 📋 planned |
 | 14 | Dice on stack + roll control | 📋 planned |
 | 15 | Cancel / response stack interaction | 📋 planned |
