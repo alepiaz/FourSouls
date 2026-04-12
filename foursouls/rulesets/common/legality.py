@@ -17,13 +17,13 @@ TREASURE_COST = 10
 
 def legal_commands(game: Game) -> List[Command]:
     """
-    Sprint 2 legality rules:
+    Sprint 2 / Sprint 12 legality rules:
     - PassPriority: always legal.
     - EndTurn: legal only when phase is ACTION and the stack is empty.
     - PlayLoot(card_ref): one entry per card in the active player's hand when
         phase is ACTION, stack is empty, and loot quota not exhausted.
-    - ActivateCharacterAbility: legal when phase is ACTION, stack is empty,
-        and the active player's character exists and is not tapped.
+    - ActivateCharacterAbility: legal whenever the priority holder's character
+        is untapped, regardless of phase or stack state (Sprint 12).
     """
     if game.game_over:
         return []
@@ -36,6 +36,13 @@ def legal_commands(game: Game) -> List[Command]:
     # EndTurn is legal in ACTION (normal) or END (after active-player death)
     if state.phase in (Phase.ACTION, Phase.END) and stack.empty():
         cmds.append(EndTurn())
+
+    # ActivateCharacterAbility: legal for the priority holder whenever their
+    # character is untapped — no phase or stack restriction (Sprint 12, R12.2).
+    priority_holder = state.get_player(game.priority.current())
+    char = priority_holder.character
+    if char is not None and not char.is_tapped:
+        cmds.append(ActivateCharacterAbility())
 
     if state.phase == Phase.ACTION and stack.empty():
         active = state.get_player(state.active_player_id)
@@ -53,10 +60,6 @@ def legal_commands(game: Game) -> List[Command]:
                                 cmds.append(PlayLoot(card_ref=card_ref, target=MonsterTarget(slot_index=idx)))
                 else:
                     cmds.append(PlayLoot(card_ref=card_ref))
-
-        char = active.character
-        if char is not None and not char.is_tapped:
-            cmds.append(ActivateCharacterAbility())
 
         if not flags.purchase_used and game.zones is not None:
             for idx in game.zones.shop_slots.filled_indices():

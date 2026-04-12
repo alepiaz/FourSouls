@@ -58,13 +58,19 @@ def on_activate_character_ability(game: Game) -> None:
     """
     Pay the tap cost, log the activation, push GrantExtraLootPlay onto the
     stack, and give priority to the active player.
+
+    Sprint 12 (R12.2): the acting player is whoever currently holds priority
+    (may differ from the active player when used as a response).  The tap cost
+    is paid by the acting player's character; the extra loot play is still
+    granted to the active player (the one whose turn it is).
     """
     active_id = game.state.active_player_id
-    game.state.get_player(active_id).character.tap()
-    game.log.append(ItemActivated(player_id=active_id, source="character:tap_ability"))
+    acting_id = game.priority.current()
+    game.state.get_player(acting_id).character.tap()
+    game.log.append(ItemActivated(player_id=acting_id, source="character:tap_ability"))
     effect = GrantExtraLootPlayEffect(player_id=active_id)
     game.push_to_stack(
-        controller_id=active_id,
+        controller_id=acting_id,
         source="character:tap_ability",
         effect=effect,
         label="GrantExtraLootPlay",

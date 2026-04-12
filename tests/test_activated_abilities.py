@@ -60,13 +60,14 @@ def test_activate_illegal_when_character_already_tapped():
     assert ActivateCharacterAbility() not in legal_commands(g)
 
 
-def test_activate_illegal_outside_action_phase():
+def test_activate_legal_outside_action_phase():
+    """Sprint 12 R12.2: character ability is legal in any phase when character is untapped."""
     p1 = PlayerState(player_id=PlayerId("P1"), max_hp=3, hp=3)
     p1.character = _char("char-p1")
     state = GameState.from_players([p1])
     state.phase = Phase.START
     g = Game(state=state)
-    assert ActivateCharacterAbility() not in legal_commands(g)
+    assert ActivateCharacterAbility() in legal_commands(g)
 
 
 # ── Activation mechanics ──────────────────────────────────────────────────────

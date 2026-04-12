@@ -170,8 +170,8 @@ def _play_loot(cmd: PlayLoot) -> LegalAction:
 
 def _activate_character(game: Game, cmd: ActivateCharacterAbility) -> LegalAction:
     from foursouls.cli.render import pretty_name
-    active_id = game.state.active_player_id
-    character = game.state.get_player(active_id).character
+    acting_id = game.priority.current()
+    character = game.state.get_player(acting_id).character
     char_card_id: Optional[str] = None
     if character is not None and character.card_ref.card_id is not None:
         char_card_id = str(character.card_ref.card_id)
