@@ -22,7 +22,7 @@ from foursouls.model.effects import Effect
 from foursouls.model.game_state import GameState
 from foursouls.model.refs import PlayerId
 from foursouls.rulesets.base_rules import BaseRuleset
-from foursouls.rulesets.common.combat import enter_combat, resolve_roll
+from foursouls.rulesets.common.combat import check_all_monster_deaths_out_of_combat, check_combat_attacker_death, check_combat_defender_death, enter_combat, resolve_roll
 from foursouls.rulesets.common.loot import on_play_loot
 from foursouls.rulesets.common.shop import on_buy_shop
 from foursouls.rulesets.common.items import on_activate_item
@@ -103,6 +103,15 @@ class Game:
                     if item.effect.validate(self.state):
                         item.effect.apply(self.state)
                         self.log.append(StackItemResolved(stack_id=item.stack_id, label=item.label))
+                        # Any resolved effect may have killed the combat defender
+                        # (e.g. Bomb!, item AoE).  Delegate to the shared helper
+                        # so the logic lives in exactly one place.
+                        check_combat_defender_death(self)
+                        # Also handle monsters killed outside of active combat
+                        # (e.g. Bomb! vs a non-combat slot, AoE effects).
+                        check_all_monster_deaths_out_of_combat(self)
+                        # Check if CombatMissDamageEffect just killed the attacker.
+                        check_combat_attacker_death(self)
                     else:
                         self.log.append(EffectFizzled(stack_id=item.stack_id, reason="validate_failed", label=item.label))
 

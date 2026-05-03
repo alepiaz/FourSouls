@@ -84,13 +84,14 @@ def test_play_loot_illegal_outside_action_phase():
     assert not any(isinstance(c, PlayLoot) for c in cmds)
 
 
-def test_play_loot_illegal_when_stack_not_empty():
+def test_play_loot_legal_when_stack_not_empty():
+    """Loot plays are instant-speed: legal even with items on the stack."""
     g = _game(Phase.ACTION)
     g.state.get_player(PlayerId("P1")).hand = [_card("a")]
     g.stack.push(controller_id=PlayerId("P1"), source="test", effect=AppendMarkerEffect("x"))
 
     cmds = legal_commands(g)
-    assert not any(isinstance(c, PlayLoot) for c in cmds)
+    assert any(isinstance(c, PlayLoot) for c in cmds)
 
 
 def test_play_loot_illegal_when_hand_empty():

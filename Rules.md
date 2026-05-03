@@ -1,3 +1,34 @@
+Game Overview
+The Binding of Isaac: Four Souls is a card game for 1–4 players (best at 3). The goal is simple: be the first player to collect 4 Souls. Gameplay involves taking turns attacking monsters, buying items from the shop, and playing loot cards — all while reacting to what other players do.
+
+Two key concepts underpin everything else in the game:
+
+Priority: After the active player does something, every other player gets a chance to respond before it takes effect.
+
+The Stack: Cards and abilities don't resolve immediately. They are placed onto a shared stack and resolve in reverse order (last in, first out) once all players pass priority. This allows players to react to each other — responding to a response is valid.
+
+Card Types at a Glance
+- Treasure cards become items when in play. Silver-bordered items have static or triggered abilities. Gold-bordered items have at least one activated ability: ↷ abilities require deactivating (turning sideways) the item as a cost and can only be used while the item is charged (upright); $ abilities require paying a specified cost and can be activated even while the item is deactivated (sideways).
+- Loot cards are kept in hand and played onto the stack when you have priority and a loot play available. Trinkets are a special type of loot card: when a trinket resolves off the stack it becomes a permanent passive item in your play area — it is not consumed. It stays in play like any other item until destroyed.
+- Monster cards are either monsters (with a stat block) or events (without one). Events resolve immediately and are discarded; monsters can be attacked.
+- Curses are a type of event: the active player assigns them to a player of their choice. A cursed player discards all their curses when they die.
+- Bonus Souls are placed face-up beside the play area at setup. They are not in any deck. Once gained they act like any other soul; if destroyed they are placed face-down and can never be gained again.
+
+Turn Structure Summary
+Start Phase: Recharge your cards → start-of-turn abilities trigger → loot 1.
+Action Phase: You have one loot play for the turn. While the stack is empty you may also declare one attack, one purchase, or end your turn — you may do both an attack and a purchase in the same turn. Most character cards have a ↷ ability that grants an additional loot play — because this is an activated ability, you can use it any time you have priority, including on other players' turns. It is often strategic to save it for a moment when you want to react to or disrupt what another player is doing.
+End Phase: End-of-turn abilities trigger → discard down to your max hand size (10 by default) → pass the turn clockwise. All damage is healed at end of turn, including damage on dead players — every player is fully alive again at the start of the next player's turn.
+
+Purchasing: Declare a purchase (priority passes), then choose to buy a shop item or the top card of the treasure deck. Buying the top of the treasure deck is a blind commitment — you do not look before deciding, and once you choose it you must pay and take it. Cost is 10¢ by default. Shop slots must always contain at least one card and are immediately refilled after a purchase.
+
+Attacking: Declare an attack (priority passes), then choose a monster in a slot or the top card of the monster deck. Choosing the top of the deck is a commitment — you reveal it and place it into a monster slot immediately. If the revealed card is an event, its ability triggers and it is discarded when resolved (the covered monster returns); the attack then has no target and ends. If it is a monster that cannot be attacked, it enters the slot and the attack is canceled. Otherwise roll a D6 repeatedly. If the roll ≥ the monster's evasion, you hit and deal damage equal to your attack. If the roll < evasion, you miss and take damage equal to the monster's attack. The attack continues until either you or the monster dies. When a monster dies the active player gains its reward and its soul (if it has one); the slot is then immediately refilled (events are resolved until a monster fills the slot). Use the D8 to track monster HP during combat.
+
+Player Death: When you die you pay the death penalty — destroy a non-eternal item you control, discard a loot card, lose 1¢, and deactivate your character and all your items with a ↷ ability. You do not lose any souls. Your starting item is always Eternal and is never lost on death. If you are the active player the turn immediately jumps to the end phase. If you are a non-active player, you stay deactivated until your own start phase — your items do not recharge when other players take their turns, only when it is your own start phase.
+
+Bartering: You may trade any amount of ¢ with another player for almost any favor, but you cannot trade items or loot cards. Bartering does not use the stack. You are not required to keep your promises.
+
+Winning: The moment any player controls a total soul value of 4 the game ends and that player wins.
+
 Setup
 Shuffle the Treasure, Loot, and Monster Decks. Also shuffle the Room Deck, if you are playing with it. Set aside space for a discard zone next to each of these decks.
 

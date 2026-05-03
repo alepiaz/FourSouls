@@ -16,4 +16,9 @@ class MonsterTarget:
     slot_index: int
 
 
-AnyTarget = Union[PlayerTarget, MonsterTarget]
+@dataclass(frozen=True, slots=True)
+class StackItemTarget:
+    stack_id: int
+
+
+AnyTarget = Union[PlayerTarget, MonsterTarget, StackItemTarget]

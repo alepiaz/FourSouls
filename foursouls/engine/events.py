@@ -89,6 +89,13 @@ class StackItemResolved(Event):
 
 
 @dataclass(frozen=True, slots=True)
+class StackItemCancelled(Event):
+    """Emitted when a cancel card (e.g. Butter Bean) removes an item from the stack."""
+    stack_id: int
+    label: str = ""
+
+
+@dataclass(frozen=True, slots=True)
 class EffectFizzled(Event):
     stack_id: int
     reason: str = "validate_failed"

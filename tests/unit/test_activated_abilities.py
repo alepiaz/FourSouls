@@ -136,3 +136,112 @@ def test_activate_then_extra_loot_play_becomes_legal():
     # If P1 has cards in hand, PlayLoot should be legal again
     if g.state.get_player(PlayerId("P1")).hand:
         assert any(isinstance(c, PlayLoot) for c in legal_commands(g))
+
+
+# ── Off-turn activation (b taps on a's turn) ─────────────────────────────────
+
+def _game_at_action_two_players():
+    """Two-player game at ACTION (P1 active); both players have characters."""
+    p1 = PlayerState(player_id=PlayerId("P1"), max_hp=3, hp=3)
+    p2 = PlayerState(player_id=PlayerId("P2"), max_hp=3, hp=3)
+    p1.character = _char("char-p1")
+    p2.character = _char("char-p2")
+    state = GameState.from_players([p1, p2], active_player_id=PlayerId("P1"))
+    g = setup_game(
+        state,
+        loot_cards=_make_cards("loot", 40),
+        treasure_cards=_make_cards("treasure", 10),
+        monster_cards=_make_cards("monster", 10),
+        rng=RNG(seed=0),
+    )
+    while g.state.phase != Phase.ACTION:
+        g.step(choose_command(g))
+    return g
+
+
+def test_off_turn_activation_does_not_change_active_player_quota():
+    """P2 tapping on P1's turn must not touch loot_plays_allowed."""
+    g = _game_at_action_two_players()
+    quota_before = g.state.turn_flags.loot_plays_allowed
+
+    # P1 passes to P2; P2 activates their character
+    g.step(PassPriority())                # P1 passes → P2 holds priority
+    g.step(ActivateCharacterAbility())    # P2 taps their character
+    g.step(PassPriority())                # P1 passes
+    g.step(PassPriority())                # P2 passes → resolves
+
+    assert g.state.turn_flags.loot_plays_allowed == quota_before
+
+
+def test_off_turn_activation_grants_extra_play_to_controller():
+    """Extra play goes into extra_loot_plays["P2"], not to P1's quota."""
+    g = _game_at_action_two_players()
+
+    g.step(PassPriority())
+    g.step(ActivateCharacterAbility())
+    g.step(PassPriority())
+    g.step(PassPriority())
+
+    assert g.state.turn_flags.extra_loot_plays.get("P2", 0) == 1
+
+
+def test_off_turn_play_loot_legal_for_controller_when_holding_priority():
+    """After P2 gains an extra play, PlayLoot is legal for P2's hand when P2 holds priority."""
+    from foursouls.model.commands import PlayLoot
+    g = _game_at_action_two_players()
+
+    # Ensure P2 has a loot card
+    from foursouls.cards.loot import LOOT_COIN_1
+    coin = CardRef(InstanceId("p2-coin"), LOOT_COIN_1)
+    g.state.get_player(PlayerId("P2")).hand.append(coin)
+
+    g.step(PassPriority())
+    g.step(ActivateCharacterAbility())
+    g.step(PassPriority())
+    g.step(PassPriority())  # resolves; P1 now holds priority
+
+    # P1 passes → P2 holds priority and has 1 extra play
+    g.step(PassPriority())
+
+    assert any(isinstance(c, PlayLoot) and c.card_ref == coin for c in legal_commands(g))
+
+
+def test_off_turn_play_loot_removes_card_from_controller_hand():
+    """Playing the loot card removes it from P2's hand, not P1's."""
+    from foursouls.model.commands import PlayLoot
+    g = _game_at_action_two_players()
+
+    from foursouls.cards.loot import LOOT_COIN_1
+    coin = CardRef(InstanceId("p2-coin"), LOOT_COIN_1)
+    g.state.get_player(PlayerId("P2")).hand.append(coin)
+
+    g.step(PassPriority())
+    g.step(ActivateCharacterAbility())
+    g.step(PassPriority())
+    g.step(PassPriority())
+    g.step(PassPriority())  # P1 passes → P2 holds priority
+
+    g.step(PlayLoot(card_ref=coin))
+
+    assert coin not in g.state.get_player(PlayerId("P2")).hand
+    assert coin not in g.state.get_player(PlayerId("P1")).hand
+
+
+def test_off_turn_play_loot_decrements_extra_plays():
+    """After P2 plays the loot card, their extra_loot_plays drops to 0."""
+    from foursouls.model.commands import PlayLoot
+    g = _game_at_action_two_players()
+
+    from foursouls.cards.loot import LOOT_COIN_1
+    coin = CardRef(InstanceId("p2-coin"), LOOT_COIN_1)
+    g.state.get_player(PlayerId("P2")).hand.append(coin)
+
+    g.step(PassPriority())
+    g.step(ActivateCharacterAbility())
+    g.step(PassPriority())
+    g.step(PassPriority())
+    g.step(PassPriority())
+
+    g.step(PlayLoot(card_ref=coin))
+
+    assert g.state.turn_flags.extra_loot_plays.get("P2", 0) == 0

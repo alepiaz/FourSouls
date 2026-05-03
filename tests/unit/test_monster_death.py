@@ -18,18 +18,20 @@ from __future__ import annotations
 
 import pytest
 
+from foursouls.cards.loot import BOMB_BANG
 from foursouls.cards.monsters import FLY, make_monster_in_play
 from foursouls.engine.events import MonsterDied
 from foursouls.engine.game_loop import Game
 from foursouls.engine.game_zones import GameZones
 from foursouls.engine.rng import RNG
 from foursouls.engine.zones import DeckZone, DiscardZone, SlotsZone
-from foursouls.model.commands import AttackMonster, RollCombat
+from foursouls.model.commands import AttackMonster, PassPriority, PlayLoot, RollCombat
 from foursouls.model.game_state import GameState
 from foursouls.model.monster_in_play import MonsterInPlay
 from foursouls.model.phase import Phase
 from foursouls.model.player_state import PlayerState
 from foursouls.model.refs import CardId, CardRef, InstanceId, PlayerId
+from foursouls.model.target import MonsterTarget
 from foursouls.rulesets.common.legality import legal_commands
 
 
@@ -324,3 +326,77 @@ def test_full_kill_sequence_multi_hp():
     g.step(RollCombat())    # killing blow
     assert g.combat is None
     assert g.zones.monster_slots.get(0) is None
+
+
+# ---------------------------------------------------------------------------
+# Non-roll damage kills combat monster (Bomb! regression)
+# ---------------------------------------------------------------------------
+
+def _game_with_bomb(monster_hp: int = 1) -> tuple:
+    """Return (game, bomb_ref) with P1 in combat against a monster, bomb in hand."""
+    bomb_ref = CardRef(InstanceId("bomb-1"), BOMB_BANG)
+    p1 = PlayerState(player_id=PlayerId("P1"), max_hp=5, hp=5)
+    gs = GameState.from_players([p1], active_player_id=PlayerId("P1"))
+    gs.phase = Phase.ACTION
+    monster = _monster("m-bomb", hp=monster_hp, evade=99)  # evade=99: rolls never hit
+    g = Game(
+        state=gs,
+        zones=_make_zones([monster]),
+        rng=RNG(seed=0),
+    )
+    g.state.get_player(PlayerId("P1")).hand.append(bomb_ref)
+    g.step(AttackMonster(slot_index=0))
+    return g, bomb_ref
+
+
+def test_bomb_kills_combat_monster_ends_combat():
+    """Bomb! targeting the active combat monster (1 HP) must end combat immediately."""
+    g, bomb = _game_with_bomb(monster_hp=1)
+    assert g.combat is not None
+
+    g.step(PlayLoot(card_ref=bomb, target=MonsterTarget(slot_index=0)))
+    g.step(PassPriority())   # P1 passes → stack resolves (single-player game)
+
+    assert g.combat is None
+
+
+def test_bomb_kills_combat_monster_clears_slot():
+    """After Bomb! kills the combat monster the slot must be empty (no deck)."""
+    g, bomb = _game_with_bomb(monster_hp=1)
+
+    g.step(PlayLoot(card_ref=bomb, target=MonsterTarget(slot_index=0)))
+    g.step(PassPriority())
+
+    assert g.zones.monster_slots.get(0) is None
+
+
+def test_bomb_kills_combat_monster_emits_monster_died():
+    """MonsterDied must be in the events when Bomb! is the killing blow."""
+    g, bomb = _game_with_bomb(monster_hp=1)
+
+    g.step(PlayLoot(card_ref=bomb, target=MonsterTarget(slot_index=0)))
+    events = g.step(PassPriority()).events
+
+    assert any(isinstance(e, MonsterDied) for e in events)
+
+
+def test_roll_combat_illegal_after_bomb_kill():
+    """RollCombat must not be legal after Bomb! ends the combat."""
+    from foursouls.rulesets.common.legality import legal_commands
+    g, bomb = _game_with_bomb(monster_hp=1)
+
+    g.step(PlayLoot(card_ref=bomb, target=MonsterTarget(slot_index=0)))
+    g.step(PassPriority())
+
+    assert RollCombat() not in legal_commands(g)
+
+
+def test_bomb_does_not_end_combat_when_monster_survives():
+    """Bomb! dealing 1 damage to a 2-HP monster must leave combat active."""
+    g, bomb = _game_with_bomb(monster_hp=2)
+
+    g.step(PlayLoot(card_ref=bomb, target=MonsterTarget(slot_index=0)))
+    g.step(PassPriority())
+
+    assert g.combat is not None
+    assert g.zones.monster_slots.get(0).current_hp == 1

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import enum
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Dict
 
 
 class Phase(enum.Enum):
@@ -17,6 +18,9 @@ class TurnFlags:
     attack_used: bool = False
     purchase_used: bool = False
     died_this_turn: bool = False
+    # Off-turn extra loot plays granted to non-active players (e.g. opponent taps
+    # their character on your turn).  Keyed by PlayerId (str); cleared each turn.
+    extra_loot_plays: Dict[str, int] = field(default_factory=dict)
 
     def reset(self) -> None:
         self.loot_plays_used = 0
@@ -24,3 +28,4 @@ class TurnFlags:
         self.attack_used = False
         self.purchase_used = False
         self.died_this_turn = False
+        self.extra_loot_plays = {}

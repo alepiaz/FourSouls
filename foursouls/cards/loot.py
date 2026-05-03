@@ -4,16 +4,18 @@ from typing import Any, Optional
 
 from foursouls.model.refs import CardId, PlayerId
 from foursouls.model.effects import Effect
-from foursouls.model.target import AnyTarget, MonsterTarget, PlayerTarget
+from foursouls.model.target import AnyTarget, MonsterTarget, PlayerTarget, StackItemTarget
 from foursouls.rulesets.common.effects import (
     AllPlayersDrawLootEffect,
     AllPlayersGainCentsEffect,
     AllPlayersTakeDamageEffect,
+    CancelStackItemEffect,
     DealDamageEffect,
     DealDamageToMonsterEffect,
     GainCentsEffect,
     LootRollEffect,
     PreventDamageEffect,
+    PreventDamageToMonsterEffect,
 )
 
 # ── Card ID constants ─────────────────────────────────────────────────────────
@@ -25,12 +27,16 @@ BOMB_BANG = CardId("BOMB!")
 GOLD_BOMB_BANG_BANG = CardId("GOLD_BOMB!!")
 SOUL_HEART = CardId("SOUL_HEART")
 BLANK_RUNE = CardId("BLANK_RUNE")
+BUTTER_BEAN = CardId("BUTTER_BEAN")
 
 _COIN_IDS = {LOOT_COIN_1, LOOT_COIN_2, LOOT_COIN_3}
 _BOMB_DAMAGE = {BOMB_BANG: 1, GOLD_BOMB_BANG_BANG: 3}
-# Cards that require a target; bombs accept player or monster, Soul Heart player only
-_TARGETED_LOOT_IDS = {BOMB_BANG, GOLD_BOMB_BANG_BANG, SOUL_HEART}
-_MONSTER_TARGETABLE = {BOMB_BANG, GOLD_BOMB_BANG_BANG}
+# Cards that require a target
+_TARGETED_LOOT_IDS = {BOMB_BANG, GOLD_BOMB_BANG_BANG, SOUL_HEART, BUTTER_BEAN}
+# Subset of targeted cards that can aim at a monster slot
+_MONSTER_TARGETABLE = {BOMB_BANG, GOLD_BOMB_BANG_BANG, SOUL_HEART}
+# Cards that target a stack item (for the cancel mechanic)
+_STACK_TARGET_LOOT_IDS = {BUTTER_BEAN}
 
 
 def requires_target(card_id: CardId) -> bool:
@@ -39,6 +45,10 @@ def requires_target(card_id: CardId) -> bool:
 
 def allows_monster_target(card_id: CardId) -> bool:
     return card_id in _MONSTER_TARGETABLE
+
+
+def allows_stack_target(card_id: CardId) -> bool:
+    return card_id in _STACK_TARGET_LOOT_IDS
 
 
 # ── Effect factory ────────────────────────────────────────────────────────────
@@ -52,6 +62,7 @@ def make_loot_effect(
     rng: Any = None,
     loot_deck: Any = None,
     log: Any = None,
+    stack: Any = None,
 ) -> Effect:
     """Return the resolved effect for a loot card played by controller_id."""
     if card_id in _COIN_IDS:
@@ -71,9 +82,15 @@ def make_loot_effect(
         }
         return LootRollEffect(branches=branches, rng=rng)
     if card_id == SOUL_HEART:
-        if target is None or not isinstance(target, PlayerTarget):
-            raise ValueError(f"{card_id!r} requires a PlayerTarget")
-        return PreventDamageEffect(player_id=target.player_id, amount=1)
+        if isinstance(target, PlayerTarget):
+            return PreventDamageEffect(player_id=target.player_id, amount=1)
+        if isinstance(target, MonsterTarget):
+            if monster_slots is None:
+                raise ValueError(f"{card_id!r} + MonsterTarget requires monster_slots")
+            return PreventDamageToMonsterEffect(
+                slot_index=target.slot_index, amount=1, monster_slots=monster_slots
+            )
+        raise ValueError(f"{card_id!r} requires a PlayerTarget or MonsterTarget")
     if card_id in _BOMB_DAMAGE:
         amount = _BOMB_DAMAGE[card_id]
         if target is None:
@@ -88,4 +105,10 @@ def make_loot_effect(
                 amount=amount,
                 monster_slots=monster_slots,
             )
+    if card_id == BUTTER_BEAN:
+        if not isinstance(target, StackItemTarget):
+            raise ValueError(f"{card_id!r} requires a StackItemTarget")
+        if stack is None:
+            raise ValueError(f"{card_id!r} requires stack")
+        return CancelStackItemEffect(target_stack_id=target.stack_id, stack=stack, log=log)
     raise ValueError(f"Unknown loot card_id: {card_id!r}")

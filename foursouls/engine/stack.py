@@ -53,3 +53,14 @@ class Stack:
         if not self._items:
             raise IndexError("Cannot pop from an empty stack")
         return self._items.pop()
+
+    def contains(self, stack_id: int) -> bool:
+        """Return True if an item with this stack_id is still on the stack."""
+        return any(item.stack_id == stack_id for item in self._items)
+
+    def remove(self, stack_id: int) -> Optional[StackItem]:
+        """Remove and return the item with this stack_id; return None if not found."""
+        for i, item in enumerate(self._items):
+            if item.stack_id == stack_id:
+                return self._items.pop(i)
+        return None

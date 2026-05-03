@@ -10,6 +10,8 @@ from foursouls.model.refs import CardRef, InstanceId, PlayerId
 
 if TYPE_CHECKING:
     from foursouls.engine.log import EventLog
+    from foursouls.engine.stack import Stack
+    from foursouls.model.combat_state import CombatState
 
 
 @dataclass(slots=True)
@@ -86,7 +88,7 @@ class DealDamageToMonsterEffect:
     def apply(self, ctx: GameState) -> None:  # noqa: ARG002
         monster = self.monster_slots.get(self.slot_index)  # type: ignore[union-attr]
         if monster is not None:
-            monster.take_damage(self.amount)
+            monster.take_damage(self.amount)  # take_damage handles prevent_damage absorption
 
 
 @dataclass(slots=True)
@@ -173,6 +175,72 @@ class AllPlayersDrawLootEffect:
 
 
 @dataclass(slots=True)
+class CombatMissDamageEffect:
+    """
+    Represents pending combat-miss damage to an attacker.
+
+    Pushed onto the stack by resolve_roll() instead of being applied
+    directly, so players can respond (Soul Heart, Butter Bean, etc.).
+
+    Fizzles automatically if combat ends before this resolves (e.g.
+    the attacker's Bomb killed the monster first).
+    """
+
+    attacker_id: PlayerId
+    amount: int
+    combat: object  # CombatState — checked for is_active at resolve time
+
+    def validate(self, ctx: GameState) -> bool:  # noqa: ARG002
+        return self.combat.is_active  # type: ignore[union-attr]
+
+    def apply(self, ctx: GameState) -> None:
+        player = ctx.get_player(self.attacker_id)
+        absorbed = min(player.prevent_damage, self.amount)
+        player.prevent_damage = max(0, player.prevent_damage - self.amount)
+        player.hp = max(0, player.hp - (self.amount - absorbed))
+
+
+@dataclass(slots=True)
+class PreventDamageToMonsterEffect:
+    """Add a damage-prevention shield to a monster in a given slot."""
+
+    slot_index: int
+    amount: int
+    monster_slots: object  # SlotsZone[MonsterInPlay]
+
+    def validate(self, ctx: GameState) -> bool:  # noqa: ARG002
+        return self.monster_slots.get(self.slot_index) is not None  # type: ignore[union-attr]
+
+    def apply(self, ctx: GameState) -> None:  # noqa: ARG002
+        monster = self.monster_slots.get(self.slot_index)  # type: ignore[union-attr]
+        if monster is not None:
+            monster.prevent_damage += self.amount
+
+
+@dataclass(slots=True)
+class CancelStackItemEffect:
+    """
+    Remove a specific item from the stack without resolving it.
+
+    Used by Butter Bean (and similar cancel cards).  Fizzles if the
+    target item has already resolved or been cancelled.
+    """
+
+    target_stack_id: int
+    stack: object  # Stack — mutable reference captured at creation
+    log: Optional[EventLog] = field(default=None)
+
+    def validate(self, ctx: GameState) -> bool:  # noqa: ARG002
+        return self.stack.contains(self.target_stack_id)  # type: ignore[union-attr]
+
+    def apply(self, ctx: GameState) -> None:  # noqa: ARG002
+        from foursouls.engine.events import StackItemCancelled
+        item = self.stack.remove(self.target_stack_id)  # type: ignore[union-attr]
+        if item is not None and self.log is not None:
+            self.log.append(StackItemCancelled(stack_id=item.stack_id, label=item.label))
+
+
+@dataclass(slots=True)
 class LootRollEffect:
     """
     Roll a d6 and delegate to the matching branch effect.
@@ -254,7 +322,12 @@ class EventCardEffect:
 
 @dataclass(slots=True)
 class GrantExtraLootPlayEffect:
-    """Grant the controlling player one additional loot play this turn."""
+    """Grant the controlling player one additional loot play this turn.
+
+    If the controller is the active player the quota goes into the normal
+    turn counter.  If they are an off-turn player it goes into the per-player
+    extra_loot_plays bucket so the active player's quota is unaffected.
+    """
 
     player_id: PlayerId
 
@@ -262,7 +335,13 @@ class GrantExtraLootPlayEffect:
         return True  # cost already paid; cannot fizzle
 
     def apply(self, ctx: GameState) -> None:
-        ctx.turn_flags.loot_plays_allowed += 1
+        if self.player_id == ctx.active_player_id:
+            ctx.turn_flags.loot_plays_allowed += 1
+        else:
+            pid = str(self.player_id)
+            ctx.turn_flags.extra_loot_plays[pid] = (
+                ctx.turn_flags.extra_loot_plays.get(pid, 0) + 1
+            )
 
 
 @dataclass(slots=True)

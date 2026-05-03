@@ -29,6 +29,8 @@ from foursouls.cli.controller import (
 )
 from foursouls.engine.events import GameWon
 from foursouls.engine.game_loop import Game
+from foursouls.model.commands import PassPriority
+from foursouls.model.phase import Phase
 from foursouls.engine.rng import RNG
 from foursouls.model.game_state import GameState
 from foursouls.model.item_in_play import ItemInPlay
@@ -134,7 +136,7 @@ def build_demo_game(
         monster_cards=_monster_deck(),
         rng=RNG(seed=seed),
         starting_hand_size=3,
-        shop_size=3,
+        shop_size=2,
         monster_slot_count=2,
     )
 
@@ -169,6 +171,20 @@ def run(game: Optional[Game] = None) -> None:
 
     while winner is None and not game.game_over:
         actions = game.get_legal_actions()
+
+        # Auto-pass when PassPriority is the only legal move, or during
+        # START/END phases where player input is never meaningful.
+        pass_action = next((a for a in actions if isinstance(a.command, PassPriority)), None)
+        if pass_action is not None and (
+            len(actions) == 1 or game.state.phase in (Phase.START, Phase.END)
+        ):
+            result = game.step(pass_action.command)
+            if result.events:
+                print()
+                display_events(result.events)
+                print()
+            continue
+
         display_board(game, actions)
 
         chosen = prompt_action(actions)
@@ -176,6 +192,7 @@ def run(game: Optional[Game] = None) -> None:
             print("\nQuit. Goodbye.")
             return
 
+        acting_player_id = game.priority.current()
         result = game.step(chosen.command)
 
         # Check for game-over event before printing narrative
@@ -188,6 +205,19 @@ def run(game: Optional[Game] = None) -> None:
             print()
             display_events(result.events)
             print()
+
+        # After a stack-pushing action (PlayLoot, ActivateCharacterAbility,
+        # ActivateItem) the engine resets priority to the acting player. Auto-pass
+        # for them so the opponent immediately receives the response window instead
+        # of the acting player seeing a useless "Pass" prompt first.
+        if (not isinstance(chosen.command, PassPriority)
+                and not game.stack.empty()
+                and game.priority.current() == acting_player_id):
+            result2 = game.step(PassPriority())
+            if result2.events:
+                print()
+                display_events(result2.events)
+                print()
 
     _WIDTH = 72
     print("═" * _WIDTH)

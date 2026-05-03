@@ -21,6 +21,7 @@ from foursouls.engine.events import (
 from foursouls.model.phase import Phase
 from foursouls.model.combat_state import CombatState
 from foursouls.model.refs import CardRef
+from foursouls.rulesets.common.effects import CombatMissDamageEffect
 
 if TYPE_CHECKING:
     from foursouls.engine.game_loop import Game
@@ -173,19 +174,19 @@ def resolve_roll(game: Game) -> None:
                 roll=roll,
             ))
             damage = monster.on_miss(game, roll)               # type: ignore[call-arg]
+        # Push miss damage to the stack so players can respond (R14.1).
+        # Actual HP reduction happens when the effect resolves in game_loop.
         if damage > 0:
-            absorbed = min(attacker.prevent_damage, damage)
-            attacker.prevent_damage = max(0, attacker.prevent_damage - damage)
-            attacker.hp = max(0, attacker.hp - (damage - absorbed))
-            game.log.append(DamageDealt(
-                source_player_id=None,
-                source_monster_slot=combat.defender_slot,
-                target_player_id=combat.attacker_id,
-                target_monster_slot=None,
-                amount=damage,
-                reason="combat_miss",
-                damage_type="combat",
-            ))
+            game.push_to_stack(
+                controller_id=combat.attacker_id,
+                source="combat:miss",
+                effect=CombatMissDamageEffect(
+                    attacker_id=combat.attacker_id,
+                    amount=damage,
+                    combat=game.combat,
+                ),
+                label="CombatMissDamage",
+            )
         attack_stat = damage
 
     game.log.append(CombatRollResult(
@@ -197,32 +198,149 @@ def resolve_roll(game: Game) -> None:
         attack_stat=attack_stat,
     ))
 
-    # ── Death checks ─────────────────────────────────────────────────────────
-    monster_death_prevented = False
-    if not monster.is_alive():
-        # on_would_die fires once per turn before death resolves
-        if monster.on_would_die is not None and not monster.prevent_death_used:
-            game.log.append(MonsterTriggerFired(
-                card_id=monster.card_ref.card_id,
-                trigger="on_would_die",
-                roll=0,
-            ))
-            monster_death_prevented = monster.on_would_die(game)  # type: ignore[call-arg]
-            if monster_death_prevented:
-                monster.prevent_death_used = True
-
-    if not monster.is_alive() and not monster_death_prevented:
-        resolve_monster_death(game)
-    elif not is_hit and not game.state.get_player(combat.attacker_id).is_alive() \
-            and not game.state.turn_flags.died_this_turn:
-        resolve_player_death(game)
+    # ── Death checks (hit path only; miss damage is on the stack) ────────────
+    if check_combat_defender_death(game):
+        pass  # monster died; resolve_monster_death already reset priority
     else:
         game.priority.reset_to(combat.attacker_id)
 
 
+def check_combat_defender_death(game: Game) -> bool:
+    """
+    If there is active combat and the defender's HP has reached zero, resolve
+    its death (including the on_would_die trigger).
+
+    Returns True  → monster death was resolved; game.combat is now None.
+    Returns False → monster is still alive, or death was prevented by a trigger.
+
+    Safe to call from any damage path (roll, loot, item, AoE).  Idempotent
+    when combat is not active or the monster is still healthy.
+    """
+    if game.combat is None or not game.combat.is_active or game.zones is None:
+        return False
+
+    monster = game.zones.monster_slots.get(game.combat.defender_slot)
+    if monster is None or monster.is_alive():
+        return False
+
+    prevented = False
+    if monster.on_would_die is not None and not monster.prevent_death_used:
+        game.log.append(MonsterTriggerFired(
+            card_id=monster.card_ref.card_id,
+            trigger="on_would_die",
+            roll=0,
+        ))
+        prevented = monster.on_would_die(game)  # type: ignore[call-arg]
+        if prevented:
+            monster.prevent_death_used = True
+
+    if not prevented:
+        resolve_monster_death(game)
+        return True
+
+    return False
+
+
+def _do_resolve_monster_death(game: Game, slot_index: int, attacker_id: object, kill_roll: int) -> None:
+    """
+    Shared core for monster-death resolution.
+
+    Handles rewards, slot refill, on_death trigger, and win-condition check.
+    Called by both resolve_monster_death (combat path) and
+    resolve_monster_death_out_of_combat (loot/ability path).
+    Does NOT clear game.combat or reset priority — callers handle that.
+    """
+    assert game.zones is not None
+
+    dead_monster = game.zones.monster_slots.get(slot_index)
+    assert dead_monster is not None
+
+    monster_name = str(dead_monster.card_ref.card_id or "unknown")
+
+    # Discard card, clear slot
+    game.zones.monster_discard.add(dead_monster.card_ref)
+    game.zones.monster_slots.clear(slot_index)
+
+    # Refill from deck if possible
+    if not game.zones.monster_deck.empty():
+        new_ref = game.zones.monster_deck.draw(1)[0]
+        place_monster_card(game, slot_index, new_ref)
+
+    attacker = game.state.get_player(attacker_id)  # type: ignore[arg-type]
+
+    game.log.append(MonsterDied(
+        attacker_id=attacker_id,  # type: ignore[arg-type]
+        slot_index=slot_index,
+        card_ref=dead_monster.card_ref,
+        monster_name=monster_name,
+        reward_coin=dead_monster.reward_coin,
+        had_soul=dead_monster.has_soul,
+        reward_loot=dead_monster.reward_loot,
+        reward_treasure=dead_monster.reward_treasure,
+    ))
+
+    # Grant cent reward (always, even if 0 — keeps the path uniform).
+    attacker.cents += dead_monster.reward_coin
+    game.log.append(CoinsGained(
+        player_id=attacker_id,  # type: ignore[arg-type]
+        cents=dead_monster.reward_coin,
+        reason="monster_kill",
+    ))
+
+    # Grant loot reward (e.g. Spider: draw 1 loot on kill).
+    if dead_monster.reward_loot > 0 and not game.zones.loot_deck.empty():
+        from foursouls.engine.events import CardDrawn
+        drawn = game.zones.loot_deck.draw(dead_monster.reward_loot)
+        attacker.hand.extend(drawn)
+        for card_ref in drawn:
+            game.log.append(CardDrawn(
+                player_id=attacker_id,  # type: ignore[arg-type]
+                card_ref=card_ref,
+                source="monster_kill_loot",
+            ))
+
+    # Grant treasure reward (e.g. Headless Horseman: draw 1 treasure on kill).
+    if dead_monster.reward_treasure > 0 and not game.zones.treasure_deck.empty():
+        from foursouls.engine.events import CardDrawn
+        drawn = game.zones.treasure_deck.draw(dead_monster.reward_treasure)
+        for card_ref in drawn:
+            attacker.gain_treasure(card_ref)
+            game.log.append(CardDrawn(
+                player_id=attacker_id,  # type: ignore[arg-type]
+                card_ref=card_ref,
+                source="monster_kill_treasure",
+            ))
+
+    # Grant soul if the monster carries one.
+    if dead_monster.has_soul:
+        attacker.souls.append(dead_monster.card_ref)
+        game.log.append(SoulGranted(
+            player_id=attacker_id,  # type: ignore[arg-type]
+            card_ref=dead_monster.card_ref,
+            card_name=monster_name,
+        ))
+
+    # on_death: fires after rewards; callback receives the triggering roll
+    if dead_monster.on_death is not None:
+        game.log.append(MonsterTriggerFired(
+            card_id=dead_monster.card_ref.card_id,
+            trigger="on_death",
+            roll=kill_roll,
+        ))
+        dead_monster.on_death(game, kill_roll)                 # type: ignore[call-arg]
+
+    # Check win condition
+    if len(attacker.souls) >= SOULS_TO_WIN:
+        game.log.append(GameWon(
+            player_id=attacker_id,  # type: ignore[arg-type]
+            soul_count=len(attacker.souls),
+        ))
+        game.game_over = True
+
+
 def resolve_monster_death(game: Game) -> None:
     """
-    Clean up after a monster's hp reaches 0.
+    Clean up after a monster's hp reaches 0 during active combat.
 
     - Discard the dead monster's card ref.
     - Clear the slot.
@@ -239,96 +357,55 @@ def resolve_monster_death(game: Game) -> None:
     assert game.zones is not None
 
     combat = game.combat
-    slot_index = combat.defender_slot
-    dead_monster = game.zones.monster_slots.get(slot_index)
-    assert dead_monster is not None
-
-    monster_name = str(dead_monster.card_ref.card_id or "unknown")
-
-    # Discard card, clear slot
-    game.zones.monster_discard.add(dead_monster.card_ref)
-    game.zones.monster_slots.clear(slot_index)
-
-    # Refill from deck if possible
-    if not game.zones.monster_deck.empty():
-        new_ref = game.zones.monster_deck.draw(1)[0]
-        place_monster_card(game, slot_index, new_ref)
-
-    attacker_id = combat.attacker_id
-    attacker = game.state.get_player(attacker_id)
-
-    game.log.append(MonsterDied(
-        attacker_id=attacker_id,
-        slot_index=slot_index,
-        card_ref=dead_monster.card_ref,
-        monster_name=monster_name,
-        reward_coin=dead_monster.reward_coin,
-        had_soul=dead_monster.has_soul,
-        reward_loot=dead_monster.reward_loot,
-        reward_treasure=dead_monster.reward_treasure,
-    ))
-
-    # Grant cent reward (always, even if 0 — keeps the path uniform).
-    attacker.cents += dead_monster.reward_coin
-    game.log.append(CoinsGained(
-        player_id=attacker_id,
-        cents=dead_monster.reward_coin,
-        reason="monster_kill",
-    ))
-
-    # Grant loot reward (e.g. Spider: draw 1 loot on kill).
-    if dead_monster.reward_loot > 0 and not game.zones.loot_deck.empty():
-        from foursouls.engine.events import CardDrawn
-        drawn = game.zones.loot_deck.draw(dead_monster.reward_loot)
-        attacker.hand.extend(drawn)
-        for card_ref in drawn:
-            game.log.append(CardDrawn(
-                player_id=attacker_id,
-                card_ref=card_ref,
-                source="monster_kill_loot",
-            ))
-
-    # Grant treasure reward (e.g. Headless Horseman: draw 1 treasure on kill).
-    if dead_monster.reward_treasure > 0 and not game.zones.treasure_deck.empty():
-        from foursouls.engine.events import CardDrawn
-        drawn = game.zones.treasure_deck.draw(dead_monster.reward_treasure)
-        for card_ref in drawn:
-            attacker.gain_treasure(card_ref)
-            game.log.append(CardDrawn(
-                player_id=attacker_id,
-                card_ref=card_ref,
-                source="monster_kill_treasure",
-            ))
-
-    # Grant soul if the monster carries one.
-    if dead_monster.has_soul:
-        attacker.souls.append(dead_monster.card_ref)
-        game.log.append(SoulGranted(
-            player_id=attacker_id,
-            card_ref=dead_monster.card_ref,
-            card_name=monster_name,
-        ))
-
-    # on_death: fires after rewards; callback receives the triggering roll
-    kill_roll = combat.last_combat_roll
-    if dead_monster.on_death is not None:
-        game.log.append(MonsterTriggerFired(
-            card_id=dead_monster.card_ref.card_id,
-            trigger="on_death",
-            roll=kill_roll,
-        ))
-        dead_monster.on_death(game, kill_roll)                 # type: ignore[call-arg]
-
+    _do_resolve_monster_death(game, combat.defender_slot, combat.attacker_id, combat.last_combat_roll)
+    # Signal any pending CombatMissDamageEffect on the stack to fizzle (R14.1).
+    game.combat.is_active = False
     game.combat = None
-    game.priority.reset_to(attacker_id)
+    game.priority.reset_to(combat.attacker_id)
 
-    # Check win condition
-    if len(attacker.souls) >= SOULS_TO_WIN:
-        game.log.append(GameWon(
-            player_id=attacker_id,
-            soul_count=len(attacker.souls),
-        ))
-        game.game_over = True
+
+def resolve_monster_death_out_of_combat(game: Game, slot_index: int) -> None:
+    """
+    Resolve a monster death that occurred outside of active combat
+    (e.g. via loot card damage, item AoE, event effects).
+
+    Per the Four Souls rules, the active player always receives rewards when
+    a monster dies, regardless of who dealt the killing blow.
+    Priority is NOT reset here — the game_loop handles that after all deaths
+    in the batch are processed.
+    """
+    assert game.zones is not None
+    _do_resolve_monster_death(game, slot_index, game.state.active_player_id, 0)
+
+
+def check_all_monster_deaths_out_of_combat(game: Game) -> None:
+    """
+    Scan all monster slots for any monster at 0 HP and process their deaths.
+
+    Called after any effect resolves that could damage monsters outside of
+    active combat (e.g. Bomb!, item AoE).  Skips the active combat defender
+    slot when combat is in progress — that path is handled by
+    check_combat_defender_death.
+    """
+    if game.zones is None:
+        return
+
+    # Snapshot the indices first; slots may be refilled during iteration.
+    dead_slots = [
+        idx for idx in game.zones.monster_slots.filled_indices()
+        if (
+            # Skip the active combat defender — handled by check_combat_defender_death
+            (game.combat is None or idx != game.combat.defender_slot)
+            and (m := game.zones.monster_slots.get(idx)) is not None
+            and not m.is_alive()
+        )
+    ]
+
+    for idx in dead_slots:
+        # Re-check: the slot may have been refilled by an earlier death in this loop.
+        monster = game.zones.monster_slots.get(idx)
+        if monster is not None and not monster.is_alive():
+            resolve_monster_death_out_of_combat(game, idx)
 
 
 def resolve_player_death(game: Game) -> None:
@@ -415,3 +492,20 @@ def resolve_player_death(game: Game) -> None:
         game.state.phase = Phase.END
 
     game.priority.reset_to(attacker_id)
+
+
+def check_combat_attacker_death(game: Game) -> bool:
+    """
+    After a CombatMissDamageEffect resolves, check whether the attacker
+    has been reduced to 0 HP and trigger player death if so.
+
+    Called from game_loop after every stack item resolution (R14.1).
+    Safe to call when combat is None or already inactive.
+    """
+    if game.combat is None or not game.combat.is_active:
+        return False
+    attacker = game.state.get_player(game.combat.attacker_id)
+    if not attacker.is_alive() and not game.state.turn_flags.died_this_turn:
+        resolve_player_death(game)
+        return True
+    return False

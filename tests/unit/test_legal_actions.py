@@ -258,10 +258,11 @@ def test_buy_shop_metadata_cost():
 
 
 def test_buy_shop_metadata_item_name():
+    from foursouls.cli.render import pretty_name
     t = _treasure(0)
     g = _game_in_action(shop=[t], cents=TREASURE_COST)
     a = _actions_by_kind(g)["BUY_SHOP"][0]
-    assert a.metadata["item_name"] == str(TREASURE_ID)
+    assert a.metadata["item_name"] == pretty_name(str(TREASURE_ID))
 
 
 # ---------------------------------------------------------------------------
@@ -281,9 +282,10 @@ def test_attack_monster_key_encodes_slot():
 
 
 def test_attack_monster_metadata_monster_name():
+    from foursouls.cli.render import pretty_name
     g = _game_in_action(monsters=[_gaper(0)])
     a = _actions_by_kind(g)["ATTACK_MONSTER"][0]
-    assert a.metadata["monster_name"] == str(GAPER)
+    assert a.metadata["monster_name"] == pretty_name(str(GAPER))
 
 
 def test_attack_monster_metadata_hp():
@@ -329,10 +331,11 @@ def test_roll_combat_key():
 
 
 def test_roll_combat_metadata_monster_name():
+    from foursouls.cli.render import pretty_name
     g = _game_in_action(monsters=[_gaper(0)])
     g.step(AttackMonster(slot_index=0))
     a = _actions_by_kind(g)["ROLL_COMBAT"][0]
-    assert a.metadata["monster_name"] == str(GAPER)
+    assert a.metadata["monster_name"] == pretty_name(str(GAPER))
 
 
 def test_roll_combat_metadata_attacker_hp():
