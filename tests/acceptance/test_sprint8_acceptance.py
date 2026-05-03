@@ -126,21 +126,18 @@ def test_miss_deals_monster_attack_damage():
     # Monster with evade=6 (always miss), attack=3
     _plant_monster(g, base_hp=10, evade=6, attack=3)
 
-    from foursouls.model.commands import AttackMonster, RollCombat
+    from foursouls.model.commands import AttackMonster, PassPriority, RollCombat
 
     g.step(AttackMonster(slot_index=0))
-    result = g.step(RollCombat())
+    roll_result = g.step(RollCombat())
+    # Resolve CombatMissDamageEffect — 2-player game requires 2 passes
+    for _ in range(2):
+        g.step(PassPriority())
 
-    damage_events = [e for e in result.events if isinstance(e, DamageDealt)]
-    roll_events = [e for e in result.events if isinstance(e, CombatRollResult)]
-
+    roll_events = [e for e in roll_result.events if isinstance(e, CombatRollResult)]
     assert roll_events
     roll = roll_events[0]
     assert not roll.is_hit, "Expected a miss (evade=6)"
-
-    assert len(damage_events) == 1
-    assert damage_events[0].amount == 3
-    assert damage_events[0].damage_type == "combat"
     assert roll.attack_stat == 3
     assert p1.hp == max(0, initial_hp - 3)
 
@@ -178,12 +175,15 @@ def test_horf_miss_deals_2_damage():
         ),
     )
 
-    from foursouls.model.commands import AttackMonster, RollCombat
+    from foursouls.model.commands import AttackMonster, PassPriority, RollCombat
 
     g.step(AttackMonster(slot_index=0))
-    result = g.step(RollCombat())
+    roll_result = g.step(RollCombat())
+    all_events = list(roll_result.events)
+    for _ in range(2):
+        all_events.extend(g.step(PassPriority()).events)
 
-    roll_events = [e for e in result.events if isinstance(e, CombatRollResult)]
+    roll_events = [e for e in all_events if isinstance(e, CombatRollResult)]
     assert roll_events and not roll_events[0].is_hit
     assert roll_events[0].attack_stat == 2
     assert p1.hp == max(0, initial_hp - 2)

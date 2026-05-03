@@ -140,19 +140,21 @@ def test_ability_taps_priority_holders_character_not_active_players():
     assert not p1_char.is_tapped, "P1's character should be untouched"
 
 
-def test_ability_still_grants_active_player_extra_loot_play():
-    """Whoever activates the ability, the extra loot play goes to the active player (P1)."""
+def test_off_turn_ability_grants_extra_play_to_controller_not_active_player():
+    """P2 tapping on P1's turn grants the extra play to P2, not P1."""
     g = _two_player_game_at_action(p1_char=True, p2_char=True)
     initial_allowed = g.state.turn_flags.loot_plays_allowed
 
-    g.step(PassPriority())       # P2 holds priority
-    g.step(ActivateCharacterAbility())   # P2 taps to help P1
+    g.step(PassPriority())               # P2 holds priority
+    g.step(ActivateCharacterAbility())   # P2 taps their own character
 
-    # Resolve the stack: P1 needs to pass, then P2 passes → resolves
     g.step(PassPriority())  # P1
     g.step(PassPriority())  # P2 → GrantExtraLootPlay resolves
 
-    assert g.state.turn_flags.loot_plays_allowed == initial_allowed + 1
+    # P1's on-turn quota is unchanged
+    assert g.state.turn_flags.loot_plays_allowed == initial_allowed
+    # P2 received the extra play in their off-turn bucket
+    assert g.state.turn_flags.extra_loot_plays.get("P2", 0) == 1
 
 
 # ---------------------------------------------------------------------------

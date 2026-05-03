@@ -139,14 +139,16 @@ def test_bomb_legality_emits_per_target():
     assert len(monster_targets) >= 1  # at least one monster slot occupied
 
 
-def test_soul_heart_legality_only_player_targets():
+def test_soul_heart_legality_player_targets_present():
+    # Soul Heart targets players (and, since Sprint 14, monster slots too).
+    # Verify that each player is a valid target.
     soul = _ref("soul", SOUL_HEART)
     g = _game_at_action(extra_loot=[soul])
     cmds = g.legal_commands()
     soul_plays = [c for c in cmds if isinstance(c, PlayLoot) and c.card_ref == soul]
+    player_plays = [c for c in soul_plays if isinstance(c.target, PlayerTarget)]
 
-    assert all(isinstance(c.target, PlayerTarget) for c in soul_plays)
-    assert len(soul_plays) == 2   # one per player
+    assert len(player_plays) == 2   # one per player
 
 
 # ---------------------------------------------------------------------------

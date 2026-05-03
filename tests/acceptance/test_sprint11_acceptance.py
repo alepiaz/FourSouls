@@ -144,15 +144,32 @@ def test_mama_mega_deals_3_damage_to_all_monsters():
     mama = _item("mama-m", MAMA_MEGA)
     g = _game_at_action(items_p1=[mama])
 
-    # Note all monster slots should be occupied from setup; confirm HP reduced
     slots = g.zones.monster_slots
-    hp_before = {idx: slots.get(idx).current_hp for idx in slots.filled_indices()}
+    # Snapshot (ref, hp) pairs before the effect.
+    before = {idx: (slots.get(idx).card_ref, slots.get(idx).current_hp)
+              for idx in slots.filled_indices()}
 
     g.step(ActivateItem(instance_id=InstanceId("mama-m")))
     _resolve(g)
 
-    for idx, hp in hp_before.items():
-        assert slots.get(idx).current_hp == max(0, hp - 3)
+    from foursouls.engine.events import MonsterDied
+    died_refs = {e.card_ref for e in g.log.events if isinstance(e, MonsterDied)}
+
+    for idx, (ref, hp) in before.items():
+        remaining = hp - 3
+        if remaining <= 0:
+            # Monster was killed out-of-combat: the original card ref is in
+            # discard and the slot has been refilled (or is empty if deck ran out).
+            assert ref in g.zones.monster_discard.cards, (
+                f"slot {idx}: expected monster {ref} in discard after Mama Mega kill"
+            )
+            assert ref in died_refs, (
+                f"slot {idx}: expected MonsterDied event for {ref}"
+            )
+        else:
+            # Monster survived; HP should be reduced.
+            assert slots.get(idx) is not None
+            assert slots.get(idx).current_hp == remaining
 
 
 def test_mama_mega_is_destroyed_after_use():
