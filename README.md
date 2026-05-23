@@ -12,6 +12,66 @@ This project is not just a playable clone. It is a **rules-driven simulation env
 - reinforcement learning experiments,
 - and statistical analysis of card strength, balance, and meta impact.
 
+---
+
+## How to run
+
+### Requirements
+
+- Python 3.11 or later
+
+### Install
+
+```bash
+pip install -e ".[dev]"
+```
+
+This installs the `foursouls` package in editable mode along with `pytest`.
+
+### Run the tests
+
+```bash
+pytest
+```
+
+### Play interactively (CLI)
+
+```bash
+python -m foursouls.cli
+```
+
+You will be prompted for the number of players, their names, and an RNG seed. The board is rendered in the terminal after each action and you pick moves from a numbered menu.
+
+### Start a game from code
+
+```python
+from foursouls.cli.app import build_demo_game, run
+
+game = build_demo_game(["Alice", "Bob"], seed=42)
+run(game)          # interactive loop
+```
+
+`build_demo_game` accepts any number of player name strings and an integer seed for full reproducibility.
+
+### Available bots
+
+Bots live in `agents/` and can be used to drive the game programmatically:
+
+| Bot | File | Behaviour |
+|-----|------|-----------|
+| `combat_bot` | `agents/combat_bot.py` | Always attacks when possible |
+| `economy_bot` | `agents/economy_bot.py` | Prioritises buying and looting |
+| `pass_bot` | `agents/pass_bot.py` | Always passes priority (useful in tests) |
+
+```python
+from agents.combat_bot import choose_command
+
+while not game.game_over:
+    game.step(choose_command(game))
+```
+
+---
+
 ## Project vision
 
 The final system should let us:
