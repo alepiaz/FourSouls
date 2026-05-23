@@ -6,6 +6,26 @@ LOOT_COIN:
     type: gain_cents
     amount: 1
 
+TWO_CENTS:
+  effect:
+    type: gain_cents
+    amount: 2
+
+THREE_CENTS:
+  effect:
+    type: gain_cents
+    amount: 3
+
+FOUR_CENTS:
+  effect:
+    type: gain_cents
+    amount: 4
+
+NICKEL:
+  effect:
+    type: gain_cents
+    amount: 5
+
 # ── Bombs ─────────────────────────────────────────────────────────────────────
 
 "BOMB!":

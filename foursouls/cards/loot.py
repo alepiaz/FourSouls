@@ -14,6 +14,10 @@ from foursouls.model.target import AnyTarget
 # ── Card ID constants ─────────────────────────────────────────────────────────
 
 LOOT_COIN        = CardId("LOOT_COIN")
+TWO_CENTS        = CardId("TWO_CENTS")
+THREE_CENTS      = CardId("THREE_CENTS")
+FOUR_CENTS       = CardId("FOUR_CENTS")
+NICKEL           = CardId("NICKEL")
 BOMB_BANG        = CardId("BOMB!")
 GOLD_BOMB_BANG_BANG = CardId("GOLD_BOMB!!")
 SOUL_HEART       = CardId("SOUL_HEART")

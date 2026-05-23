@@ -1,5 +1,40 @@
 # ── Basic monsters ──────────────────────────────────────────────────────────
 
+DINGA:
+  base_hp: 1
+  evade: 2
+  attack: 1
+  reward_coin: 2
+  has_soul: false
+
+ATTACK_FLY:
+  base_hp: 1
+  evade: 1
+  attack: 1
+  reward_coin: 2
+  has_soul: false
+
+BOOM_FLY:
+  base_hp: 1
+  evade: 2
+  attack: 2
+  reward_coin: 3
+  has_soul: false
+
+CLOTTY:
+  base_hp: 1
+  evade: 3
+  attack: 1
+  reward_coin: 2
+  has_soul: false
+
+MULLIBOIL:
+  base_hp: 2
+  evade: 3
+  attack: 1
+  reward_coin: 2
+  has_soul: false
+
 FLY:
   base_hp: 1
   evade: 2

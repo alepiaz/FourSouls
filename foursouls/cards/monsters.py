@@ -25,6 +25,11 @@ if TYPE_CHECKING:
 
 # ── Card ID constants ─────────────────────────────────────────────────────────
 
+DINGA         = CardId("DINGA")
+ATTACK_FLY    = CardId("ATTACK_FLY")
+BOOM_FLY      = CardId("BOOM_FLY")
+CLOTTY        = CardId("CLOTTY")
+MULLIBOIL     = CardId("MULLIBOIL")
 FLY           = CardId("FLY")
 GAPER         = CardId("GAPER")
 SPIDER        = CardId("SPIDER")
