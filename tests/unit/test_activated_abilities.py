@@ -191,8 +191,8 @@ def test_off_turn_play_loot_legal_for_controller_when_holding_priority():
     g = _game_at_action_two_players()
 
     # Ensure P2 has a loot card
-    from foursouls.cards.loot import LOOT_COIN_1
-    coin = CardRef(InstanceId("p2-coin"), LOOT_COIN_1)
+    from foursouls.cards.loot import LOOT_COIN
+    coin = CardRef(InstanceId("p2-coin"), LOOT_COIN)
     g.state.get_player(PlayerId("P2")).hand.append(coin)
 
     g.step(PassPriority())
@@ -211,8 +211,8 @@ def test_off_turn_play_loot_removes_card_from_controller_hand():
     from foursouls.model.commands import PlayLoot
     g = _game_at_action_two_players()
 
-    from foursouls.cards.loot import LOOT_COIN_1
-    coin = CardRef(InstanceId("p2-coin"), LOOT_COIN_1)
+    from foursouls.cards.loot import LOOT_COIN
+    coin = CardRef(InstanceId("p2-coin"), LOOT_COIN)
     g.state.get_player(PlayerId("P2")).hand.append(coin)
 
     g.step(PassPriority())
@@ -232,8 +232,8 @@ def test_off_turn_play_loot_decrements_extra_plays():
     from foursouls.model.commands import PlayLoot
     g = _game_at_action_two_players()
 
-    from foursouls.cards.loot import LOOT_COIN_1
-    coin = CardRef(InstanceId("p2-coin"), LOOT_COIN_1)
+    from foursouls.cards.loot import LOOT_COIN
+    coin = CardRef(InstanceId("p2-coin"), LOOT_COIN)
     g.state.get_player(PlayerId("P2")).hand.append(coin)
 
     g.step(PassPriority())

@@ -8,7 +8,7 @@ living spec. The final test is the integration target from the Sprint 2 design:
   → plays second loot → ends turn → next player starts with character recharged.
 """
 from agents.pass_bot import choose_command
-from foursouls.cards.loot import LOOT_COIN_1, LOOT_COIN_2
+from foursouls.cards.loot import LOOT_COIN
 from foursouls.engine.events import EffectFizzled
 from foursouls.engine.rng import RNG
 from foursouls.model.commands import (
@@ -73,7 +73,7 @@ def test_setup_game_returns_ready_to_play_game():
 
 
 def test_play_loot_legal_in_action_phase():
-    coin = _ref("coin-1", LOOT_COIN_1)
+    coin = _ref("coin-1", LOOT_COIN)
     g = _new_game()
     g.state.get_player(PlayerId("P1")).hand.append(coin)
     _advance_to_action(g)
@@ -82,7 +82,7 @@ def test_play_loot_legal_in_action_phase():
 
 
 def test_play_loot_illegal_if_no_loot_plays_remaining():
-    coin = _ref("coin-2", LOOT_COIN_1)
+    coin = _ref("coin-2", LOOT_COIN)
     g = _new_game()
     g.state.get_player(PlayerId("P1")).hand.append(coin)
     _advance_to_action(g)
@@ -120,8 +120,8 @@ def test_activate_character_grants_one_additional_loot_play():
 
 
 def test_player_can_play_two_loot_after_character_activation():
-    coin1 = _ref("coin-3", LOOT_COIN_1)
-    coin2 = _ref("coin-4", LOOT_COIN_2)
+    coin1 = _ref("coin-3", LOOT_COIN)
+    coin2 = _ref("coin-4", LOOT_COIN)
     g = _new_game(p1_character=True)
     p1 = g.state.get_player(PlayerId("P1"))
     p1.hand.extend([coin1, coin2])
@@ -144,7 +144,7 @@ def test_player_can_play_two_loot_after_character_activation():
 
 
 def test_played_loot_goes_to_discard_after_resolution():
-    coin = _ref("coin-5", LOOT_COIN_1)
+    coin = _ref("coin-5", LOOT_COIN)
     g = _new_game()
     g.state.get_player(PlayerId("P1")).hand.append(coin)
     _advance_to_action(g)
@@ -164,7 +164,7 @@ def test_loot_effect_can_fizzle_if_target_invalid():
     If inner fizzles (e.g. target no longer valid), EffectFizzled fires
     and the card is NOT discarded.
     """
-    coin = _ref("coin-6", LOOT_COIN_1)
+    coin = _ref("coin-6", LOOT_COIN)
     g = _new_game()
     p1 = g.state.get_player(PlayerId("P1"))
     p1.hand.append(coin)
@@ -189,7 +189,7 @@ def test_priority_window_opens_before_loot_resolves():
     After PlayLoot is submitted, the effect sits on the stack.
     EndTurn is blocked and a full pass cycle is required to resolve.
     """
-    coin = _ref("coin-7", LOOT_COIN_1)
+    coin = _ref("coin-7", LOOT_COIN)
     g = _new_game()
     g.state.get_player(PlayerId("P1")).hand.append(coin)
     _advance_to_action(g)
@@ -246,8 +246,8 @@ def test_sprint2_integration_full_flow():
       ends turn
       P2 starts with their character (if any) recharged
     """
-    coin1 = _ref("int-coin-1", LOOT_COIN_1)
-    coin2 = _ref("int-coin-2", LOOT_COIN_2)
+    coin1 = _ref("int-coin-1", LOOT_COIN)
+    coin2 = _ref("int-coin-2", LOOT_COIN)
 
     p1 = PlayerState(player_id=PlayerId("P1"), max_hp=3, hp=3)
     p1.character = ItemInPlay(card_ref=CardRef(InstanceId("char-p1")))

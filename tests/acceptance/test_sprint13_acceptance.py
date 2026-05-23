@@ -54,7 +54,8 @@ def test_combat_state_last_combat_roll_is_mutable():
 
 
 def test_monster_def_trigger_hooks_default_to_none():
-    defn = get_monster_def(GAPER)
+    from foursouls.cards.monsters import FLY
+    defn = get_monster_def(FLY)
     assert defn.on_death is None
     assert defn.on_miss is None
     assert defn.on_would_take_combat_damage is None
@@ -734,3 +735,220 @@ def test_on_death_not_called_when_no_hook():
 
     trigger_evts = [e for e in result.events if isinstance(e, MonsterTriggerFired)]
     assert not any(e.trigger == "on_death" for e in trigger_evts)
+
+
+# ---------------------------------------------------------------------------
+# R13.3 — GAPER (on_death, roll == 6) and HORF (on_miss, roll == 2)
+# ---------------------------------------------------------------------------
+
+def test_gaper_has_on_death_callback():
+    from foursouls.cards.monsters import GAPER, get_monster_def
+    assert get_monster_def(GAPER).on_death is not None
+
+
+def test_gaper_on_death_roll_6_resets_attack_used():
+    from foursouls.cards.monsters import GAPER, get_monster_def
+    from foursouls.model.commands import AttackMonster, PassPriority
+
+    g = build_demo_game(seed=0)
+    _advance_to_action(g)
+
+    stub = _make_stub(base_hp=10, evade=1, attack=0,
+                      on_death=get_monster_def(GAPER).on_death)
+    _plant(g, stub)
+
+    g.step(AttackMonster(slot_index=0))
+    assert g.state.turn_flags.attack_used is True
+
+    # Simulate the on_death callback with roll == 6
+    get_monster_def(GAPER).on_death(g, 6)
+
+    # ResetAttackEffect is now on the stack; let all players pass to resolve it
+    g.step(PassPriority())
+    g.step(PassPriority())
+
+    assert g.state.turn_flags.attack_used is False
+
+
+def test_gaper_on_death_non_6_roll_no_extra_attack():
+    from foursouls.cards.monsters import GAPER, get_monster_def
+    from foursouls.model.commands import AttackMonster
+
+    g = build_demo_game(seed=0)
+    _advance_to_action(g)
+
+    stub = _make_stub(base_hp=10, evade=1, attack=0,
+                      on_death=get_monster_def(GAPER).on_death)
+    _plant(g, stub)
+
+    g.step(AttackMonster(slot_index=0))
+    stack_len_before = len(g.stack)
+
+    get_monster_def(GAPER).on_death(g, 5)
+
+    assert len(g.stack) == stack_len_before
+    assert g.state.turn_flags.attack_used is True
+
+
+def test_horf_has_on_miss_callback():
+    assert get_monster_def(HORF).on_miss is not None
+
+
+def test_horf_on_miss_roll_2_returns_attack_plus_one():
+    from foursouls.cards.monsters import HORF, get_monster_def
+    from foursouls.model.commands import AttackMonster
+
+    g = build_demo_game(seed=0)
+    _advance_to_action(g)
+
+    stub = _make_stub(base_hp=10, evade=7, attack=2)
+    _plant(g, stub)
+    g.step(AttackMonster(slot_index=0))
+
+    result = get_monster_def(HORF).on_miss(g, 2)
+    assert result == 3  # attack(2) + 1
+
+
+def test_horf_on_miss_other_roll_returns_base_attack():
+    from foursouls.cards.monsters import HORF, get_monster_def
+    from foursouls.model.commands import AttackMonster
+
+    g = build_demo_game(seed=0)
+    _advance_to_action(g)
+
+    stub = _make_stub(base_hp=10, evade=7, attack=2)
+    _plant(g, stub)
+    g.step(AttackMonster(slot_index=0))
+
+    result = get_monster_def(HORF).on_miss(g, 4)
+    assert result == 2  # attack(2), no bonus
+
+
+# ---------------------------------------------------------------------------
+# R13.4 — BIG_SPIDER (on_death, always) and CARRION_QUEEN (on_would_take_combat_damage)
+# ---------------------------------------------------------------------------
+
+def test_big_spider_has_on_death_callback():
+    from foursouls.cards.monsters import BIG_SPIDER, get_monster_def
+    assert get_monster_def(BIG_SPIDER).on_death is not None
+
+
+def test_big_spider_on_death_always_resets_attack_used():
+    from foursouls.cards.monsters import BIG_SPIDER, get_monster_def
+    from foursouls.model.commands import AttackMonster, PassPriority
+
+    g = build_demo_game(seed=0)
+    _advance_to_action(g)
+
+    stub = _make_stub(base_hp=10, evade=1, attack=0,
+                      on_death=get_monster_def(BIG_SPIDER).on_death)
+    _plant(g, stub)
+
+    g.step(AttackMonster(slot_index=0))
+    assert g.state.turn_flags.attack_used is True
+
+    get_monster_def(BIG_SPIDER).on_death(g, 3)
+
+    g.step(PassPriority())
+    g.step(PassPriority())
+
+    assert g.state.turn_flags.attack_used is False
+
+
+def test_carrion_queen_has_on_would_take_combat_damage_callback():
+    from foursouls.cards.monsters import CARRION_QUEEN, get_monster_def
+    assert get_monster_def(CARRION_QUEEN).on_would_take_combat_damage is not None
+
+
+def test_carrion_queen_blocks_damage_on_roll_4():
+    from foursouls.cards.monsters import CARRION_QUEEN, get_monster_def
+
+    g = build_demo_game(seed=0)
+    cb = get_monster_def(CARRION_QUEEN).on_would_take_combat_damage
+    assert cb(g, 4, 1) == 0
+
+
+def test_carrion_queen_blocks_damage_on_roll_5():
+    from foursouls.cards.monsters import CARRION_QUEEN, get_monster_def
+
+    g = build_demo_game(seed=0)
+    cb = get_monster_def(CARRION_QUEEN).on_would_take_combat_damage
+    assert cb(g, 5, 2) == 0
+
+
+def test_carrion_queen_allows_damage_on_other_rolls():
+    from foursouls.cards.monsters import CARRION_QUEEN, get_monster_def
+
+    g = build_demo_game(seed=0)
+    cb = get_monster_def(CARRION_QUEEN).on_would_take_combat_damage
+    assert cb(g, 6, 3) == 3
+    assert cb(g, 1, 1) == 1
+
+
+# ---------------------------------------------------------------------------
+# R13.5 — HEADLESS_HORSEMAN (on_would_die, first time per turn)
+# ---------------------------------------------------------------------------
+
+def test_headless_horseman_has_on_would_die_callback():
+    from foursouls.cards.monsters import HEADLESS_HORSEMAN, get_monster_def
+    assert get_monster_def(HEADLESS_HORSEMAN).on_would_die is not None
+
+
+def test_headless_horseman_first_death_prevented():
+    from foursouls.cards.monsters import HEADLESS_HORSEMAN, get_monster_def
+
+    g = build_demo_game(seed=0)
+    _advance_to_action(g)
+
+    hh_cb = get_monster_def(HEADLESS_HORSEMAN).on_would_die
+    stub = _make_stub(base_hp=1, evade=1, attack=0, on_would_die=hh_cb)
+    _plant(g, stub)
+
+    from foursouls.model.commands import AttackMonster, RollCombat
+    g.step(AttackMonster(slot_index=0))
+    g.step(RollCombat())
+
+    surviving = g.zones.monster_slots.get(0)
+    assert surviving is not None
+    assert surviving.current_hp == 1       # min(base_hp=1, 0+2) = 1
+    assert surviving.evade_bonus == 1
+    assert surviving.attack_bonus == -1
+    assert surviving.prevent_death_used is True
+
+
+def test_headless_horseman_heals_toward_base_hp():
+    from foursouls.cards.monsters import HEADLESS_HORSEMAN, get_monster_def
+
+    g = build_demo_game(seed=0)
+    _advance_to_action(g)
+
+    hh_cb = get_monster_def(HEADLESS_HORSEMAN).on_would_die
+    stub = _make_stub(base_hp=3, evade=1, attack=0, on_would_die=hh_cb)
+    _plant(g, stub)
+
+    from foursouls.model.commands import AttackMonster, RollCombat
+    g.step(AttackMonster(slot_index=0))
+    g.step(RollCombat())
+
+    surviving = g.zones.monster_slots.get(0)
+    assert surviving is not None
+    assert surviving.current_hp == min(3, 0 + 2)  # 2
+
+
+def test_headless_horseman_death_not_prevented_second_time():
+    from foursouls.cards.monsters import HEADLESS_HORSEMAN, get_monster_def
+
+    g = build_demo_game(seed=0)
+    _advance_to_action(g)
+
+    hh_cb = get_monster_def(HEADLESS_HORSEMAN).on_would_die
+    stub = _make_stub(base_hp=1, evade=1, attack=0, on_would_die=hh_cb)
+    stub.prevent_death_used = True   # already used this turn
+    _plant(g, stub)
+
+    from foursouls.model.commands import AttackMonster, RollCombat
+    g.step(AttackMonster(slot_index=0))
+    result = g.step(RollCombat())
+
+    died_evts = [e for e in result.events if isinstance(e, MonsterDied)]
+    assert died_evts

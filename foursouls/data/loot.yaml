@@ -1,0 +1,51 @@
+# ── Coins ─────────────────────────────────────────────────────────────────────
+# Single definition; the deck builder references it N times for copies.
+
+LOOT_COIN:
+  effect:
+    type: gain_cents
+    amount: 1
+
+# ── Bombs ─────────────────────────────────────────────────────────────────────
+
+"BOMB!":
+  requires_target: true
+  allows_monster_target: true
+  effect:
+    type: deal_damage_to_target
+    amount: 1
+
+"GOLD_BOMB!!":
+  requires_target: true
+  allows_monster_target: true
+  effect:
+    type: deal_damage_to_target
+    amount: 3
+
+# ── Runes ─────────────────────────────────────────────────────────────────────
+
+BLANK_RUNE:
+  effect:
+    type: roll_branches
+    branches:
+      1: {type: all_gain_cents, amount: 1}
+      2: {type: all_draw_loot, count: 2}
+      3: {type: all_take_damage, amount: 3}
+      4: {type: all_gain_cents, amount: 4}
+      5: {type: all_draw_loot, count: 5}
+      6: {type: all_gain_cents, amount: 6}
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+
+SOUL_HEART:
+  requires_target: true
+  allows_monster_target: true
+  effect:
+    type: prevent_damage_to_target
+    amount: 1
+
+BUTTER_BEAN:
+  requires_target: true
+  allows_stack_target: true
+  effect:
+    type: cancel_stack_item

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import agents.economy_bot as economy_bot
 from agents.pass_bot import choose_command
-from foursouls.cards.loot import LOOT_COIN_1
+from foursouls.cards.loot import LOOT_COIN
 from foursouls.engine.rng import RNG
 from foursouls.model.commands import BuyShop, EndTurn, PassPriority, PlayLoot
 from foursouls.model.game_state import GameState
@@ -30,7 +30,7 @@ from foursouls.rulesets.common.setup import setup_game
 # ---------------------------------------------------------------------------
 
 def _coin(name: str) -> CardRef:
-    return CardRef(InstanceId(name), LOOT_COIN_1)
+    return CardRef(InstanceId(name), LOOT_COIN)
 
 
 def _make_treasure_cards(n: int) -> list[CardRef]:
@@ -89,7 +89,7 @@ def test_buy_legal_once_player_has_enough_cents():
     assert not any(isinstance(c, BuyShop) for c in g.legal_commands())
 
     # Play a coin to reach TREASURE_COST
-    coin = next(c for c in g.state.get_player(PlayerId("P1")).hand if c.card_id == LOOT_COIN_1)
+    coin = next(c for c in g.state.get_player(PlayerId("P1")).hand if c.card_id == LOOT_COIN)
     g.step(PlayLoot(card_ref=coin))
     _resolve_stack(g)
 
@@ -345,7 +345,7 @@ def test_sprint3_acceptance_economy_bot():
     scripted step() calls. The test only asserts observable outcomes.
 
     Setup:
-      P1: TREASURE_COST - 1 starting cents, one LOOT_COIN_1 in hand
+      P1: TREASURE_COST - 1 starting cents, one LOOT_COIN in hand
       P2: 0 cents, no special cards
       Treasure deck: 15 cards (shop fills 3, 12 remain for refill)
 

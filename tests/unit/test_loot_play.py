@@ -2,7 +2,7 @@
 Tests for S2.5: PlayLoot dispatch, GainCentsEffect, DealDamageEffect, discard.
 """
 from agents.pass_bot import choose_command
-from foursouls.cards.loot import BOMB_BANG, LOOT_COIN_1, LOOT_COIN_2
+from foursouls.cards.loot import BOMB_BANG, LOOT_COIN
 from foursouls.model.target import PlayerTarget
 from foursouls.engine.rng import RNG
 from foursouls.model.commands import PassPriority, PlayLoot
@@ -43,7 +43,7 @@ def _game_at_action(extra_loot: list[CardRef] = ()):
 # ── GainCentsEffect ───────────────────────────────────────────────────────────
 
 def test_play_coin_grants_one_cent():
-    coin = _ref("coin-a", LOOT_COIN_1)
+    coin = _ref("coin-a", LOOT_COIN)
     g = _game_at_action(extra_loot=[coin])
     p1 = g.state.get_player(PlayerId("P1"))
     assert p1.cents == 0
@@ -54,17 +54,6 @@ def test_play_coin_grants_one_cent():
 
     assert p1.cents == 1
 
-
-def test_play_coin_2_and_coin_3_are_both_one_cent():
-    from foursouls.cards.loot import LOOT_COIN_2, LOOT_COIN_3
-    for card_id in (LOOT_COIN_2, LOOT_COIN_3):
-        coin = _ref("coin-x", card_id)
-        g = _game_at_action(extra_loot=[coin])
-        p1 = g.state.get_player(PlayerId("P1"))
-        g.step(PlayLoot(card_ref=coin))
-        g.step(PassPriority())
-        g.step(PassPriority())
-        assert p1.cents == 1
 
 
 # ── DealDamageEffect (targeted) ───────────────────────────────────────────────
@@ -113,7 +102,7 @@ def test_bomb_deals_damage_to_monster():
 # ── Hand / discard mechanics ──────────────────────────────────────────────────
 
 def test_card_removed_from_hand_on_play():
-    coin = _ref("coin-c", LOOT_COIN_1)
+    coin = _ref("coin-c", LOOT_COIN)
     g = _game_at_action(extra_loot=[coin])
     p1 = g.state.get_player(PlayerId("P1"))
     assert coin in p1.hand
@@ -124,7 +113,7 @@ def test_card_removed_from_hand_on_play():
 
 
 def test_card_appears_in_loot_discard_after_resolution():
-    coin = _ref("coin-d", LOOT_COIN_1)
+    coin = _ref("coin-d", LOOT_COIN)
     g = _game_at_action(extra_loot=[coin])
     discard_before = len(g.zones.loot_discard.cards)
 
@@ -142,7 +131,7 @@ def test_card_appears_in_loot_discard_after_resolution():
 # ── Quota tracking ────────────────────────────────────────────────────────────
 
 def test_loot_plays_used_increments_on_play():
-    coin = _ref("coin-e", LOOT_COIN_1)
+    coin = _ref("coin-e", LOOT_COIN)
     g = _game_at_action(extra_loot=[coin])
     assert g.state.turn_flags.loot_plays_used == 0
 
@@ -152,8 +141,8 @@ def test_loot_plays_used_increments_on_play():
 
 
 def test_second_play_illegal_after_quota_exhausted():
-    coin1 = _ref("coin-f1", LOOT_COIN_1)
-    coin2 = _ref("coin-f2", LOOT_COIN_2)
+    coin1 = _ref("coin-f1", LOOT_COIN)
+    coin2 = _ref("coin-f2", LOOT_COIN)
     g = _game_at_action(extra_loot=[coin1, coin2])
 
     g.step(PlayLoot(card_ref=coin1))
@@ -166,8 +155,8 @@ def test_second_play_illegal_after_quota_exhausted():
 
 def test_second_play_legal_after_extra_quota_granted(monkeypatch):
     """With loot_plays_allowed == 2, a second PlayLoot is legal."""
-    coin1 = _ref("coin-g1", LOOT_COIN_1)
-    coin2 = _ref("coin-g2", LOOT_COIN_2)
+    coin1 = _ref("coin-g1", LOOT_COIN)
+    coin2 = _ref("coin-g2", LOOT_COIN)
     g = _game_at_action(extra_loot=[coin1, coin2])
     g.state.turn_flags.loot_plays_allowed = 2
 

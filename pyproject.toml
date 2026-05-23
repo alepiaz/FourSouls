@@ -7,7 +7,10 @@ name = "foursouls"
 version = "0.0.1"
 description = "The Binding of Isaac: Four Souls engine (learning project)"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+  "pyyaml>=6.0",
+  "pydantic>=2.0",
+]
 
 [project.optional-dependencies]
 dev = [

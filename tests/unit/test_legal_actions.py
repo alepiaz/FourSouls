@@ -46,7 +46,7 @@ from foursouls.rulesets.common.legality import TREASURE_COST
 # ---------------------------------------------------------------------------
 
 P1 = PlayerId("P1")
-COIN_ID = CardId("LOOT_COIN_1")
+COIN_ID = CardId("LOOT_COIN")
 TREASURE_ID = CardId("HEALTH_POTION")
 
 

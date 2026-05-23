@@ -1,0 +1,61 @@
+# ── Passives ──────────────────────────────────────────────────────────────────
+
+DRY_BABY:
+  name: "Dry Baby"
+  on_enters_play:
+    type: set_damage_cap
+    amount: 1
+
+"MEAT!":
+  name: "Meat!"
+  on_enters_play:
+    type: increase_attack_bonus
+    amount: 1
+
+# ── Active items ──────────────────────────────────────────────────────────────
+
+MAMA_MEGA:
+  name: "Mama Mega"
+  is_one_use: true   # item destroys itself when effect resolves
+  tap_effect_description: "Destroy this. Deal 3 damage to each monster and player."
+  tap_effect:
+    type: aoe_damage
+    amount: 3
+
+YUM_HEART:
+  name: "Yum Heart"
+  eternal: true
+  recharge_on: end_of_turn
+  tap_target_type: player_or_monster
+  tap_effect_description: "Choose a player or monster. Prevent the next 1 damage they would take this turn."
+  tap_effect:
+    type: prevent_damage_to_target
+    amount: 1
+
+# ── Stub items (effects implemented in future sprints) ───────────────────────
+
+THE_D6:
+  name: "The D6"
+  eternal: true
+  recharge_on: end_of_turn
+  tap_effect_description: "Choose a dice roll. Its controller rerolls it. (Stub — Sprint 16)"
+
+LUCKY_FOOT:
+  name: "Lucky Foot"
+  tap_effect_description: "Add up to 2 to a non-attack roll. (Stub — Sprint 16)"
+
+SLEIGHT_OF_HAND:
+  name: "Sleight Of Hand"
+  eternal: true
+  recharge_on: end_of_turn
+  tap_effect_description: >
+    Look at the top 5 cards of a deck. Put them back in any order.
+    (Stub — auto-shuffle Sprint 11; full reorder Sprint 16)
+
+THE_CURSE:
+  name: "The Curse"
+  eternal: true
+  recharge_on: end_of_turn
+  tap_effect_description: >
+    Put the top card of any discard on top of its deck.
+    (Stub — DeckTarget system in R11.4)

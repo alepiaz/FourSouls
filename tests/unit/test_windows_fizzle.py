@@ -13,7 +13,7 @@ test_loot_play.py and test_activated_abilities.py:
      (or not) cannot undo the tap.
 """
 from agents.pass_bot import choose_command
-from foursouls.cards.loot import BOMB_BANG, LOOT_COIN_1, LOOT_COIN_2
+from foursouls.cards.loot import BOMB_BANG, LOOT_COIN
 from foursouls.model.target import PlayerTarget
 from foursouls.engine.events import EffectFizzled, StackItemResolved
 from foursouls.engine.rng import RNG
@@ -73,7 +73,7 @@ class TestResponseWindow:
 
     def test_loot_on_stack_blocks_end_turn(self):
         """EndTurn must not be legal while a loot effect is on the stack."""
-        coin = _ref("coin-w1", LOOT_COIN_1)
+        coin = _ref("coin-w1", LOOT_COIN)
         g = _game_at_action(extra_hand=[coin])
 
         g.step(PlayLoot(card_ref=coin))
@@ -84,7 +84,7 @@ class TestResponseWindow:
 
     def test_loot_stays_on_stack_after_one_pass(self):
         """Stack is not drained until ALL players have passed."""
-        coin = _ref("coin-w2", LOOT_COIN_1)
+        coin = _ref("coin-w2", LOOT_COIN)
         g = _game_at_action(extra_hand=[coin])
 
         g.step(PlayLoot(card_ref=coin))
@@ -94,7 +94,7 @@ class TestResponseWindow:
 
     def test_loot_resolves_after_full_pass_cycle(self):
         """Effect resolves when P1 and P2 have both passed."""
-        coin = _ref("coin-w3", LOOT_COIN_1)
+        coin = _ref("coin-w3", LOOT_COIN)
         g = _game_at_action(extra_hand=[coin])
         p1 = g.state.get_player(PlayerId("P1"))
 
@@ -108,7 +108,7 @@ class TestResponseWindow:
 
     def test_priority_owner_after_play_is_active_player(self):
         """After PlayLoot, priority resets to the active player (P1)."""
-        coin = _ref("coin-w4", LOOT_COIN_1)
+        coin = _ref("coin-w4", LOOT_COIN)
         g = _game_at_action(extra_hand=[coin])
 
         g.step(PlayLoot(card_ref=coin))
@@ -116,12 +116,12 @@ class TestResponseWindow:
         assert g.priority.current() == PlayerId("P1")
 
     def test_stack_item_label_identifies_played_card(self):
-        coin = _ref("coin-w5", LOOT_COIN_1)
+        coin = _ref("coin-w5", LOOT_COIN)
         g = _game_at_action(extra_hand=[coin])
 
         g.step(PlayLoot(card_ref=coin))
 
-        assert g.stack.top().label == f"PlayLoot:{LOOT_COIN_1}"
+        assert g.stack.top().label == f"PlayLoot:{LOOT_COIN}"
 
     def test_response_window_bomb_resolves_after_full_cycle(self):
         """Bomb follows same pass-to-resolve pattern as coins."""
@@ -165,7 +165,7 @@ class TestFizzle:
         g.priority.reset_to(active_id)
 
     def test_fizzle_emits_effect_fizzled_event(self):
-        coin = _ref("coin-fz1", LOOT_COIN_1)
+        coin = _ref("coin-fz1", LOOT_COIN)
         g = _game_at_action(extra_hand=[coin])
 
         self._push_fizzling_loot(g, coin)
@@ -176,7 +176,7 @@ class TestFizzle:
 
     def test_fizzle_does_not_discard_card(self):
         """When inner fizzles, PlayLootEffect.apply is never called — card stays in limbo."""
-        coin = _ref("coin-fz2", LOOT_COIN_1)
+        coin = _ref("coin-fz2", LOOT_COIN)
         g = _game_at_action(extra_hand=[coin])
         discard_before = len(g.zones.loot_discard.cards)
 
@@ -188,7 +188,7 @@ class TestFizzle:
 
     def test_fizzle_does_not_mutate_state(self):
         """State is unchanged when a loot effect fizzles."""
-        coin = _ref("coin-fz3", LOOT_COIN_1)
+        coin = _ref("coin-fz3", LOOT_COIN)
         g = _game_at_action(extra_hand=[coin])
         p1 = g.state.get_player(PlayerId("P1"))
         cents_before = p1.cents
@@ -201,7 +201,7 @@ class TestFizzle:
 
     def test_fizzle_uses_quota_slot(self):
         """The play quota is consumed at play time, not resolution — fizzle burns a slot."""
-        coin = _ref("coin-fz4", LOOT_COIN_1)
+        coin = _ref("coin-fz4", LOOT_COIN)
         g = _game_at_action(extra_hand=[coin])
 
         self._push_fizzling_loot(g, coin)
@@ -217,8 +217,8 @@ class TestFizzle:
 class TestExtraLootIntegration:
 
     def test_activate_then_play_two_coins_grants_two_cents(self):
-        coin1 = _ref("coin-el1", LOOT_COIN_1)
-        coin2 = _ref("coin-el2", LOOT_COIN_2)
+        coin1 = _ref("coin-el1", LOOT_COIN)
+        coin2 = _ref("coin-el2", LOOT_COIN)
         g = _game_at_action(with_character=True, extra_hand=[coin1, coin2])
         p1 = g.state.get_player(PlayerId("P1"))
 
@@ -243,9 +243,9 @@ class TestExtraLootIntegration:
         assert g.state.turn_flags.loot_plays_used == 2
 
     def test_third_play_illegal_after_two_uses(self):
-        coin1 = _ref("coin-el3", LOOT_COIN_1)
-        coin2 = _ref("coin-el4", LOOT_COIN_2)
-        coin3 = _ref("coin-el5", LOOT_COIN_1)
+        coin1 = _ref("coin-el3", LOOT_COIN)
+        coin2 = _ref("coin-el4", LOOT_COIN)
+        coin3 = _ref("coin-el5", LOOT_COIN)
         g = _game_at_action(with_character=True, extra_hand=[coin1, coin2, coin3])
 
         g.step(ActivateCharacterAbility())
@@ -266,7 +266,7 @@ class TestExtraLootIntegration:
 
     def test_quota_resets_each_turn(self):
         """After EndTurn, loot_plays_used resets to 0 and allowed back to 1."""
-        coin = _ref("coin-el6", LOOT_COIN_1)
+        coin = _ref("coin-el6", LOOT_COIN)
         g = _game_at_action(with_character=True, extra_hand=[coin])
 
         # Use the default play
