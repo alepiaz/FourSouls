@@ -11,16 +11,12 @@ Scenarios
 3. When all players pass, the event effect resolves: the inner effect fires and
    the event card is moved to monster discard (slot is cleared).
 
-4. FEAST resolves → active player gains 5¢.
-   PLAGUE resolves → active player loses 2 HP.
-   WANDERING resolves → active player draws 1 loot card.
-
-5. After resolution, the slot is empty (event discarded) and can be refilled
+4. After resolution, the slot is empty (event discarded) and can be refilled
    by a subsequent monster death.
 """
 from __future__ import annotations
 
-from foursouls.cards.monsters import FEAST, PLAGUE, WANDERING, make_monster_in_play
+from foursouls.cards.monsters import CURSED_CHEST, make_monster_in_play
 from foursouls.cli.app import build_demo_game
 from foursouls.engine.events import EventEntered, StackItemPushed
 from foursouls.model.commands import AttackMonster, PassPriority
@@ -72,8 +68,7 @@ def test_event_slot_not_attackable():
     g = build_demo_game(["P1", "P2"], seed=0)
     _advance_to_action(g)
 
-    # Replace slot 0 with an event card
-    _plant_event(g, FEAST, slot=0)
+    _plant_event(g, CURSED_CHEST, slot=0)
 
     legal = g.legal_commands()
     attack_slots = {cmd.slot_index for cmd in legal if isinstance(cmd, AttackMonster)}
@@ -94,9 +89,9 @@ def test_event_entered_emitted_on_refill():
     g = build_demo_game(["P1", "P2"], seed=0)
     _advance_to_action(g)
 
-    # Put a FEAST card on top of the monster deck
-    feast_ref = CardRef(InstanceId("feast-top"), FEAST)
-    g.zones.monster_deck.cards.append(feast_ref)  # drawn next (draw pops from end)
+    # Put a CURSED_CHEST card on top of the monster deck
+    event_ref = CardRef(InstanceId("event-top"), CURSED_CHEST)
+    g.zones.monster_deck.cards.append(event_ref)  # drawn next (draw pops from end)
 
     # Plant a 1-HP, evade-1 monster in slot 0 (guaranteed kill)
     g.zones.monster_slots.set(
@@ -126,69 +121,10 @@ def test_event_entered_emitted_on_refill():
     entered = [e for e in all_events if isinstance(e, EventEntered)]
     assert entered, "EventEntered not emitted after refill with event card"
     assert entered[0].slot_index == 0
-    assert entered[0].card_ref.card_id == FEAST
+    assert entered[0].card_ref.card_id == CURSED_CHEST
 
     pushed = [e for e in all_events if isinstance(e, StackItemPushed)]
-    assert any("FEAST" in e.label for e in pushed), "Event trigger not pushed to stack"
-
-
-# ---------------------------------------------------------------------------
-# R9.3: Effect resolution per event type
-# ---------------------------------------------------------------------------
-
-def test_feast_gives_5_cents():
-    """FEAST resolves → active player gains 5¢."""
-    g = build_demo_game(["P1", "P2"], seed=0)
-    _advance_to_action(g)
-
-    from foursouls.rulesets.common.combat import place_monster_card
-    feast_ref = CardRef(InstanceId("feast-test"), FEAST)
-    place_monster_card(g, 0, feast_ref)
-
-    p1 = g.state.get_player(PlayerId("P1"))
-    cents_before = p1.cents
-
-    # Pass to resolve: all players pass → stack item resolves
-    g.step(PassPriority())
-    g.step(PassPriority())
-
-    assert p1.cents == cents_before + 5
-
-
-def test_plague_deals_2_damage():
-    """PLAGUE resolves → active player loses 2 HP."""
-    g = build_demo_game(["P1", "P2"], seed=0)
-    _advance_to_action(g)
-
-    from foursouls.rulesets.common.combat import place_monster_card
-    plague_ref = CardRef(InstanceId("plague-test"), PLAGUE)
-    place_monster_card(g, 0, plague_ref)
-
-    p1 = g.state.get_player(PlayerId("P1"))
-    hp_before = p1.hp
-
-    g.step(PassPriority())
-    g.step(PassPriority())
-
-    assert p1.hp == max(0, hp_before - 2)
-
-
-def test_wandering_draws_1_loot():
-    """WANDERING resolves → active player draws 1 loot card."""
-    g = build_demo_game(["P1", "P2"], seed=0)
-    _advance_to_action(g)
-
-    from foursouls.rulesets.common.combat import place_monster_card
-    wandering_ref = CardRef(InstanceId("wandering-test"), WANDERING)
-    place_monster_card(g, 0, wandering_ref)
-
-    p1 = g.state.get_player(PlayerId("P1"))
-    hand_before = len(p1.hand)
-
-    g.step(PassPriority())
-    g.step(PassPriority())
-
-    assert len(p1.hand) == hand_before + 1
+    assert any("CURSED_CHEST" in e.label for e in pushed), "Event trigger not pushed to stack"
 
 
 # ---------------------------------------------------------------------------
@@ -197,12 +133,14 @@ def test_wandering_draws_1_loot():
 
 def test_event_slot_cleared_after_resolution():
     """After an event resolves, its monster slot is empty."""
+    from foursouls.rulesets.common.combat import place_monster_card
+    from foursouls.engine.rng import RNG
+
     g = build_demo_game(["P1", "P2"], seed=0)
     _advance_to_action(g)
 
-    from foursouls.rulesets.common.combat import place_monster_card
-    feast_ref = CardRef(InstanceId("feast-clear"), FEAST)
-    place_monster_card(g, 0, feast_ref)
+    event_ref = CardRef(InstanceId("event-clear"), CURSED_CHEST)
+    place_monster_card(g, 0, event_ref)
 
     assert g.zones.monster_slots.get(0) is not None, "Slot should be occupied before resolution"
 
@@ -210,7 +148,7 @@ def test_event_slot_cleared_after_resolution():
     g.step(PassPriority())
 
     assert g.zones.monster_slots.get(0) is None, "Slot should be empty after event resolves"
-    assert feast_ref in g.zones.monster_discard.cards
+    assert event_ref in g.zones.monster_discard.cards
 
 
 # ---------------------------------------------------------------------------

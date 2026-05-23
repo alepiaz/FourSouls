@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Dict, Optional, TYPE_CHECKING
+from pathlib import Path
+from typing import Dict, Optional, TYPE_CHECKING
+
+import yaml
+from pydantic import BaseModel, ConfigDict, Field
 
 from foursouls.model.monster_in_play import MonsterInPlay
 from foursouls.model.refs import CardId, CardRef
@@ -21,21 +25,20 @@ if TYPE_CHECKING:
 
 # ── Card ID constants ─────────────────────────────────────────────────────────
 
-FLY    = CardId("FLY")
-GAPER  = CardId("GAPER")
-SPIDER = CardId("SPIDER")
-HORF   = CardId("HORF")
+FLY           = CardId("FLY")
+GAPER         = CardId("GAPER")
+SPIDER        = CardId("SPIDER")
+HORF          = CardId("HORF")
+BIG_SPIDER    = CardId("BIG_SPIDER")
+CARRION_QUEEN = CardId("CARRION_QUEEN")
 
 # Boss card IDs
 MONSTRO           = CardId("MONSTRO")            # Base Game V2
 HEADLESS_HORSEMAN = CardId("HEADLESS_HORSEMAN")  # Four Souls+ V2
 
 # Event card IDs
-FEAST          = CardId("FEAST")           # positive: active player gains 5¢
-PLAGUE         = CardId("PLAGUE")          # negative: active player takes 2 damage
-WANDERING      = CardId("WANDERING")       # neutral:  active player draws 1 loot
-CURSED_CHEST   = CardId("CURSED_CHEST")   # bad: roll d6 — 1-3: 1 dmg; 4-5: 2 dmg; 6: stub
-WE_NEED_TO_GO_DEEPER = CardId("WE_NEED_TO_GO_DEEPER")  # good: reset attack_used
+CURSED_CHEST         = CardId("CURSED_CHEST")         # bad: roll d6 — 1-3: 1 dmg; 4-5: 2 dmg; 6: stub
+WE_NEED_TO_GO_DEEPER = CardId("WE_NEED_TO_GO_DEEPER") # good: reset attack_used
 
 # ── Blueprint ─────────────────────────────────────────────────────────────────
 
@@ -67,71 +70,65 @@ class MonsterDef:
     on_would_die: object = field(default=None, compare=False, hash=False)
 
 
-# ── Event effect factories ─────────────────────────────────────────────────────
+# ── YAML schema (Pydantic) ────────────────────────────────────────────────────
 
-def _feast_effect(game: "Game") -> "Effect":
-    from foursouls.rulesets.common.effects import GainCentsEffect
-    return GainCentsEffect(player_id=game.state.active_player_id, amount=5)
-
-
-def _plague_effect(game: "Game") -> "Effect":
-    from foursouls.rulesets.common.effects import DealDamageEffect
-    return DealDamageEffect(player_id=game.state.active_player_id, amount=2)
+class _AbilityConfig(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    type: str
 
 
-def _wandering_effect(game: "Game") -> "Effect":
-    from foursouls.rulesets.common.effects import DrawLoot1Effect
-    return DrawLoot1Effect(
-        player_id=game.state.active_player_id,
-        loot_deck=game.zones.loot_deck,
-        log=game.log,
-    )
+class _MonsterEntry(BaseModel):
+    base_hp: int = 0
+    evade: int = 0
+    attack: int = 0
+    has_soul: bool = False
+    reward_coin: int = Field(default=0, ge=0)
+    reward_loot: int = Field(default=0, ge=0)
+    reward_treasure: int = Field(default=0, ge=0)
+    is_boss: bool = False
+    is_event: bool = False
+    on_death: Optional[_AbilityConfig] = None
+    on_miss: Optional[_AbilityConfig] = None
+    on_would_take_combat_damage: Optional[_AbilityConfig] = None
+    on_would_die: Optional[_AbilityConfig] = None
+    event_effect: Optional[_AbilityConfig] = None
 
 
-def _cursed_chest_effect(game: "Game") -> "Effect":
-    from foursouls.rulesets.common.effects import DealDamageEffect, LootRollEffect
-    active_id = game.state.active_player_id
-    branches = {
-        1: DealDamageEffect(player_id=active_id, amount=1),
-        2: DealDamageEffect(player_id=active_id, amount=1),
-        3: DealDamageEffect(player_id=active_id, amount=1),
-        4: DealDamageEffect(player_id=active_id, amount=2),
-        5: DealDamageEffect(player_id=active_id, amount=2),
-        # 6: search for Guppy item — deferred to Sprint 11
-    }
-    return LootRollEffect(branches=branches, rng=game.rng)
+# ── Registry loader ───────────────────────────────────────────────────────────
+
+def _load_registry() -> Dict[CardId, MonsterDef]:
+    from foursouls.cards.ability_handlers import build_trigger, build_event_effect
+
+    data_path = Path(__file__).parent.parent / "data" / "monsters.yaml"
+    raw: dict = yaml.safe_load(data_path.read_text(encoding="utf-8"))
+
+    registry: Dict[CardId, MonsterDef] = {}
+    for card_id_str, entry_dict in raw.items():
+        card_id = CardId(card_id_str)
+        entry = _MonsterEntry.model_validate(entry_dict or {})
+
+        registry[card_id] = MonsterDef(
+            card_id=card_id,
+            base_hp=entry.base_hp,
+            evade=entry.evade,
+            attack=entry.attack,
+            has_soul=entry.has_soul,
+            reward_coin=entry.reward_coin,
+            reward_loot=entry.reward_loot,
+            reward_treasure=entry.reward_treasure,
+            is_boss=entry.is_boss,
+            is_event=entry.is_event,
+            event_effect=build_event_effect(entry.event_effect.model_dump()) if entry.event_effect else None,
+            on_death=build_trigger(entry.on_death.model_dump()) if entry.on_death else None,
+            on_miss=build_trigger(entry.on_miss.model_dump()) if entry.on_miss else None,
+            on_would_take_combat_damage=build_trigger(entry.on_would_take_combat_damage.model_dump()) if entry.on_would_take_combat_damage else None,
+            on_would_die=build_trigger(entry.on_would_die.model_dump()) if entry.on_would_die else None,
+        )
+
+    return registry
 
 
-def _we_need_to_go_deeper_effect(game: "Game") -> "Effect":
-    from foursouls.rulesets.common.effects import ResetAttackEffect
-    return ResetAttackEffect()
-
-
-# ── Registry ──────────────────────────────────────────────────────────────────
-
-_REGISTRY: Dict[CardId, MonsterDef] = {
-    FLY:    MonsterDef(card_id=FLY,    base_hp=1, evade=2, attack=1, reward_coin=1, has_soul=False),
-    GAPER:  MonsterDef(card_id=GAPER,  base_hp=2, evade=4, attack=1, reward_coin=3, has_soul=False),
-    SPIDER: MonsterDef(card_id=SPIDER, base_hp=1, evade=4, attack=1, reward_coin=0, has_soul=False, reward_loot=1),
-    HORF:   MonsterDef(card_id=HORF,   base_hp=1, evade=4, attack=1, reward_coin=3, has_soul=False),
-    # Bosses
-    MONSTRO: MonsterDef(
-        card_id=MONSTRO, base_hp=4, evade=4, attack=1, reward_coin=6,
-        has_soul=True, is_boss=True,
-    ),
-    HEADLESS_HORSEMAN: MonsterDef(
-        card_id=HEADLESS_HORSEMAN, base_hp=3, evade=3, attack=2, reward_coin=0,
-        has_soul=True, reward_treasure=1, is_boss=True,
-        # Ability (Sprint 13): first time this would die each turn, prevent death,
-        # heal 2 HP, gain +1 DC and -1 ATK until end of turn.
-    ),
-    # Events (no stat block: base_hp/evade/attack are ignored)
-    FEAST:     MonsterDef(card_id=FEAST,     base_hp=0, evade=0, attack=0, reward_coin=0, has_soul=False, is_event=True, event_effect=_feast_effect),
-    PLAGUE:    MonsterDef(card_id=PLAGUE,    base_hp=0, evade=0, attack=0, reward_coin=0, has_soul=False, is_event=True, event_effect=_plague_effect),
-    WANDERING: MonsterDef(card_id=WANDERING, base_hp=0, evade=0, attack=0, reward_coin=0, has_soul=False, is_event=True, event_effect=_wandering_effect),
-    CURSED_CHEST:         MonsterDef(card_id=CURSED_CHEST,         base_hp=0, evade=0, attack=0, reward_coin=0, has_soul=False, is_event=True, event_effect=_cursed_chest_effect),
-    WE_NEED_TO_GO_DEEPER: MonsterDef(card_id=WE_NEED_TO_GO_DEEPER, base_hp=0, evade=0, attack=0, reward_coin=0, has_soul=False, is_event=True, event_effect=_we_need_to_go_deeper_effect),
-}
+_REGISTRY: Dict[CardId, MonsterDef] = _load_registry()
 
 # Used when a CardRef has no card_id or an unrecognised one (e.g. test stubs).
 _DEFAULT = MonsterDef(

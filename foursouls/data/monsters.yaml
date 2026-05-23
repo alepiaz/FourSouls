@@ -1,0 +1,97 @@
+# ── Basic monsters ──────────────────────────────────────────────────────────
+
+FLY:
+  base_hp: 1
+  evade: 2
+  attack: 1
+  reward_coin: 1
+  has_soul: false
+
+GAPER:
+  base_hp: 2
+  evade: 4
+  attack: 1
+  reward_coin: 3
+  has_soul: false
+  on_death:
+    type: forced_extra_attack
+    roll_condition: 6
+
+SPIDER:
+  base_hp: 1
+  evade: 4
+  attack: 1
+  has_soul: false
+  reward_loot: 1
+
+HORF:
+  base_hp: 1
+  evade: 4
+  attack: 1
+  reward_coin: 3
+  has_soul: false
+  on_miss:
+    type: extra_miss_damage
+    roll_condition: 2
+    amount: 1
+
+BIG_SPIDER:
+  base_hp: 3
+  evade: 4
+  attack: 1
+  has_soul: false
+  reward_loot: 1
+  on_death:
+    type: optional_extra_attack
+
+CARRION_QUEEN:
+  base_hp: 3
+  evade: 4
+  attack: 1
+  has_soul: true
+  reward_treasure: 1
+  is_boss: true
+  on_would_take_combat_damage:
+    type: shield_on_rolls
+    rolls: [4, 5]
+
+# ── Bosses ───────────────────────────────────────────────────────────────────
+
+MONSTRO:
+  base_hp: 4
+  evade: 4
+  attack: 1
+  reward_coin: 6
+  has_soul: true
+  is_boss: true
+
+HEADLESS_HORSEMAN:
+  base_hp: 3
+  evade: 3
+  attack: 2
+  has_soul: true
+  reward_treasure: 1
+  is_boss: true
+  on_would_die:
+    type: death_prevention_with_heal
+    heal: 2
+    evade_delta: 1
+    attack_delta: -1
+
+# ── Events ───────────────────────────────────────────────────────────────────
+
+CURSED_CHEST:
+  is_event: true
+  event_effect:
+    type: roll_branches
+    branches:
+      1: {type: deal_damage, amount: 1}
+      2: {type: deal_damage, amount: 1}
+      3: {type: deal_damage, amount: 1}
+      4: {type: deal_damage, amount: 2}
+      5: {type: deal_damage, amount: 2}
+
+WE_NEED_TO_GO_DEEPER:
+  is_event: true
+  event_effect:
+    type: reset_attack

@@ -17,8 +17,8 @@ from __future__ import annotations
 from typing import List, Optional
 
 from foursouls.cards.characters import CAIN, EVE, ISAAC, MAGDALENE, get_character_def
-from foursouls.cards.loot import BLANK_RUNE, BOMB_BANG, LOOT_COIN_1, LOOT_COIN_2, LOOT_COIN_3, SOUL_HEART
-from foursouls.cards.monsters import CURSED_CHEST, FEAST, FLY, GAPER, HEADLESS_HORSEMAN, HORF, MONSTRO, PLAGUE, SPIDER, WANDERING, WE_NEED_TO_GO_DEEPER
+from foursouls.cards.loot import BLANK_RUNE, BOMB_BANG, LOOT_COIN, SOUL_HEART
+from foursouls.cards.monsters import CURSED_CHEST, FLY, GAPER, HEADLESS_HORSEMAN, HORF, MONSTRO, SPIDER, WE_NEED_TO_GO_DEEPER
 from foursouls.cli.controller import (
     display_board,
     display_events,
@@ -44,9 +44,9 @@ from foursouls.rulesets.common.setup import setup_game
 def _loot_deck() -> List[CardRef]:
     """40-card loot deck: mostly coins, a few bombs."""
     pool = [
-        LOOT_COIN_1, LOOT_COIN_1, LOOT_COIN_1,
-        LOOT_COIN_2, LOOT_COIN_2,
-        LOOT_COIN_3,
+        LOOT_COIN, LOOT_COIN, LOOT_COIN,
+        LOOT_COIN, LOOT_COIN,
+        LOOT_COIN,
         BOMB_BANG,
         SOUL_HEART,
         BLANK_RUNE,
@@ -59,7 +59,7 @@ def _loot_deck() -> List[CardRef]:
             iid += 1
     # pad to 40
     while len(cards) < 40:
-        cards.append(CardRef(InstanceId(f"loot-{iid}"), LOOT_COIN_1))
+        cards.append(CardRef(InstanceId(f"loot-{iid}"), LOOT_COIN))
         iid += 1
     return cards
 
@@ -78,9 +78,6 @@ def _monster_deck() -> List[CardRef]:
         (HORF,              2),
         (MONSTRO,           1),
         (HEADLESS_HORSEMAN, 1),
-        (FEAST,                  1),
-        (PLAGUE,                 1),
-        (WANDERING,              1),
         (CURSED_CHEST,           1),
         (WE_NEED_TO_GO_DEEPER,   1),
     ]
