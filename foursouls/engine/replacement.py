@@ -132,6 +132,7 @@ class ReplacementPipeline:
         )
 
     def _matching(self, event: Event, game):
+        game.sync_monster_abilities()
         subscriptions = game.event_dispatcher.subscriptions_for(type(event))
         contexts = game.event_dispatcher.dispatch(event)
         state = ConditionEvaluationState(
