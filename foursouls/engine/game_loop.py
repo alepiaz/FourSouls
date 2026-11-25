@@ -90,8 +90,20 @@ class Game:
         from foursouls.engine.actions import get_legal_actions
         return get_legal_actions(self)
 
+    def sync_monster_abilities(self) -> None:
+        """Ensure every currently face-up monster has a live zone identity."""
+        if self.zones is None:
+            return
+        from foursouls.rulesets.common.combat import register_monster_abilities
+
+        for slot_index in self.zones.monster_slots.filled_indices():
+            monster = self.zones.monster_slots.get(slot_index)
+            if monster is not None:
+                register_monster_abilities(self, slot_index, monster)
+
     def emit(self, event: Event) -> tuple[AbilityContext, ...]:
         """Record an event and enqueue matching abilities exactly once."""
+        self.sync_monster_abilities()
         self.log.append(event)
         return self.ability_engine.observe(event, self)
 
