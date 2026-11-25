@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
+from foursouls.engine.ability_engine import AbilityEngine
 from foursouls.engine.duration import DurationManager
 from foursouls.engine.event_dispatcher import EventDispatcher
 from foursouls.engine.events import (
@@ -61,6 +62,7 @@ class Game:
     priority: PriorityManager = field(init=False)
     log: EventLog = field(default_factory=EventLog)
     event_dispatcher: EventDispatcher = field(default_factory=EventDispatcher)
+    ability_engine: AbilityEngine = field(default_factory=AbilityEngine)
     zone_identities: ZoneIdentityRegistry = field(
         default_factory=ZoneIdentityRegistry
     )
@@ -85,9 +87,9 @@ class Game:
         return get_legal_actions(self)
 
     def emit(self, event: Event) -> tuple[AbilityContext, ...]:
-        """Record an event and return matching ability contexts exactly once."""
+        """Record an event and enqueue matching abilities exactly once."""
         self.log.append(event)
-        return self.event_dispatcher.dispatch(event)
+        return self.ability_engine.observe(event, self)
 
     def leave_zone_entry(self, zone_entry_id: str) -> bool:
         """Remove all runtime state tied to one card-zone incarnation."""
