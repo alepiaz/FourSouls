@@ -56,6 +56,12 @@ class EventSourceIsAbilitySourceCondition(_StrictDefinition):
     )
 
 
+class EventTargetIsAbilitySourceCondition(_StrictDefinition):
+    type: Literal["event_target_is_ability_source"] = (
+        "event_target_is_ability_source"
+    )
+
+
 ConditionDefinition = Annotated[
     Union[
         AlwaysCondition,
@@ -64,6 +70,7 @@ ConditionDefinition = Annotated[
         PositiveDamageCondition,
         SourceInZoneCondition,
         EventSourceIsAbilitySourceCondition,
+        EventTargetIsAbilitySourceCondition,
     ],
     Field(discriminator="type"),
 ]
