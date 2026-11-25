@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from foursouls.model.commands import AttackMonster, Command, EndTurn, PassPriority, RollCombat
+from foursouls.model.commands import AttackMonsterDeck, PlaceRevealedMonster, AttackMonster, Command, EndTurn, PassPriority, RollCombat
 
 if TYPE_CHECKING:
     from foursouls.engine.game_loop import Game
@@ -22,6 +22,11 @@ def choose_command(game: Game) -> Command:
     handle those actions in their own acceptance slices.
     """
     cmds = game.legal_commands()
+    for cmd in cmds:
+        if isinstance(cmd, PlaceRevealedMonster):
+            return cmd
+        if isinstance(cmd, AttackMonsterDeck) and game.state.turn_flags.forced_deck_attacks:
+            return cmd
 
     for cmd in cmds:
         if isinstance(cmd, RollCombat):
@@ -35,4 +40,7 @@ def choose_command(game: Game) -> Command:
         if isinstance(cmd, EndTurn):
             return cmd
 
+    for cmd in cmds:
+        if isinstance(cmd, AttackMonsterDeck):
+            return cmd
     return PassPriority()

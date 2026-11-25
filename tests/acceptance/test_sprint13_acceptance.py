@@ -746,7 +746,7 @@ def test_gaper_has_on_death_callback():
     assert get_monster_def(GAPER).on_death is not None
 
 
-def test_gaper_on_death_roll_6_resets_attack_used():
+def test_gaper_on_death_roll_6_grants_forced_deck_attack():
     from foursouls.cards.monsters import GAPER, get_monster_def
     from foursouls.model.commands import AttackMonster, PassPriority
 
@@ -763,11 +763,12 @@ def test_gaper_on_death_roll_6_resets_attack_used():
     # Simulate the on_death callback with roll == 6
     get_monster_def(GAPER).on_death(g, 6)
 
-    # ResetAttackEffect is now on the stack; let all players pass to resolve it
+    # GrantDeckAttackEffect resolves after all players pass.
     g.step(PassPriority())
     g.step(PassPriority())
 
-    assert g.state.turn_flags.attack_used is False
+    assert g.state.turn_flags.attack_used is True
+    assert g.state.turn_flags.forced_deck_attacks == 1
 
 
 def test_gaper_on_death_non_6_roll_no_extra_attack():
@@ -833,7 +834,7 @@ def test_big_spider_has_on_death_callback():
     assert get_monster_def(BIG_SPIDER).on_death is not None
 
 
-def test_big_spider_on_death_always_resets_attack_used():
+def test_big_spider_on_death_grants_optional_deck_attack():
     from foursouls.cards.monsters import BIG_SPIDER, get_monster_def
     from foursouls.model.commands import AttackMonster, PassPriority
 
@@ -852,7 +853,8 @@ def test_big_spider_on_death_always_resets_attack_used():
     g.step(PassPriority())
     g.step(PassPriority())
 
-    assert g.state.turn_flags.attack_used is False
+    assert g.state.turn_flags.attack_used is True
+    assert g.state.turn_flags.optional_deck_attacks == 1
 
 
 def test_carrion_queen_has_on_would_take_combat_damage_callback():

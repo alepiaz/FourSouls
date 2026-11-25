@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, List
 
 from foursouls.cards.loot import allows_monster_target, allows_stack_target, requires_target
 from foursouls.cards.treasures import TREASURE_REGISTRY
-from foursouls.model.commands import ActivateCharacterAbility, ActivateItem, AttackMonster, BuyShop, Command, EndTurn, PassPriority, PlayLoot, RollCombat
+from foursouls.model.commands import ActivateCharacterAbility, ActivateItem, AttackMonster, AttackMonsterDeck, PlaceRevealedMonster, BuyShop, Command, EndTurn, PassPriority, PlayLoot, RollCombat
 from foursouls.model.phase import Phase
 from foursouls.model.target import MonsterTarget, PlayerTarget, StackItemTarget
 
@@ -33,10 +33,18 @@ def legal_commands(game: Game) -> List[Command]:
 
     holder_id = game.priority.current()
     is_active_holder = holder_id == state.active_player_id
+    if game.pending_deck_attack is not None:
+        return [PlaceRevealedMonster(slot_index=i) for i in range(game.zones.monster_slots.size)]
+    flags = state.turn_flags
+    deck_available = game.zones is not None and not game.zones.monster_deck.empty()
+    forced_deck_attack = (flags.forced_deck_attacks > 0 and deck_available
+                          and state.get_player(state.active_player_id).is_alive())
     cmds: List[Command] = [PassPriority()]
 
     # EndTurn is legal in ACTION (normal) or END (after active-player death)
-    if is_active_holder and state.phase in (Phase.ACTION, Phase.END) and stack.empty():
+    if (is_active_holder and state.phase in (Phase.ACTION, Phase.END) and stack.empty()
+            and not (state.phase == Phase.ACTION and forced_deck_attack)
+            and not (game.combat is not None and game.combat.from_deck)):
         cmds.append(EndTurn())
 
     # ActivateCharacterAbility: legal for the priority holder whenever their
@@ -126,11 +134,15 @@ def legal_commands(game: Game) -> List[Command]:
             # Also requires: attack not yet used this turn, no combat already active,
             # and the monster must be alive (0 HP monsters die automatically before
             # any player receives priority — they should never be attack targets).
-            if not flags.attack_used and game.zones is not None and game.combat is None:
+            if not forced_deck_attack and not flags.attack_used and game.zones is not None and game.combat is None:
                 for idx in game.zones.monster_slots.filled_indices():
                     monster = game.zones.monster_slots.get(idx)
                     if monster is not None and not monster.is_event and monster.is_alive():
                         cmds.append(AttackMonster(slot_index=idx))
+
+            if (deck_available and game.combat is None and active.is_alive()
+                    and (not flags.attack_used or flags.forced_deck_attacks or flags.optional_deck_attacks)):
+                cmds.append(AttackMonsterDeck())
 
             # RollCombat: legal only while combat is active.
             if game.combat is not None and game.combat.is_active:

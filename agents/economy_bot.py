@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from foursouls.model.commands import BuyShop, Command, EndTurn, PassPriority, PlayLoot
+from foursouls.model.commands import AttackMonsterDeck, PlaceRevealedMonster, BuyShop, Command, EndTurn, PassPriority, PlayLoot
 
 if TYPE_CHECKING:
     from foursouls.engine.game_loop import Game
@@ -23,6 +23,17 @@ def choose_command(game: Game) -> Command:
       play coin(s) to build cents → BuyShop → EndTurn
     """
     cmds = game.legal_commands()
+    for cmd in cmds:
+        if isinstance(cmd, PlaceRevealedMonster):
+            return cmd
+        if isinstance(cmd, AttackMonsterDeck) and game.state.turn_flags.forced_deck_attacks:
+            return cmd
+
+    if game.combat is not None and game.combat.from_deck:
+        from foursouls.model.commands import RollCombat
+        for cmd in cmds:
+            if isinstance(cmd, RollCombat):
+                return cmd
 
     for cmd in cmds:
         if isinstance(cmd, BuyShop):

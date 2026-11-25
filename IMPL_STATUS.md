@@ -8,9 +8,19 @@ Legend:
 
 ---
 
+## Planned architecture milestone — Sprint 13.5
+
+The current ability registry uses specialized trigger/effect factories and direct hooks. ROADMAP.md now schedules a shared ability definition, typed event dispatcher, zone-aware subscriptions, composable conditions/selectors/effects and limited trigger/replacement adapters before the remaining Sprint 14 work. These are planned, not implemented. Sprints 23–25 retain full timing, universal replacement and continuous/statics scope.
+
+## Sprint 13 completion note
+
+R13.6 and R13.7 add Bony and Mega Fatty with reusable stack-based attack-roll and combat-damage-dealt hooks. Bony observes attack rolls of the attacking player while face-up, including attacks on another monster; it modifies future damage (the current miss amount has already been placed on the stack); Mega Fatty triggers only after positive damage resolves, including lethal damage. The full dice/trigger/death timing model remains later roadmap work.
+
+Deck attacks now reveal before slot choice; covered occupants are restored when the covering monster or event leaves. Gaper and Big Spider use distinct mandatory and optional deck-attack allowances; Headless Horseman death prevention applies outside combat. This supersedes older statements below that these features are entirely absent. General attack declaration timing, zone identity, deck exhaustion and other rule gaps remain open.
+
 ## Sprint 14.5 verification note
 
-The branch changes priority ownership, loot cleanup and demo decks. These corrections are subject to regression verification. Remaining rule gaps in this audit are not considered closed by those changes. In particular, dice timing, covered slots, forced deck attacks, generalized triggers and replacement/continuous effects remain open.
+Sprint 14.5 was merged after passing CI on Python 3.11 and 3.12. It changes priority ownership, loot cleanup and demo decks. Remaining gaps include dice timing, generalized triggers and replacement/continuous effects; see the Sprint 13 note above for the newer deck-attack support.
 
 ## Anatomy of a Card
 

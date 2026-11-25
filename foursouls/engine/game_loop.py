@@ -17,13 +17,13 @@ from foursouls.engine.priority import PriorityManager
 from foursouls.engine.rng import RNG
 from foursouls.engine.stack import Stack, StackItem
 from foursouls.model.combat_state import CombatState
-from foursouls.model.commands import ActivateCharacterAbility, ActivateItem, AttackMonster, BuyShop, Command, EndTurn, PassPriority, PlayLoot, RollCombat
+from foursouls.model.commands import ActivateCharacterAbility, ActivateItem, AttackMonster, AttackMonsterDeck, PlaceRevealedMonster, BuyShop, Command, EndTurn, PassPriority, PlayLoot, RollCombat
 from foursouls.model.effects import Effect
 from foursouls.model.game_state import GameState
-from foursouls.model.refs import PlayerId
+from foursouls.model.refs import CardRef, PlayerId
 from foursouls.rulesets.base_rules import BaseRuleset
-from foursouls.rulesets.common.combat import check_all_monster_deaths_out_of_combat, check_combat_attacker_death, check_combat_defender_death, enter_combat, resolve_roll
-from foursouls.rulesets.common.effects import PlayLootEffect
+from foursouls.rulesets.common.combat import check_all_monster_deaths_out_of_combat, check_combat_attacker_death, check_combat_defender_death, enter_combat, reveal_deck_attack, place_revealed_monster, resolve_roll
+from foursouls.rulesets.common.effects import CombatMissDamageEffect, PlayLootEffect
 from foursouls.rulesets.common.loot import on_play_loot
 from foursouls.rulesets.common.shop import on_buy_shop
 from foursouls.rulesets.common.items import on_activate_item
@@ -50,6 +50,8 @@ class Game:
     zones: Optional[GameZones] = None
     combat: Optional[CombatState] = None
     game_over: bool = False
+    pending_deck_attack: Optional[CardRef] = None
+    monster_death_slot: Optional[int] = None
     rng: RNG = field(default_factory=RNG)
     stack: Stack = field(default_factory=Stack)
     priority: PriorityManager = field(init=False)
@@ -112,7 +114,18 @@ class Game:
                         # (e.g. Bomb! vs a non-combat slot, AoE effects).
                         check_all_monster_deaths_out_of_combat(self)
                         # Check if CombatMissDamageEffect just killed the attacker.
+                        # Capture the source before death cleanup clears combat.
+                        miss = item.effect if isinstance(item.effect, CombatMissDamageEffect) else None
+                        source = None
+                        if miss is not None and miss.damage_dealt > 0 and self.zones is not None:
+                            source = self.zones.monster_slots.get(miss.combat.defender_slot)
+                            if source is not None and source.card_ref != miss.combat.monster_ref:
+                                source = None
                         check_combat_attacker_death(self)
+                        # A lethal hit still dealt combat damage. Queue its trigger after
+                        # the current simplified death cleanup, which drains the stack.
+                        if source is not None and source.on_combat_damage_dealt is not None:
+                            source.on_combat_damage_dealt(self, source, miss.combat.defender_slot, miss.damage_dealt)
                     else:
                         if isinstance(item.effect, PlayLootEffect):
                             item.effect.discard()
@@ -142,6 +155,12 @@ class Game:
 
         elif isinstance(command, ActivateItem):
             on_activate_item(self, command.instance_id, command.target)
+
+        elif isinstance(command, AttackMonsterDeck):
+            reveal_deck_attack(self)
+
+        elif isinstance(command, PlaceRevealedMonster):
+            place_revealed_monster(self, command.slot_index)
 
         elif isinstance(command, AttackMonster):
             enter_combat(self, command.slot_index)

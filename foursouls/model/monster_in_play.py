@@ -33,6 +33,8 @@ class MonsterInPlay:
     on_miss: object = field(default=None, compare=False, hash=False)
     on_would_take_combat_damage: object = field(default=None, compare=False, hash=False)
     on_would_die: object = field(default=None, compare=False, hash=False)
+    on_attack_roll: object = field(default=None, compare=False, hash=False)
+    on_combat_damage_dealt: object = field(default=None, compare=False, hash=False)
 
     def is_alive(self) -> bool:
         return self.current_hp > 0

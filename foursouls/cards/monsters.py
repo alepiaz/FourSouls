@@ -35,6 +35,8 @@ GAPER         = CardId("GAPER")
 SPIDER        = CardId("SPIDER")
 HORF          = CardId("HORF")
 BIG_SPIDER    = CardId("BIG_SPIDER")
+BONY          = CardId("BONY")
+MEGA_FATTY    = CardId("MEGA_FATTY")
 CARRION_QUEEN = CardId("CARRION_QUEEN")
 
 # Boss card IDs
@@ -73,6 +75,8 @@ class MonsterDef:
     on_would_take_combat_damage: object = field(default=None, compare=False, hash=False)
     # on_would_die(game) -> bool   (return True = death prevented)
     on_would_die: object = field(default=None, compare=False, hash=False)
+    on_attack_roll: object = field(default=None, compare=False, hash=False)
+    on_combat_damage_dealt: object = field(default=None, compare=False, hash=False)
 
 
 # ── YAML schema (Pydantic) ────────────────────────────────────────────────────
@@ -96,6 +100,8 @@ class _MonsterEntry(BaseModel):
     on_miss: Optional[_AbilityConfig] = None
     on_would_take_combat_damage: Optional[_AbilityConfig] = None
     on_would_die: Optional[_AbilityConfig] = None
+    on_attack_roll: Optional[_AbilityConfig] = None
+    on_combat_damage_dealt: Optional[_AbilityConfig] = None
     event_effect: Optional[_AbilityConfig] = None
 
 
@@ -128,6 +134,8 @@ def _load_registry() -> Dict[CardId, MonsterDef]:
             on_miss=build_trigger(entry.on_miss.model_dump()) if entry.on_miss else None,
             on_would_take_combat_damage=build_trigger(entry.on_would_take_combat_damage.model_dump()) if entry.on_would_take_combat_damage else None,
             on_would_die=build_trigger(entry.on_would_die.model_dump()) if entry.on_would_die else None,
+            on_attack_roll=build_trigger(entry.on_attack_roll.model_dump()) if entry.on_attack_roll else None,
+            on_combat_damage_dealt=build_trigger(entry.on_combat_damage_dealt.model_dump()) if entry.on_combat_damage_dealt else None,
         )
 
     return registry
@@ -176,4 +184,6 @@ def make_monster_in_play(card_ref: CardRef) -> MonsterInPlay:
         on_miss=defn.on_miss,
         on_would_take_combat_damage=defn.on_would_take_combat_damage,
         on_would_die=defn.on_would_die,
+        on_attack_roll=defn.on_attack_roll,
+        on_combat_damage_dealt=defn.on_combat_damage_dealt,
     )

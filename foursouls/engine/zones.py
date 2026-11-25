@@ -107,11 +107,13 @@ class SlotsZone(Generic[T]):
     """
     size: int
     slots: List[Optional[T]] = field(init=False)
+    covered: List[List[T]] = field(init=False)
 
     def __post_init__(self) -> None:
         if self.size <= 0:
             raise ValueError("SlotsZone size must be > 0")
         self.slots = [None for _ in range(self.size)]
+        self.covered = [[] for _ in range(self.size)]
 
     def __len__(self) -> int:
         return self.size
@@ -126,6 +128,19 @@ class SlotsZone(Generic[T]):
 
     def clear(self, idx: int) -> None:
         self.set(idx, None)
+
+    def cover(self, idx: int, card: T) -> None:
+        """Place a card over the current occupant, preserving the lower cards."""
+        current = self.get(idx)
+        if current is not None:
+            self.covered[idx].append(current)
+        self.set(idx, card)
+
+    def remove_top(self, idx: int) -> Optional[T]:
+        """Remove the top card and expose the previous occupant, if any."""
+        self._check_idx(idx)
+        self.set(idx, self.covered[idx].pop() if self.covered[idx] else None)
+        return self.get(idx)
 
     def is_occupied(self, idx: int) -> bool:
         return self.get(idx) is not None
