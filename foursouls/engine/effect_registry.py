@@ -192,14 +192,16 @@ class EffectRegistry:
 
 
 def _single_target(context: AbilityContext, target_type: type[object]):
-    if len(context.selected_targets) != 1:
-        raise EffectBuildError("effect requires exactly one resolved target")
-    target = context.selected_targets[0]
-    if not isinstance(target, target_type):
+    matching = tuple(
+        target
+        for target in context.selected_targets
+        if isinstance(target, target_type)
+    )
+    if len(matching) != 1:
         raise EffectBuildError(
-            f"effect requires {target_type.__name__}, got {type(target).__name__}"
+            f"effect requires exactly one {target_type.__name__} target"
         )
-    return target
+    return matching[0]
 
 
 def _source_monster(
