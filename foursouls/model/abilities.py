@@ -93,6 +93,19 @@ class RandomOtherPlayerSelector(_StrictDefinition):
     type: Literal["random_other_player"] = "random_other_player"
 
 
+class ChosenPlayerSelector(_StrictDefinition):
+    type: Literal["chosen_player"] = "chosen_player"
+
+
+class ChosenSoulSelector(_StrictDefinition):
+    type: Literal["chosen_soul"] = "chosen_soul"
+    player_target_index: int = Field(default=0, ge=0)
+
+
+class AllMonstersSelector(_StrictDefinition):
+    type: Literal["all_monsters"] = "all_monsters"
+
+
 TargetSelectorDefinition = Annotated[
     Union[
         SourceSelector,
@@ -101,6 +114,9 @@ TargetSelectorDefinition = Annotated[
         TriggerTargetSelector,
         TriggeringPlayerSelector,
         RandomOtherPlayerSelector,
+        ChosenPlayerSelector,
+        ChosenSoulSelector,
+        AllMonstersSelector,
     ],
     Field(discriminator="type"),
 ]
