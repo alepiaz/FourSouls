@@ -15,6 +15,7 @@ from foursouls.model.abilities import (
     AlwaysCondition,
     ConditionDefinition,
     EventSourceIsAbilitySourceCondition,
+    EventTargetIsAbilitySourceCondition,
     PositiveDamageCondition,
     RollEqualsCondition,
     RollInCondition,
@@ -62,13 +63,13 @@ class ConditionEvaluator:
 
         if isinstance(condition, RollEqualsCondition):
             return (
-                isinstance(event, CombatRollResult)
+                isinstance(event, (CombatRollResult, DamageWouldBeDealt))
                 and event.roll == condition.value
             )
 
         if isinstance(condition, RollInCondition):
             return (
-                isinstance(event, CombatRollResult)
+                isinstance(event, (CombatRollResult, DamageWouldBeDealt))
                 and event.roll in condition.values
             )
 
@@ -89,5 +90,11 @@ class ConditionEvaluator:
             if isinstance(event, (MonsterDied, MonsterEnteredActiveSlot)):
                 return event.card_ref == context.source.card_ref
             return False
+
+        if isinstance(condition, EventTargetIsAbilitySourceCondition):
+            return (
+                isinstance(event, DamageWouldBeDealt)
+                and event.target_card_ref == context.source.card_ref
+            )
 
         raise TypeError(f"Unsupported condition: {type(condition).__name__}")
