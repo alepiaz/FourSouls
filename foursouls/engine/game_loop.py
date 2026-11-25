@@ -89,6 +89,14 @@ class Game:
         self.log.append(event)
         return self.event_dispatcher.dispatch(event)
 
+    def leave_zone_entry(self, zone_entry_id: str) -> bool:
+        """Remove all runtime state tied to one card-zone incarnation."""
+        if not self.zone_identities.is_active(zone_entry_id):
+            return False
+        self.event_dispatcher.unsubscribe_zone_entry(zone_entry_id)
+        self.durations.expire_zone_entry(zone_entry_id)
+        return self.zone_identities.leave(zone_entry_id)
+
     def push_to_stack(self, *, controller_id: PlayerId, source: object, effect: Effect, label: str = "") -> StackItem:
         item = self.stack.push(controller_id=controller_id, source=source, effect=effect, label=label)
         self.log.append(StackItemPushed(stack_id=item.stack_id, controller_id=item.controller_id, label=item.label))
