@@ -15,7 +15,11 @@ from foursouls.engine.target_resolver import (
     TargetResolutionError,
     TargetResolver,
 )
-from foursouls.model.abilities import AbilityContext, AbilityInstance
+from foursouls.model.abilities import (
+    AbilityContext,
+    AbilityInstance,
+    AbilityKind,
+)
 from foursouls.model.refs import PlayerId
 from foursouls.model.target import AnyTarget
 
@@ -97,6 +101,10 @@ class AbilityEngine:
             strict=True,
         ):
             ability = subscription.ability
+            # Replacement abilities are resolved synchronously by the
+            # replacement pipeline before the event reaches the normal queue.
+            if ability.definition.kind is AbilityKind.REPLACEMENT:
+                continue
             if not ability.can_use(game.state.turn_number):
                 continue
             if not self.condition_evaluator.matches(
