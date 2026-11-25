@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
+from foursouls.engine.duration import DurationManager
 from foursouls.engine.event_dispatcher import EventDispatcher
 from foursouls.engine.events import (
     AllPlayersPassed,
@@ -17,6 +18,7 @@ from foursouls.engine.log import EventLog
 from foursouls.engine.priority import PriorityManager
 from foursouls.engine.rng import RNG
 from foursouls.engine.stack import Stack, StackItem
+from foursouls.engine.zone_identity import ZoneIdentityRegistry
 from foursouls.model.abilities import AbilityContext
 from foursouls.model.combat_state import CombatState
 from foursouls.model.commands import ActivateCharacterAbility, ActivateItem, AttackMonster, AttackMonsterDeck, PlaceRevealedMonster, BuyShop, Command, EndTurn, PassPriority, PlayLoot, RollCombat
@@ -59,6 +61,10 @@ class Game:
     priority: PriorityManager = field(init=False)
     log: EventLog = field(default_factory=EventLog)
     event_dispatcher: EventDispatcher = field(default_factory=EventDispatcher)
+    zone_identities: ZoneIdentityRegistry = field(
+        default_factory=ZoneIdentityRegistry
+    )
+    durations: DurationManager = field(default_factory=DurationManager)
 
     def __post_init__(self) -> None:
         if not self.state.turn_order:
