@@ -211,7 +211,7 @@ MEGA_FATTY:
         - {type: heal_source, amount: 1}
 
 
-# Sprint 13.5 schema probes — abilities become active when the dispatcher is wired.
+# Sprint 13.5 declarative monster abilities.
 # Promo: https://foursouls.com/cards/p-the_bloat_3/
 THE_BLOAT:
   base_hp: 5
