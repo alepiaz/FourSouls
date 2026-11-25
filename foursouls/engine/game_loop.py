@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
+from foursouls.engine.event_dispatcher import EventDispatcher
 from foursouls.engine.events import (
     AllPlayersPassed,
     EffectFizzled,
@@ -16,6 +17,7 @@ from foursouls.engine.log import EventLog
 from foursouls.engine.priority import PriorityManager
 from foursouls.engine.rng import RNG
 from foursouls.engine.stack import Stack, StackItem
+from foursouls.model.abilities import AbilityContext
 from foursouls.model.combat_state import CombatState
 from foursouls.model.commands import ActivateCharacterAbility, ActivateItem, AttackMonster, AttackMonsterDeck, PlaceRevealedMonster, BuyShop, Command, EndTurn, PassPriority, PlayLoot, RollCombat
 from foursouls.model.effects import Effect
@@ -56,6 +58,7 @@ class Game:
     stack: Stack = field(default_factory=Stack)
     priority: PriorityManager = field(init=False)
     log: EventLog = field(default_factory=EventLog)
+    event_dispatcher: EventDispatcher = field(default_factory=EventDispatcher)
 
     def __post_init__(self) -> None:
         if not self.state.turn_order:
@@ -74,6 +77,11 @@ class Game:
         """Return legal actions enriched with display context. See engine.actions."""
         from foursouls.engine.actions import get_legal_actions
         return get_legal_actions(self)
+
+    def emit(self, event: Event) -> tuple[AbilityContext, ...]:
+        """Record an event and return matching ability contexts exactly once."""
+        self.log.append(event)
+        return self.event_dispatcher.dispatch(event)
 
     def push_to_stack(self, *, controller_id: PlayerId, source: object, effect: Effect, label: str = "") -> StackItem:
         item = self.stack.push(controller_id=controller_id, source=source, effect=effect, label=label)
