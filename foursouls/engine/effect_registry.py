@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING
 from foursouls.model.abilities import (
     AbilityContext,
     DealDamageEffect as DealDamageDefinition,
+    DestroySoulEffect as DestroySoulDefinition,
+    DestroySourceEffect as DestroySourceDefinition,
     EffectDefinition,
     GrantDeckAttackEffect as GrantDeckAttackDefinition,
     HealSourceEffect as HealSourceDefinition,
@@ -14,9 +16,11 @@ from foursouls.model.abilities import (
     PreventEventEffect,
 )
 from foursouls.model.effects import Effect
-from foursouls.model.target import MonsterTarget, PlayerTarget
+from foursouls.model.target import MonsterTarget, PlayerTarget, SoulTarget
 from foursouls.rulesets.common.effects import (
     DealDamageEffect,
+    DestroyMonsterEffect,
+    DestroySoulEffect,
     GrantDeckAttackEffect,
     HealMonsterEffect,
     ModifyMonsterStatsEffect,
@@ -39,6 +43,8 @@ class EffectRegistry:
         self.register(GrantDeckAttackDefinition, self._build_grant_deck_attack)
         self.register(DealDamageDefinition, self._build_deal_damage)
         self.register(HealSourceDefinition, self._build_heal_source)
+        self.register(DestroySoulDefinition, self._build_destroy_soul)
+        self.register(DestroySourceDefinition, self._build_destroy_source)
         self.register(ModifySourceStatsDefinition, self._build_modify_source_stats)
         self.register(ModifyEventAmountEffect, self._replacement_only)
         self.register(PreventEventEffect, self._replacement_only)
@@ -119,6 +125,35 @@ class EffectRegistry:
             slot_index=target.slot_index,
             monster=monster,
             amount=definition.amount,
+        )
+
+    @staticmethod
+    def _build_destroy_soul(
+        definition: object,
+        context: AbilityContext,
+        game: "Game",
+    ) -> Effect:
+        if not isinstance(definition, DestroySoulDefinition):
+            raise TypeError("invalid destroy-soul definition")
+        target = _single_target(context, SoulTarget)
+        return DestroySoulEffect(
+            player_id=target.player_id,
+            card_ref=target.card_ref,
+        )
+
+    @staticmethod
+    def _build_destroy_source(
+        definition: object,
+        context: AbilityContext,
+        game: "Game",
+    ) -> Effect:
+        if not isinstance(definition, DestroySourceDefinition):
+            raise TypeError("invalid destroy-source definition")
+        target, monster = _source_monster(context, game)
+        return DestroyMonsterEffect(
+            monster_slots=game.zones.monster_slots,
+            slot_index=target.slot_index,
+            monster=monster,
         )
 
     @staticmethod
