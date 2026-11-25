@@ -95,6 +95,14 @@ class Game:
         self.log.append(event)
         return self.ability_engine.observe(event, self)
 
+    def activate_next_trigger(self) -> bool:
+        """Put the oldest choice-free pending trigger onto the normal stack."""
+        pending = self.ability_engine.trigger_queue.peek()
+        if pending is None or pending.choice is not None:
+            return False
+        self.ability_engine.resolve_next(self)
+        return True
+
     def leave_zone_entry(self, zone_entry_id: str) -> bool:
         """Remove all runtime state tied to one card-zone incarnation."""
         if not self.zone_identities.is_active(zone_entry_id):
@@ -141,24 +149,50 @@ class Game:
                         # Also handle monsters killed outside of active combat
                         # (e.g. Bomb! vs a non-combat slot, AoE effects).
                         check_all_monster_deaths_out_of_combat(self)
-                        # Check if CombatMissDamageEffect just killed the attacker.
-                        # Capture the source before death cleanup clears combat.
-                        miss = item.effect if isinstance(item.effect, CombatMissDamageEffect) else None
+                        # Emit actual miss damage before death cleanup clears combat.
+                        miss = (
+                            item.effect
+                            if isinstance(item.effect, CombatMissDamageEffect)
+                            else None
+                        )
                         source = None
-                        if miss is not None and miss.damage_dealt > 0 and self.zones is not None:
-                            source = self.zones.monster_slots.get(miss.combat.defender_slot)
-                            if source is not None and source.card_ref != miss.combat.monster_ref:
+                        if (
+                            miss is not None
+                            and miss.damage_dealt > 0
+                            and self.zones is not None
+                        ):
+                            source = self.zones.monster_slots.get(
+                                miss.combat.defender_slot
+                            )
+                            if (
+                                source is not None
+                                and source.card_ref != miss.combat.monster_ref
+                            ):
                                 source = None
+                        if source is not None:
+                            from foursouls.engine.events import DamageDealt
+
+                            self.emit(
+                                DamageDealt(
+                                    source_player_id=None,
+                                    source_monster_slot=miss.combat.defender_slot,
+                                    target_player_id=miss.attacker_id,
+                                    target_monster_slot=None,
+                                    amount=miss.damage_dealt,
+                                    reason="combat_miss",
+                                    damage_type="combat",
+                                    source_card_ref=source.card_ref,
+                                )
+                            )
+                            self.activate_next_trigger()
                         check_combat_attacker_death(self)
-                        # A lethal hit still dealt combat damage. Queue its trigger after
-                        # the current simplified death cleanup, which drains the stack.
-                        if source is not None and source.on_combat_damage_dealt is not None:
-                            source.on_combat_damage_dealt(self, source, miss.combat.defender_slot, miss.damage_dealt)
                     else:
                         if isinstance(item.effect, PlayLootEffect):
                             item.effect.discard()
                         self.log.append(EffectFizzled(stack_id=item.stack_id, reason="validate_failed", label=item.label))
 
+                    # Continue deterministic queued triggers before phase flow.
+                    self.activate_next_trigger()
                     # Auto-advance phase after resolution so START does not
                     # require a second empty-stack pass.
                     if self.stack.empty():
