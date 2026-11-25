@@ -267,6 +267,9 @@ class ModifyMonsterStatsEffect:
     monster: object
     attack_delta: int = 0
     evade_delta: int = 0
+    duration_manager: object = None
+    zone_entry_id: str = ""
+    expires_turn: int = 0
 
     def validate(self, ctx: GameState) -> bool:
         return (
@@ -277,6 +280,14 @@ class ModifyMonsterStatsEffect:
     def apply(self, ctx: GameState) -> None:
         self.monster.attack_bonus += self.attack_delta
         self.monster.evade_bonus += self.evade_delta
+        if self.duration_manager is not None:
+            self.duration_manager.register_monster_stats(
+                zone_entry_id=self.zone_entry_id,
+                monster=self.monster,
+                attack_delta=self.attack_delta,
+                evade_delta=self.evade_delta,
+                expires_turn=self.expires_turn,
+            )
 
 
 @dataclass(slots=True)
