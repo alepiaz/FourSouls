@@ -133,7 +133,7 @@ The card text reads: *"This can be done on any player's turn in response to any 
 | Release | Deliverable | Status |
 |---|---|---|
 | R13.5.1 | Shared ability definitions, runtime context and validated YAML schema | ✅ complete |
-| R13.5.2 | Domain event dispatcher and zone-aware subscriptions | 📋 planned |
+| R13.5.2 | Domain event dispatcher and zone-aware subscriptions | ✅ complete |
 | R13.5.3 | Typed condition evaluator and event/source matching | 📋 planned |
 | R13.5.4 | Shared effect registry and composable atomic effects | 📋 planned |
 | R13.5.5 | Target resolution, identity, costs, durations and usage limits for current scope | 📋 planned |
