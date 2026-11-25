@@ -8,6 +8,10 @@ Legend:
 
 ---
 
+## Planned architecture milestone — Sprint 13.5
+
+The current ability registry uses specialized trigger/effect factories and direct hooks. ROADMAP.md now schedules a shared ability definition, typed event dispatcher, zone-aware subscriptions, composable conditions/selectors/effects and limited trigger/replacement adapters before the remaining Sprint 14 work. These are planned, not implemented. Sprints 23–25 retain full timing, universal replacement and continuous/statics scope.
+
 ## Sprint 13 completion note
 
 R13.6 and R13.7 add Bony and Mega Fatty with reusable stack-based attack-roll and combat-damage-dealt hooks. Bony observes attack rolls of the attacking player while face-up, including attacks on another monster; it modifies future damage (the current miss amount has already been placed on the stack); Mega Fatty triggers only after positive damage resolves, including lethal damage. The full dice/trigger/death timing model remains later roadmap work.

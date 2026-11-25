@@ -15,9 +15,10 @@
 | 10 | Loot card diversity + targeting system | ✅ done |
 | 11 | Treasure card effects + starting eternal items | ✅ done |
 | 12 | Character stats and ability window | ✅ done |
-| 13 | Monster abilities + expansion pack | ✅ R13.1–R13.7 complete |
+| 13 | Monster abilities + expansion pack | ✅ R13.1–R13.7 verified; PR #4 awaiting merge |
+| 13.5 | Ability architecture refactoring | 📋 next — foundation before further card expansion |
 | 14 | Combat miss on stack + cancel | 🔄 R14.1–R14.3 implemented; remaining scope open |
-| 14.5 | Stabilization & integration | 🔄 implementation; regression verification pending |
+| 14.5 | Stabilization & integration | ✅ done — merged PR #3; CI passed |
 | 15 | Dice on stack + roll control | 📋 planned |
 | 16 | Cancel / response stack interaction | 📋 planned |
 | 17 | Priority auto-advance | 📋 planned |
@@ -111,6 +112,46 @@ The card text reads: *"This can be done on any player's turn in response to any 
 
 ---
 
+## Sprint 13.5 — Ability architecture refactoring
+
+**Goal:** Make common card abilities composable, data-driven and event-driven without replacing the existing command/priority/stack kernel. Introduce a shared ability foundation before completing Sprint 14 or starting Sprint 15. This sprint is distinct from release R13.5 (Headless Horseman).
+
+**Depends on:** Sprint 13 merged and regression suite green; Sprint 14.5 already merged.
+
+**Architecture:**
+- Shared typed, immutable `AbilityDefinition` and runtime `AbilityInstance` / `AbilityContext` (source identity, controller, triggering event, selected targets, per-instance usage).
+- Separate trigger, condition, cost, target selector, atomic effect and duration definitions. Use Pydantic discriminated schemas; no executable strings or arbitrary attribute traversal in YAML.
+- Distinguish triggered, activated, static and replacement/prevention abilities; loot resolution may reuse effect primitives without being treated as a permanent ability.
+- Typed domain events and an `EventDispatcher` / subscription registry keyed by event type. Keep the existing `EventLog` as an observation/replay surface, not the trigger mechanism. Emit events once from rule/effect resolution; record actual damage after prevention, resolved rolls and source/target identity.
+- Zone-aware registration and removal of subscriptions; capture source/controller context when an ability triggers, including leave-play/death events. Use a stable per-zone-entry identity for target validity where required by migrated abilities.
+- Generic condition, selector and effect registries; compose sequences of existing effects, with explicit duration and usage limits. Preserve custom Python handlers for genuinely exceptional behavior, not card-specific combinations of existing primitives.
+- Minimal pending-trigger queue and deterministic ordering compatible with current priority windows; no recursive stack resolution. Minimal typed pre-event replacement/prevention pipeline for the existing monster abilities only. General simultaneous-order choices, universal replacement hooks and full static/continuous stats remain Sprints 23–25.
+- Migrate incrementally, preserving existing public commands, bot behavior and tests. No card expansion in this sprint.
+
+**Releases:**
+
+| Release | Deliverable | Status |
+|---|---|---|
+| R13.5.1 | Shared ability definitions, runtime context and validated YAML schema | 📋 planned |
+| R13.5.2 | Domain event dispatcher and zone-aware subscriptions | 📋 planned |
+| R13.5.3 | Typed condition evaluator and event/source matching | 📋 planned |
+| R13.5.4 | Shared effect registry and composable atomic effects | 📋 planned |
+| R13.5.5 | Target resolution, identity, costs, durations and usage limits for current scope | 📋 planned |
+| R13.5.6 | Minimal trigger queue and replacement/prevention adapter | 📋 planned |
+| R13.5.7 | Migrate all seven Sprint 13 monsters; remove superseded specialized handlers and direct monster-ability dispatch from core | 📋 planned |
+| R13.5.8 | Regression, composition and deterministic integration tests | 📋 planned |
+
+**Acceptance criteria:**
+- Gaper, Horf, Big Spider, Carrion Queen, Headless Horseman, Bony and Mega Fatty retain their existing verified behavior.
+- A new combination of an existing trigger, condition and effect can be expressed in YAML without a new Python handler or changes to the game loop.
+- Tests exercise multiple simultaneous subscriptions, covered/uncovered sources, death triggers, cancellation/fizzle, independent per-instance usage and duration cleanup.
+- No duplicate dispatch or recursive resolution; same seed and commands yield the same state/events; all existing regression tests remain green on Python 3.11 and 3.12.
+- Loot and treasure legacy paths remain compatible; migrate them when touched by later releases rather than broadening the sprint into a rewrite.
+
+**Key files (proposed):** `foursouls/model/abilities.py`, `foursouls/engine/ability_engine.py`, `foursouls/engine/event_dispatcher.py`, existing effect/target/stack models and card YAML loaders.
+
+---
+
 ## Sprint 14 — Combat miss on stack + cancel
 **Goal:** Make combat miss damage a first-class stack item so players can respond before it resolves; introduce `StackItemTarget` and stack-item cancellation via Butter Bean.
 
@@ -131,9 +172,11 @@ The card text reads: *"This can be done on any player's turn in response to any 
 - ✅ R14.1 — `CombatMissDamageEffect` on stack; fizzles if combat ends before it resolves
 - ✅ R14.2 — `StackItemTarget`; `Soul Heart` targets monster slot (`prevent_damage`); `DealDamageToMonsterEffect` consumes `prevent_damage` first
 - ✅ R14.3 — `BUTTER_BEAN` + `CancelStackItemEffect` + `StackItemCancelled` event
-- R14.4 — `DestroyItemEffect` + `HealEffect` + `HealMonsterEffect` + `ForceAttackEffect` (easy gap fills)
+- R14.4 — `DestroyItemEffect` + `HealEffect` + `ForceAttackEffect` (remaining gap fills); `HealMonsterEffect` implemented in R13.7, integrate with shared effect registry
 - R14.5 — RESERVED — `<insert cancel loot> card insertion A`
 - R14.6 — Acceptance
+
+**Depends on (remaining work):** Sprint 13.5; reuse shared ability/effect definitions rather than introducing parallel handlers.
 
 **Key files:** `foursouls/rulesets/common/combat.py`, `foursouls/rulesets/common/effects.py`, `foursouls/model/target.py`, `foursouls/engine/actions.py`, `foursouls/cards/loot.py`
 
@@ -146,7 +189,7 @@ The card text reads: *"This can be done on any player's turn in response to any 
 - Populate demo decks with registered cards and remove duplicate effect class.
 - Explicit package discovery and YAML package data.
 - Add regression tests; require a passing full suite before declaring completion.
-- Keep outstanding R13/R14 rule gaps open (mandatory deck attacks, general trigger handling and remaining effects).
+- Completed and merged via PR #3 (`c38b712`); CI passed. Mandatory deck attacks are addressed by Sprint 13; remaining ability infrastructure is scheduled for Sprint 13.5 and later sprints.
 
 ## Sprint 15 — Dice on stack + roll control
 **Goal:** Make dice rolls first-class stack items so cards can respond to, reroll, or replace roll results. Also fixes `LootRollEffect` (currently resolves synchronously in `apply()`) to push the roll onto the stack and branch via a triggered ability.
@@ -164,7 +207,7 @@ The card text reads: *"This can be done on any player's turn in response to any 
 - Reroll / modify / replace-result pipeline.
 - Roll-response legality window.
 - `LootRollEffect` refactored: roll pushed onto stack; branch selection triggered after roll resolves. [Hard]
-- `RollAbilityDef(outcomes: dict[int, Effect])` declarative model for branching roll abilities. [Medium]
+- Branching roll abilities extend the shared Sprint 13.5 ability/effect schema (`RollAbilityDef` or equivalent adapter); do not introduce a parallel ability model. [Medium]
 - `flip_roll()` helper: sets `roll.value = 7 - roll.value`; usable by any flip-a-roll card. [Easy]
 - Circled-number trigger listening: triggered abilities that fire when a roll resolves with a specific value. [Easy]
 - This sprint makes the Sprint 11 stubs for **The D6** and **Lucky Foot** functional.
@@ -328,7 +371,7 @@ The card text reads: *"This can be done on any player's turn in response to any 
 ---
 
 ## Sprint 23 — Trigger queue
-**Goal:** All triggered abilities are enqueued at the next priority window and sorted by controller/turn order; no more synchronous execute-immediate.
+**Goal:** Extend the Sprint 13.5 dispatcher and minimal pending-trigger queue to all triggered abilities, with full rules-compliant timing and controller/turn ordering; retire remaining synchronous trigger adapters.
 
 **Gaps covered (from IMPL_STATUS):**
 - Trigger queue system [Complex] — enqueue instead of execute-immediately; all trigger sites updated
@@ -337,10 +380,10 @@ The card text reads: *"This can be done on any player's turn in response to any 
 - End-of-turn triggered abilities [Complex]
 - Circled-number triggers (fully generalised) — reads `resolved_value` from roll stack item
 
-**Depends on:** Sprints 14-16 (stable stack/response architecture)
+**Depends on:** Sprint 13.5 foundation and Sprints 14–16 (stable stack/response architecture)
 
 **Releases:**
-- R23.1 — Trigger queue substrate
+- R23.1 — Extend Sprint 13.5 trigger queue substrate to all applicable event types
 - R23.2 — Enqueue all existing triggers
 - R23.3 — Ordering + simultaneous resolution
 - R23.4 — EOT and declaration hooks
@@ -352,7 +395,7 @@ The card text reads: *"This can be done on any player's turn in response to any 
 ---
 
 ## Sprint 24 — Replacement effects
-**Goal:** A replacement effect layer hooks into all "would happen" events (damage, gain, death) so cards can intercept and modify outcomes before they resolve.
+**Goal:** Generalize the Sprint 13.5 replacement/prevention adapter to all "would happen" events (damage, gain, death) so cards can intercept and modify outcomes before they resolve.
 
 **Gaps covered (from IMPL_STATUS):**
 - Replacement effect system [Complex] — hook all "would happen" events; collect applicable effects; prompt for ordering; refactor all damage/gain/entry sites
@@ -362,7 +405,7 @@ The card text reads: *"This can be done on any player's turn in response to any 
 **Depends on:** Sprint 23 (trigger queue)
 
 **Releases:**
-- R24.1 — Replacement effect protocol + hook sites
+- R24.1 — Extend shared replacement protocol and add universal hook sites
 - R24.2 — `DamageStackItem` + prevention pipeline
 - R24.3 — Death-as-stack-item
 - R24.4 — Ordering prompt for simultaneous replacements
@@ -373,7 +416,7 @@ The card text reads: *"This can be done on any player's turn in response to any 
 ---
 
 ## Sprint 25 — Continuous effects + static ability layer
-**Goal:** Derived stats (ATK, HP, evasion) computed on demand from in-play static/continuous effects rather than direct field mutations.
+**Goal:** Complete static/continuous execution on the shared ability model; derive stats (ATK, HP, evasion) on demand rather than direct field mutations. Generalize Sprint 13.5 duration handling.
 
 **Gaps covered (from IMPL_STATUS):**
 - Continuous effect layer [Complex] — maintain list of `ContinuousEffect` objects with endpoints; replace direct stat mutations; remove on source leave-play
@@ -397,6 +440,9 @@ The card text reads: *"This can be done on any player's turn in response to any 
 
 | Mechanic | Sprint | Notes |
 |---|---|---|
+| Generic ability model / event dispatcher / subscriptions | 13.5 | Shared foundation for future cards |
+| Condition / selector / effect composition | 13.5 | YAML-only combinations of known primitives |
+| Minimal trigger queue and replacement adapter | 13.5 | Migrated monster abilities; expanded in 23–24 |
 | Combat miss damage on stack | 14 | First step toward full dice-on-stack |
 | Stack-item targeting (`StackItemTarget`) | 14 | Required by Butter Bean and cancel effects |
 | `DestroyItemEffect` / `HealEffect` | 14 | Easy gap fills from IMPL_STATUS |
@@ -414,7 +460,7 @@ The card text reads: *"This can be done on any player's turn in response to any 
 | `PileTarget` browsing | 20 | Needed for delayed pile-selection effects |
 | Player give/steal/swap | 21 | Depends on mature targeting/runtime ownership |
 | Curses / rooms | 22 | Deferred until core stack/response systems are stable |
-| Trigger queue system | 23 | Foundational; all trigger sites updated |
+| Full trigger queue system | 23 | Extend 13.5 foundation; all trigger sites updated |
 | Replacement effect system | 24 | Depends on trigger queue |
 | Continuous effects layer | 25 | Depends on replacement effects |
 
@@ -424,6 +470,7 @@ The card text reads: *"This can be done on any player's turn in response to any 
 
 - Sprint 12 remains a pure rules/correction sprint and therefore has no card insertions.
 - Sprint 13 expands monster ability coverage before deeper stack interaction grows more complex.
+- Sprint 13.5 is the next development milestone: extract reusable ability primitives and event subscriptions from the seven verified monsters before completing Sprint 14 and proceeding to Sprint 15. Sprint 14.5 is already shipped.
 - Sprint 14 takes the first stack-items step (combat miss damage + cancel) before full dice-on-stack; Butter Bean is the simplest cancel and earns a response-window before rolls are fully on the stack.
 - Sprint 15 follows naturally: once a non-roll item is on the stack, making dice rolls proper stack items is the next step; Sprint 11 roll stubs (D6, Lucky Foot) become functional here.
 - Sprint 16 deepens cancellation to item abilities (`NO`) once the stack/cancel infrastructure from Sprint 14 is proven.
@@ -432,4 +479,4 @@ The card text reads: *"This can be done on any player's turn in response to any 
 - Sprint 20 introduces trinkets and pile targeting only after the runtime item model is mature.
 - Sprint 21 adds direct player interaction after targeting and ownership systems have already expanded.
 - Sprint 22 keeps curses and rooms before foundational refactors, as a final card-content sprint on the current architecture.
-- Sprints 23-25 tackle the three major foundational systems (trigger queue, replacement effects, continuous effects) last; they touch every triggered/static ability site and benefit from a stable, card-rich engine to validate against.
+- Sprints 23–25 complete and generalize the shared foundations introduced in Sprint 13.5. Full timing, ordering, universal replacement and derived-stat semantics remain explicit later deliverables, not duplicated infrastructure.
