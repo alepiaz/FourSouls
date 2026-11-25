@@ -117,11 +117,6 @@ CostDefinition = Annotated[
 class GrantDeckAttackEffect(_StrictDefinition):
     type: Literal["grant_deck_attack"] = "grant_deck_attack"
     required: bool = False
-
-
-class DealDamageEffect(_StrictDefinition):
-    type: Literal["deal_damage"] = "deal_damage"
-    amount: int = Field(gt=0)
     damage_type: Literal["combat", "ability"] = "ability"
 
 
@@ -158,7 +153,6 @@ EffectDefinition = Annotated[
         ModifyEventAmountEffect,
         PreventEventEffect,
         HealSourceEffect,
-        DealDamageEffect,
         ModifySourceStatsEffect,
     ],
     Field(discriminator="type"),
