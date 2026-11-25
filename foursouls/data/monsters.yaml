@@ -154,3 +154,48 @@ MEGA_FATTY:
   on_combat_damage_dealt:
     type: heal_on_combat_damage
     amount: 1
+
+
+# Sprint 13.5 schema probes — abilities become active when the dispatcher is wired.
+# Promo: https://foursouls.com/cards/p-the_bloat_3/
+THE_BLOAT:
+  base_hp: 5
+  evade: 3
+  attack: 2
+  has_soul: true
+  is_boss: true
+  reward_treasure: 1
+  abilities:
+    - ability_id: the_bloat_enter_damage
+      kind: triggered
+      trigger: {type: event, event_type: MonsterEnteredActiveSlot}
+      conditions:
+        - {type: source_in_zone, zone: monster_slot}
+      targets:
+        - {type: random_other_player}
+      effects:
+        - {type: deal_damage, amount: 2}
+    - ability_id: the_bloat_death_damage
+      kind: triggered
+      trigger: {type: event, event_type: MonsterDied}
+      targets:
+        - {type: random_other_player}
+      effects:
+        - {type: deal_damage, amount: 2}
+
+# Base Game V2: https://foursouls.com/cards/b2-cursed_psy_horf/
+CURSED_PSY_HORF:
+  base_hp: 1
+  evade: 5
+  attack: 1
+  reward_loot: 2
+  abilities:
+    - ability_id: cursed_psy_horf_item_damage
+      kind: triggered
+      trigger: {type: event, event_type: ItemActivated}
+      conditions:
+        - {type: source_in_zone, zone: monster_slot}
+      targets:
+        - {type: triggering_player}
+      effects:
+        - {type: deal_damage, amount: 1}
