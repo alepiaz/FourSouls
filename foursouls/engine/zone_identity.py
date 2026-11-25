@@ -36,6 +36,21 @@ class ZoneIdentityRegistry:
             zone_entry_id=zone_entry_id,
         )
 
+    def active_source(
+        self,
+        card_ref: CardRef,
+        *,
+        zone: str,
+    ) -> AbilitySource | None:
+        zone_entry_id = self._active_by_instance.get(card_ref.instance_id)
+        if zone_entry_id is None:
+            return None
+        return AbilitySource(
+            card_ref=card_ref,
+            zone=zone,
+            zone_entry_id=zone_entry_id,
+        )
+
     def leave(self, zone_entry_id: str) -> bool:
         target = self._active_targets.pop(zone_entry_id, None)
         if target is None:
