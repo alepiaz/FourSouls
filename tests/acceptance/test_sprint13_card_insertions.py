@@ -1,7 +1,7 @@
 """R13.6/R13.7 acceptance tests using the published card definitions."""
 import pytest
 
-from foursouls.cards.monsters import BONY, MEGA_FATTY, get_monster_def, make_monster_in_play
+from foursouls.cards.monsters import BONY, MEGA_FATTY, FLY, get_monster_def, make_monster_in_play
 from foursouls.cli.app import build_demo_game
 from foursouls.engine.rng import RNG
 from foursouls.model.commands import AttackMonster, EndTurn, PassPriority, RollCombat
@@ -18,6 +18,7 @@ def _setup(card_id, monkeypatch, roll):
     player.hp = player.max_hp = 20
     m = make_monster_in_play(CardRef(InstanceId("new-monster"), card_id))
     g.zones.monster_slots.set(0, m)
+    g.zones.monster_slots.clear(1)
     monkeypatch.setattr(RNG, "roll_d6", lambda self: roll)
     g.step(AttackMonster(0))
     return g, player, m
@@ -103,3 +104,23 @@ def test_mega_fatty_no_heal_on_player_hit(monkeypatch):
     g.step(RollCombat())
     _resolve(g)
     assert m.current_hp == 2 and p.hp == 20
+
+
+def test_bony_observes_attack_rolls_while_in_other_slot(monkeypatch):
+    g,p,m = _setup(FLY,monkeypatch,1)
+    bony = make_monster_in_play(CardRef(InstanceId("other-bony"), BONY))
+    g.zones.monster_slots.set(1, bony)
+    g.step(RollCombat())
+    _resolve(g)
+    assert bony.attack_bonus == 2
+    assert p.hp == 19
+
+
+def test_covered_bony_does_not_observe_rolls(monkeypatch):
+    g,p,m = _setup(FLY,monkeypatch,1)
+    bony = make_monster_in_play(CardRef(InstanceId("covered-bony"), BONY))
+    g.zones.monster_slots.set(1, bony)
+    g.zones.monster_slots.cover(1, make_monster_in_play(CardRef(InstanceId("cover"), FLY)))
+    g.step(RollCombat())
+    _resolve(g)
+    assert bony.attack_bonus == 0

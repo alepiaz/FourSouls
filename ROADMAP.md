@@ -15,7 +15,7 @@
 | 10 | Loot card diversity + targeting system | ✅ done |
 | 11 | Treasure card effects + starting eternal items | ✅ done |
 | 12 | Character stats and ability window | ✅ done |
-| 13 | Monster abilities + expansion pack | 🔄 R13.1–R13.7 implemented; CI verification pending |
+| 13 | Monster abilities + expansion pack | ✅ R13.1–R13.7 complete |
 | 14 | Combat miss on stack + cancel | 🔄 R14.1–R14.3 implemented; remaining scope open |
 | 14.5 | Stabilization & integration | 🔄 implementation; regression verification pending |
 | 15 | Dice on stack + roll control | 📋 planned |
@@ -69,7 +69,7 @@ The card text reads: *"This can be done on any player's turn in response to any 
 | BIG_SPIDER | on_death | always | Active player may attack the monster deck an additional time |
 | CARRION_QUEEN | on_would_take_combat_damage | roll == 4 or 5 | Prevent that combat damage |
 | HEADLESS_HORSEMAN | on_would_die | first time per turn | Prevent death; heal 2 HP; gain +1 DC and −1 ATK until end of turn |
-| BONY | on_attack_roll | roll == 1 | Gain +2 ATK until end of turn |
+| BONY | on_attack_roll | roll == 1 | Gain +2 ATK until end of turn while in play |
 | MEGA_FATTY | on_combat_damage_dealt | positive damage dealt | Heal 1 HP |
 
 **New monster cards this sprint:**

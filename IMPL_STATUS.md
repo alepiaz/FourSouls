@@ -10,7 +10,7 @@ Legend:
 
 ## Sprint 13 completion note
 
-R13.6 and R13.7 add Bony and Mega Fatty with reusable stack-based attack-roll and combat-damage-dealt hooks. Bony modifies future damage (the current miss amount has already been placed on the stack); Mega Fatty triggers only after positive damage resolves, including lethal damage. The full dice/trigger/death timing model remains later roadmap work.
+R13.6 and R13.7 add Bony and Mega Fatty with reusable stack-based attack-roll and combat-damage-dealt hooks. Bony observes attack rolls of the attacking player while face-up, including attacks on another monster; it modifies future damage (the current miss amount has already been placed on the stack); Mega Fatty triggers only after positive damage resolves, including lethal damage. The full dice/trigger/death timing model remains later roadmap work.
 
 Deck attacks now reveal before slot choice; covered occupants are restored when the covering monster or event leaves. Gaper and Big Spider use distinct mandatory and optional deck-attack allowances; Headless Horseman death prevention applies outside combat. This supersedes older statements below that these features are entirely absent. General attack declaration timing, zone identity, deck exhaustion and other rule gaps remain open.
 
