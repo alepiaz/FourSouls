@@ -233,6 +233,34 @@ class ModifyMonsterAttackEffect:
 
 
 @dataclass(slots=True)
+class DestroySoulEffect:
+    player_id: PlayerId
+    card_ref: CardRef
+
+    def validate(self, ctx: GameState) -> bool:
+        return self.card_ref in ctx.get_player(self.player_id).souls
+
+    def apply(self, ctx: GameState) -> None:
+        ctx.get_player(self.player_id).souls.remove(self.card_ref)
+
+
+@dataclass(slots=True)
+class DestroyMonsterEffect:
+    monster_slots: object
+    slot_index: int
+    monster: object
+
+    def validate(self, ctx: GameState) -> bool:
+        return (
+            self.monster_slots.get(self.slot_index) is self.monster
+            and self.monster.is_alive()
+        )
+
+    def apply(self, ctx: GameState) -> None:
+        self.monster.current_hp = 0
+
+
+@dataclass(slots=True)
 class ModifyMonsterStatsEffect:
     monster_slots: object
     slot_index: int
