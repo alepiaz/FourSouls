@@ -104,14 +104,14 @@ def _roll_event(game, roll=1):
 
 def test_simultaneous_monster_triggers_resolve_fifo():
     game = _game()
-    first = place_monster_card(game, 0, _ref("bony-1", BONY))
-    second = place_monster_card(game, 1, _ref("bony-2", BONY))
+    place_monster_card(game, 0, _ref("bony-1", BONY))
+    place_monster_card(game, 1, _ref("bony-2", BONY))
     first = game.zones.monster_slots.get(0)
     second = game.zones.monster_slots.get(1)
 
     game.emit(_roll_event(game))
     assert len(game.ability_engine.trigger_queue) == 2
-    assert game.ability_engine.trigger_queue.peek().source.card_ref == first.card_ref
+    assert game.ability_engine.trigger_queue.peek().ability.source.card_ref == first.card_ref
 
     assert game.activate_next_trigger()
     assert game.stack.top().source == first.card_ref
