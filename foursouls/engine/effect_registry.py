@@ -175,6 +175,9 @@ class EffectRegistry:
             monster=monster,
             attack_delta=definition.attack_delta,
             evade_delta=definition.evade_delta,
+            duration_manager=game.durations,
+            zone_entry_id=context.source.zone_entry_id,
+            expires_turn=game.state.turn_number,
         )
 
     @staticmethod
