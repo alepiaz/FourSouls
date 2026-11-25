@@ -112,6 +112,9 @@ def on_end_turn(game: Game) -> None:
         player.hp = player.max_hp
         player.prevent_damage = 0
 
+    # Expire declarative modifiers before legacy per-turn fields are reset.
+    game.durations.expire_end_of_turn(old_turn_number)
+
     # All monsters in slots also heal to full and clear per-turn state at end of every turn
     if game.zones is not None:
         for idx in game.zones.monster_slots.filled_indices():
