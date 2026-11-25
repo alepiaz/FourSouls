@@ -365,7 +365,7 @@ def _prevent_monster_death(
 def check_combat_defender_death(game: Game, *, kill_roll: int = 0) -> bool:
     """
     If there is active combat and the defender's HP has reached zero, resolve
-    its death (including the on_would_die trigger).
+    its death (including declarative death replacements).
 
     Returns True  → monster death was resolved; game.combat is now None.
     Returns False → monster is still alive, or death was prevented by a trigger.
@@ -395,7 +395,7 @@ def _do_resolve_monster_death(game: Game, slot_index: int, attacker_id: object, 
     """
     Shared core for monster-death resolution.
 
-    Handles rewards, slot refill, on_death trigger, and win-condition check.
+    Handles rewards, slot refill, death events, and win-condition checks.
     Called by both resolve_monster_death (combat path) and
     resolve_monster_death_out_of_combat (loot/ability path).
     Does NOT clear game.combat or reset priority — callers handle that.
