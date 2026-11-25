@@ -17,6 +17,7 @@ from foursouls.engine.events import (
 from foursouls.engine.game_zones import GameZones
 from foursouls.engine.log import EventLog
 from foursouls.engine.priority import PriorityManager
+from foursouls.engine.replacement import ReplacementPipeline
 from foursouls.engine.rng import RNG
 from foursouls.engine.stack import Stack, StackItem
 from foursouls.engine.zone_identity import ZoneIdentityRegistry
@@ -63,6 +64,9 @@ class Game:
     log: EventLog = field(default_factory=EventLog)
     event_dispatcher: EventDispatcher = field(default_factory=EventDispatcher)
     ability_engine: AbilityEngine = field(default_factory=AbilityEngine)
+    replacements: ReplacementPipeline = field(
+        default_factory=ReplacementPipeline
+    )
     zone_identities: ZoneIdentityRegistry = field(
         default_factory=ZoneIdentityRegistry
     )
