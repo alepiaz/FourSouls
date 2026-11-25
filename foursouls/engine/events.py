@@ -221,6 +221,8 @@ class DamageWouldBeDealt(Event):
     amount: int
     reason: str
     damage_type: str = "combat"
+    roll: Optional[int] = None
+    target_card_ref: Optional[CardRef] = None
 
 
 @dataclass(frozen=True, slots=True)
