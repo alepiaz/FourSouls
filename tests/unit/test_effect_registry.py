@@ -9,15 +9,19 @@ from foursouls.model.abilities import (
     AbilityDefinition,
     AbilitySource,
     DealDamageEffect as DealDamageDefinition,
+    DestroySoulEffect as DestroySoulDefinition,
+    DestroySourceEffect as DestroySourceDefinition,
     GrantDeckAttackEffect as GrantDeckAttackDefinition,
     HealSourceEffect,
     ModifySourceStatsEffect,
     PreventEventEffect,
 )
 from foursouls.model.refs import CardRef, InstanceId, PlayerId
-from foursouls.model.target import MonsterTarget, PlayerTarget
+from foursouls.model.target import MonsterTarget, PlayerTarget, SoulTarget
 from foursouls.rulesets.common.effects import (
     DealDamageEffect,
+    DestroyMonsterEffect,
+    DestroySoulEffect,
     GrantDeckAttackEffect,
     HealMonsterEffect,
     ModifyMonsterStatsEffect,
@@ -164,3 +168,46 @@ def test_non_end_of_turn_stat_duration_is_deferred():
             context,
             game,
         )
+
+
+def test_destroy_soul_uses_the_preselected_soul_instance():
+    game = _game()
+    soul = CardRef(InstanceId("soul-1"), THE_BLOAT)
+    player = game.state.get_player(PlayerId("B"))
+    player.souls.append(soul)
+    context = _context(
+        CardRef(InstanceId("wizoob")),
+        (SoulTarget(PlayerId("B"), soul),),
+    )
+
+    effect = EffectRegistry().build(
+        DestroySoulDefinition(),
+        context,
+        game,
+    )
+
+    assert isinstance(effect, DestroySoulEffect)
+    assert effect.validate(game.state)
+    effect.apply(game.state)
+    assert soul not in player.souls
+    assert not effect.validate(game.state)
+
+
+def test_destroy_source_marks_the_exact_monster_for_death_processing():
+    game = _game()
+    card_ref = CardRef(InstanceId("deaths-head"), THE_BLOAT)
+    monster = make_monster_in_play(card_ref)
+    game.zones.monster_slots.set(1, monster)
+    context = _context(card_ref, (MonsterTarget(1),))
+
+    effect = EffectRegistry().build(
+        DestroySourceDefinition(),
+        context,
+        game,
+    )
+
+    assert isinstance(effect, DestroyMonsterEffect)
+    assert effect.validate(game.state)
+    effect.apply(game.state)
+    assert monster.current_hp == 0
+    assert not effect.validate(game.state)
