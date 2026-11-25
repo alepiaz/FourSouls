@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Optional, TYPE_CHECKING
+from typing import Dict, Optional
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
@@ -10,9 +10,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from foursouls.model.abilities import AbilityDefinition
 from foursouls.model.monster_in_play import MonsterInPlay
 from foursouls.model.refs import CardId, CardRef
-
-if TYPE_CHECKING:
-    from foursouls.model.effects import Effect
 
 # ── Card ID constants ─────────────────────────────────────────────────────────
 
