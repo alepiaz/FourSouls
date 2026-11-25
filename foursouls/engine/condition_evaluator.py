@@ -7,6 +7,7 @@ from foursouls.engine.events import (
     DamageDealt,
     DamageWouldBeDealt,
     MonsterDied,
+    MonsterDeathWouldOccur,
     MonsterEnteredActiveSlot,
 )
 from foursouls.model.abilities import (
@@ -63,14 +64,30 @@ class ConditionEvaluator:
 
         if isinstance(condition, RollEqualsCondition):
             return (
-                isinstance(event, (CombatRollResult, DamageWouldBeDealt))
-                and event.roll == condition.value
+                isinstance(
+                    event,
+                    (CombatRollResult, DamageWouldBeDealt, MonsterDied),
+                )
+                and (
+                    event.kill_roll
+                    if isinstance(event, MonsterDied)
+                    else event.roll
+                )
+                == condition.value
             )
 
         if isinstance(condition, RollInCondition):
             return (
-                isinstance(event, (CombatRollResult, DamageWouldBeDealt))
-                and event.roll in condition.values
+                isinstance(
+                    event,
+                    (CombatRollResult, DamageWouldBeDealt, MonsterDied),
+                )
+                and (
+                    event.kill_roll
+                    if isinstance(event, MonsterDied)
+                    else event.roll
+                )
+                in condition.values
             )
 
         if isinstance(condition, PositiveDamageCondition):
@@ -87,14 +104,31 @@ class ConditionEvaluator:
             )
 
         if isinstance(condition, EventSourceIsAbilitySourceCondition):
-            if isinstance(event, (MonsterDied, MonsterEnteredActiveSlot)):
+            if isinstance(
+                event,
+                (
+                    MonsterDied,
+                    MonsterDeathWouldOccur,
+                    MonsterEnteredActiveSlot,
+                ),
+            ):
                 return event.card_ref == context.source.card_ref
+            if isinstance(event, (DamageDealt, DamageWouldBeDealt)):
+                return event.source_card_ref == context.source.card_ref
             return False
 
         if isinstance(condition, EventTargetIsAbilitySourceCondition):
             return (
-                isinstance(event, DamageWouldBeDealt)
-                and event.target_card_ref == context.source.card_ref
+                isinstance(
+                    event,
+                    (DamageWouldBeDealt, MonsterDeathWouldOccur),
+                )
+                and (
+                    event.card_ref
+                    if isinstance(event, MonsterDeathWouldOccur)
+                    else event.target_card_ref
+                )
+                == context.source.card_ref
             )
 
         raise TypeError(f"Unsupported condition: {type(condition).__name__}")
