@@ -337,8 +337,11 @@ class EventCardEffect:
         self.discard()
 
     def discard(self) -> None:
-        self.monster_slots.remove_top(self.slot_index)
-        self.monster_discard.add(self.card_ref)
+        occupant = self.monster_slots.get(self.slot_index)
+        if occupant is not None and occupant.card_ref == self.card_ref:
+            self.monster_slots.remove_top(self.slot_index)
+        if self.card_ref not in self.monster_discard.cards:
+            self.monster_discard.add(self.card_ref)
 
 
 @dataclass(slots=True)
@@ -395,7 +398,7 @@ class AoDamageEffect:
 
         for idx in self.monster_slots.filled_indices():  # type: ignore[union-attr]
             monster = self.monster_slots.get(idx)  # type: ignore[union-attr]
-            if monster is not None:
+            if monster is not None and not monster.is_event:
                 monster.take_damage(self.amount)
 
 

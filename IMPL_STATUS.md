@@ -10,11 +10,11 @@ Legend:
 
 ## Sprint 13 completion note
 
-Deck attacks now reveal before slot choice; covered occupants are restored when the covering monster or event leaves. Gaper and Big Spider use distinct mandatory and optional deck-attack allowances; Headless Horseman death prevention applies outside combat. This supersedes older statements below that these features are entirely absent. General attack declaration timing, zone identity, deck exhaustion and other rule gaps remain open; CI verification pending.
+Deck attacks now reveal before slot choice; covered occupants are restored when the covering monster or event leaves. Gaper and Big Spider use distinct mandatory and optional deck-attack allowances; Headless Horseman death prevention applies outside combat. This supersedes older statements below that these features are entirely absent. General attack declaration timing, zone identity, deck exhaustion and other rule gaps remain open.
 
 ## Sprint 14.5 verification note
 
-The branch changes priority ownership, loot cleanup and demo decks. These corrections are subject to regression verification. Remaining rule gaps in this audit are not considered closed by those changes. In particular, dice timing, covered slots, forced deck attacks, generalized triggers and replacement/continuous effects remain open.
+Sprint 14.5 was merged after passing CI on Python 3.11 and 3.12. It changes priority ownership, loot cleanup and demo decks. Remaining gaps include dice timing, generalized triggers and replacement/continuous effects; see the Sprint 13 note above for the newer deck-attack support.
 
 ## Anatomy of a Card
 

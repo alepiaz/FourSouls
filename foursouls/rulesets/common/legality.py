@@ -37,7 +37,8 @@ def legal_commands(game: Game) -> List[Command]:
         return [PlaceRevealedMonster(slot_index=i) for i in range(game.zones.monster_slots.size)]
     flags = state.turn_flags
     deck_available = game.zones is not None and not game.zones.monster_deck.empty()
-    forced_deck_attack = flags.forced_deck_attacks > 0 and deck_available
+    forced_deck_attack = (flags.forced_deck_attacks > 0 and deck_available
+                          and state.get_player(state.active_player_id).is_alive())
     cmds: List[Command] = [PassPriority()]
 
     # EndTurn is legal in ACTION (normal) or END (after active-player death)

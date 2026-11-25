@@ -42,6 +42,14 @@ def place_monster_card(game: Game, slot_index: int, card_ref: CardRef, *, cover:
 
     monster = make_monster_in_play(card_ref)
     if cover:
+        previous = game.zones.monster_slots.get(slot_index)
+        if previous is not None:
+            # Covered objects leave play; their transient damage/modifiers do not carry over.
+            previous.current_hp = previous.base_hp
+            previous.prevent_damage = 0
+            previous.prevent_death_used = False
+            previous.evade_bonus = 0
+            previous.attack_bonus = 0
         game.zones.monster_slots.cover(slot_index, monster)
     else:
         game.zones.monster_slots.set(slot_index, monster)
@@ -435,6 +443,7 @@ def check_all_monster_deaths_out_of_combat(game: Game) -> None:
             # Skip the active combat defender — handled by check_combat_defender_death
             (game.combat is None or idx != game.combat.defender_slot)
             and (m := game.zones.monster_slots.get(idx)) is not None
+            and not m.is_event
             and not m.is_alive()
         )
     ]
@@ -442,7 +451,8 @@ def check_all_monster_deaths_out_of_combat(game: Game) -> None:
     for idx in dead_slots:
         # Re-check: the slot may have been refilled by an earlier death in this loop.
         monster = game.zones.monster_slots.get(idx)
-        if monster is not None and not monster.is_alive() and not _prevent_monster_death(game, idx):
+        if (monster is not None and not monster.is_event and not monster.is_alive()
+                and not _prevent_monster_death(game, idx)):
             resolve_monster_death_out_of_combat(game, idx)
 
 

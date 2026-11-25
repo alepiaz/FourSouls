@@ -121,3 +121,43 @@ def test_gaper_not_triggered_by_non_roll_kill_after_six(monkeypatch):
                     effect=DealDamageToMonsterEffect(0, 1, g.zones.monster_slots))
     _resolve(g)
     assert g.state.turn_flags.forced_deck_attacks == 0
+
+
+def test_cover_resets_transient_state(monkeypatch):
+    g = _game()
+    covered = make_monster_in_play(_ref("covered-horseman", HEADLESS_HORSEMAN))
+    covered.current_hp = 1
+    covered.prevent_damage = 1
+    covered.prevent_death_used = True
+    covered.evade_bonus = 1
+    covered.attack_bonus = -1
+    g.zones.monster_slots.set(0, covered)
+    g.zones.monster_deck.put_on_top(_ref("covering-fly", FLY))
+    monkeypatch.setattr(RNG, "roll_d6", lambda self: 6)
+    g.step(AttackMonsterDeck())
+    g.step(PlaceRevealedMonster(0))
+    g.step(RollCombat())
+    assert g.zones.monster_slots.get(0) is covered
+    assert covered.current_hp == covered.base_hp
+    assert covered.prevent_damage == covered.evade_bonus == covered.attack_bonus == 0
+    assert not covered.prevent_death_used
+
+
+def test_event_remains_until_its_own_effect_resolves(monkeypatch):
+    g = _game()
+    covered = make_monster_in_play(_ref("covered-aoe", FLY))
+    g.zones.monster_slots.set(0, covered)
+    event = _ref("event-aoe", CURSED_CHEST)
+    g.zones.monster_deck.put_on_top(event)
+    monkeypatch.setattr(RNG, "roll_d6", lambda self: 6)
+    g.step(AttackMonsterDeck())
+    g.step(PlaceRevealedMonster(0))
+    from foursouls.rulesets.common.effects import AoDamageEffect
+    g.push_to_stack(controller_id=g.state.active_player_id, source="test",
+                    effect=AoDamageEffect(0, g.zones.monster_slots))
+    for _ in g.state.turn_order:
+        g.step(PassPriority())
+    assert g.zones.monster_slots.get(0).card_ref == event
+    _resolve(g)
+    assert g.zones.monster_slots.get(0) is covered
+    assert g.zones.monster_discard.cards.count(event) == 1

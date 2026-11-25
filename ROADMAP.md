@@ -15,7 +15,7 @@
 | 10 | Loot card diversity + targeting system | ✅ done |
 | 11 | Treasure card effects + starting eternal items | ✅ done |
 | 12 | Character stats and ability window | ✅ done |
-| 13 | Monster abilities + expansion pack | 🔄 R13.1–R13.5 implemented; CI verification pending |
+| 13 | Monster abilities + expansion pack | ✅ R13.1–R13.5 complete |
 | 14 | Combat miss on stack + cancel | 🔄 R14.1–R14.3 implemented; remaining scope open |
 | 14.5 | Stabilization & integration | 🔄 implementation; regression verification pending |
 | 15 | Dice on stack + roll control | 📋 planned |
