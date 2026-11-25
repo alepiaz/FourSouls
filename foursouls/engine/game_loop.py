@@ -57,7 +57,6 @@ class Game:
     combat: Optional[CombatState] = None
     game_over: bool = False
     pending_deck_attack: Optional[CardRef] = None
-    monster_death_slot: Optional[int] = None
     rng: RNG = field(default_factory=RNG)
     stack: Stack = field(default_factory=Stack)
     priority: PriorityManager = field(init=False)
