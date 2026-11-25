@@ -213,6 +213,17 @@ class CombatRollResult(Event):
 
 
 @dataclass(frozen=True, slots=True)
+class DamageWouldBeDealt(Event):
+    source_player_id: Optional[PlayerId]
+    source_monster_slot: Optional[int]
+    target_player_id: Optional[PlayerId]
+    target_monster_slot: Optional[int]
+    amount: int
+    reason: str
+    damage_type: str = "combat"
+
+
+@dataclass(frozen=True, slots=True)
 class DamageDealt(Event):
     """Fired whenever damage is applied to any game object."""
     source_player_id: Optional[PlayerId]
