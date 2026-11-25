@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from foursouls.engine.events import (
     CombatRollResult,
     DamageDealt,
+    DamageWouldBeDealt,
     MonsterDied,
     MonsterEnteredActiveSlot,
 )
@@ -72,7 +73,10 @@ class ConditionEvaluator:
             )
 
         if isinstance(condition, PositiveDamageCondition):
-            return isinstance(event, DamageDealt) and event.amount > 0
+            return (
+                isinstance(event, (DamageDealt, DamageWouldBeDealt))
+                and event.amount > 0
+            )
 
         if isinstance(condition, SourceInZoneCondition):
             return (
