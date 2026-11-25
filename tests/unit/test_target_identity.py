@@ -209,3 +209,45 @@ def test_all_monsters_excludes_event_cards():
     )
 
     assert result.selected == (MonsterTarget(0),)
+
+
+def test_game_zone_exit_cleans_subscriptions_and_durations():
+    game = build_demo_game(["A", "B"], seed=42)
+    card_ref = CardRef(InstanceId("leaving"), FLY)
+    monster = make_monster_in_play(card_ref)
+    monster.attack_bonus = 2
+    game.zones.monster_slots.set(0, monster)
+    source = game.zone_identities.enter(
+        card_ref,
+        zone="monster_slot",
+        target=MonsterTarget(0),
+    )
+    definition = AbilityDefinition.model_validate(
+        {
+            "ability_id": "leaving-listener",
+            "kind": "triggered",
+            "trigger": {"type": "event", "event_type": "ItemActivated"},
+            "effects": [{"type": "prevent_event"}],
+        }
+    )
+    ability = AbilityInstance(
+        instance_id="leaving-listener:instance",
+        definition=definition,
+        source=source,
+        controller_id=PlayerId("A"),
+    )
+    game.event_dispatcher.subscribe(ItemActivated, ability)
+    game.durations.register_monster_stats(
+        zone_entry_id=source.zone_entry_id,
+        monster=monster,
+        attack_delta=2,
+        evade_delta=0,
+        expires_turn=game.state.turn_number,
+    )
+
+    assert game.leave_zone_entry(source.zone_entry_id)
+
+    assert not game.zone_identities.is_active(source.zone_entry_id)
+    assert not game.event_dispatcher.subscriptions_for(ItemActivated)
+    assert game.durations.active_count() == 0
+    assert monster.attack_bonus == 0
