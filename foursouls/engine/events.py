@@ -222,6 +222,7 @@ class DamageWouldBeDealt(Event):
     reason: str
     damage_type: str = "combat"
     roll: Optional[int] = None
+    source_card_ref: Optional[CardRef] = None
     target_card_ref: Optional[CardRef] = None
 
 
@@ -235,6 +236,8 @@ class DamageDealt(Event):
     amount: int
     reason: str             # e.g. "combat_hit", "combat_miss", "loot_bomb"
     damage_type: str = "combat"   # "combat" | "ability"
+    source_card_ref: Optional[CardRef] = None
+    target_card_ref: Optional[CardRef] = None
 
 
 # ---------------------------------------------------------------------------
@@ -254,6 +257,15 @@ class EventEntered(Event):
 # ---------------------------------------------------------------------------
 
 @dataclass(frozen=True, slots=True)
+class MonsterDeathWouldOccur(Event):
+    attacker_id: PlayerId
+    slot_index: int
+    card_ref: CardRef
+    monster_name: str
+    kill_roll: int = 0
+
+
+@dataclass(frozen=True, slots=True)
 class MonsterDied(Event):
     attacker_id: PlayerId
     slot_index: int
@@ -263,6 +275,7 @@ class MonsterDied(Event):
     reward_coin: int = 0
     reward_loot: int = 0
     reward_treasure: int = 0
+    kill_roll: int = 0
 
 
 @dataclass(frozen=True, slots=True)
