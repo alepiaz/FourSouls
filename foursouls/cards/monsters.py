@@ -7,6 +7,7 @@ from typing import Dict, Optional, TYPE_CHECKING
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
+from foursouls.model.abilities import AbilityDefinition
 from foursouls.model.monster_in_play import MonsterInPlay
 from foursouls.model.refs import CardId, CardRef
 
@@ -38,6 +39,8 @@ BIG_SPIDER    = CardId("BIG_SPIDER")
 BONY          = CardId("BONY")
 MEGA_FATTY    = CardId("MEGA_FATTY")
 CARRION_QUEEN = CardId("CARRION_QUEEN")
+THE_BLOAT     = CardId("THE_BLOAT")
+CURSED_PSY_HORF = CardId("CURSED_PSY_HORF")
 
 # Boss card IDs
 MONSTRO           = CardId("MONSTRO")            # Base Game V2
@@ -61,6 +64,7 @@ class MonsterDef:
     reward_treasure: int = 0  # treasure cards drawn by attacker on kill (e.g. Headless Horseman)
     is_boss: bool = False
     is_event: bool = False
+    abilities: tuple[AbilityDefinition, ...] = ()
     # Callable[[Game], Effect] — not part of equality or hash
     event_effect: object = field(default=None, compare=False, hash=False)
     # ── Sprint 13 trigger hooks (R13.1 substrate) ─────────────────────────────
@@ -96,6 +100,7 @@ class _MonsterEntry(BaseModel):
     reward_treasure: int = Field(default=0, ge=0)
     is_boss: bool = False
     is_event: bool = False
+    abilities: tuple[AbilityDefinition, ...] = ()
     on_death: Optional[_AbilityConfig] = None
     on_miss: Optional[_AbilityConfig] = None
     on_would_take_combat_damage: Optional[_AbilityConfig] = None
@@ -129,6 +134,7 @@ def _load_registry() -> Dict[CardId, MonsterDef]:
             reward_treasure=entry.reward_treasure,
             is_boss=entry.is_boss,
             is_event=entry.is_event,
+            abilities=entry.abilities,
             event_effect=build_event_effect(entry.event_effect.model_dump()) if entry.event_effect else None,
             on_death=build_trigger(entry.on_death.model_dump()) if entry.on_death else None,
             on_miss=build_trigger(entry.on_miss.model_dump()) if entry.on_miss else None,
@@ -179,6 +185,7 @@ def make_monster_in_play(card_ref: CardRef) -> MonsterInPlay:
         reward_treasure=defn.reward_treasure,
         is_boss=defn.is_boss,
         is_event=defn.is_event,
+        abilities=defn.abilities,
         # Sprint 13 R13.2: copy trigger hooks from the definition
         on_death=defn.on_death,
         on_miss=defn.on_miss,
