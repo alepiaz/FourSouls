@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from .refs import CardRef
 
@@ -22,20 +22,9 @@ class MonsterInPlay:
     is_boss: bool = False
     is_event: bool = False
     abilities: tuple[object, ...] = ()
-    # ── Sprint 13 per-turn trigger state (R13.1 substrate) ────────────────────
-    prevent_death_used: bool = False  # True once on_would_die has fired this turn
-    evade_bonus: int = 0              # temporary evade modifier (e.g. Headless Horseman)
-    attack_bonus: int = 0             # temporary attack modifier (e.g. Headless Horseman)
-    # ── Sprint 13 cached trigger hooks (R13.2 substrate) ──────────────────────
-    # Copied from MonsterDef at construction time so combat.py can read them
-    # directly from the instance rather than doing a registry lookup per roll.
-    # Excluded from __eq__ and __hash__ (same as on MonsterDef).
-    on_death: object = field(default=None, compare=False, hash=False)
-    on_miss: object = field(default=None, compare=False, hash=False)
-    on_would_take_combat_damage: object = field(default=None, compare=False, hash=False)
-    on_would_die: object = field(default=None, compare=False, hash=False)
-    on_attack_roll: object = field(default=None, compare=False, hash=False)
-    on_combat_damage_dealt: object = field(default=None, compare=False, hash=False)
+    zone_entry_id: str | None = None
+    evade_bonus: int = 0
+    attack_bonus: int = 0
 
     def is_alive(self) -> bool:
         return self.current_hp > 0
