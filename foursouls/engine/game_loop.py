@@ -196,7 +196,8 @@ class Game:
                                     source_card_ref=source.card_ref,
                                 )
                             )
-                            self.activate_next_trigger()
+                        # Player death may defensively drain the stack. Keep
+                        # damage triggers pending until that cleanup completes.
                         check_combat_attacker_death(self)
                     else:
                         if isinstance(item.effect, PlayLootEffect):
