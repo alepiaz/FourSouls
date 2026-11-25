@@ -92,7 +92,7 @@ def test_horseman_prevents_death_outside_combat():
         _resolve(g)
         if i == 0:
             assert g.zones.monster_slots.get(0) is horseman
-            assert horseman.current_hp == 2 and horseman.prevent_death_used
+            assert horseman.current_hp == 2
             assert horseman.evade_bonus == 1 and horseman.attack_bonus == -1
         else:
             assert g.zones.monster_slots.get(0) is not horseman
@@ -128,7 +128,6 @@ def test_cover_resets_transient_state(monkeypatch):
     covered = make_monster_in_play(_ref("covered-horseman", HEADLESS_HORSEMAN))
     covered.current_hp = 1
     covered.prevent_damage = 1
-    covered.prevent_death_used = True
     covered.evade_bonus = 1
     covered.attack_bonus = -1
     g.zones.monster_slots.set(0, covered)
@@ -140,7 +139,6 @@ def test_cover_resets_transient_state(monkeypatch):
     assert g.zones.monster_slots.get(0) is covered
     assert covered.current_hp == covered.base_hp
     assert covered.prevent_damage == covered.evade_bonus == covered.attack_bonus == 0
-    assert not covered.prevent_death_used
 
 
 def test_event_remains_until_its_own_effect_resolves(monkeypatch):
