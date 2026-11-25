@@ -15,8 +15,8 @@
 | 10 | Loot card diversity + targeting system | ✅ done |
 | 11 | Treasure card effects + starting eternal items | ✅ done |
 | 12 | Character stats and ability window | ✅ done |
-| 13 | Monster abilities + expansion pack | ✅ R13.1–R13.7 verified; PR #4 awaiting merge |
-| 13.5 | Ability architecture refactoring | 📋 next — foundation before further card expansion |
+| 13 | Monster abilities + expansion pack | ✅ R13.1–R13.7 merged via PR #4 |
+| 13.5 | Ability architecture refactoring | 🔄 in progress — R13.5.1 complete |
 | 14 | Combat miss on stack + cancel | 🔄 R14.1–R14.3 implemented; remaining scope open |
 | 14.5 | Stabilization & integration | ✅ done — merged PR #3; CI passed |
 | 15 | Dice on stack + roll control | 📋 planned |
@@ -132,7 +132,7 @@ The card text reads: *"This can be done on any player's turn in response to any 
 
 | Release | Deliverable | Status |
 |---|---|---|
-| R13.5.1 | Shared ability definitions, runtime context and validated YAML schema | 📋 planned |
+| R13.5.1 | Shared ability definitions, runtime context and validated YAML schema | ✅ complete |
 | R13.5.2 | Domain event dispatcher and zone-aware subscriptions | 📋 planned |
 | R13.5.3 | Typed condition evaluator and event/source matching | 📋 planned |
 | R13.5.4 | Shared effect registry and composable atomic effects | 📋 planned |
