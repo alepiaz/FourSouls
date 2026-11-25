@@ -50,6 +50,12 @@ class SourceInZoneCondition(_StrictDefinition):
     zone: Literal["monster_slot", "item", "character", "loot", "discard"]
 
 
+class EventSourceIsAbilitySourceCondition(_StrictDefinition):
+    type: Literal["event_source_is_ability_source"] = (
+        "event_source_is_ability_source"
+    )
+
+
 ConditionDefinition = Annotated[
     Union[
         AlwaysCondition,
@@ -57,6 +63,7 @@ ConditionDefinition = Annotated[
         RollInCondition,
         PositiveDamageCondition,
         SourceInZoneCondition,
+        EventSourceIsAbilitySourceCondition,
     ],
     Field(discriminator="type"),
 ]
