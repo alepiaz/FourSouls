@@ -15,7 +15,7 @@
 | 10 | Loot card diversity + targeting system | ✅ done |
 | 11 | Treasure card effects + starting eternal items | ✅ done |
 | 12 | Character stats and ability window | ✅ done |
-| 13 | Monster abilities + expansion pack | ✅ R13.1–R13.5 complete |
+| 13 | Monster abilities + expansion pack | 🔄 R13.1–R13.7 implemented; CI verification pending |
 | 14 | Combat miss on stack + cancel | 🔄 R14.1–R14.3 implemented; remaining scope open |
 | 14.5 | Stabilization & integration | 🔄 implementation; regression verification pending |
 | 15 | Dice on stack + roll control | 📋 planned |
@@ -69,6 +69,8 @@ The card text reads: *"This can be done on any player's turn in response to any 
 | BIG_SPIDER | on_death | always | Active player may attack the monster deck an additional time |
 | CARRION_QUEEN | on_would_take_combat_damage | roll == 4 or 5 | Prevent that combat damage |
 | HEADLESS_HORSEMAN | on_would_die | first time per turn | Prevent death; heal 2 HP; gain +1 DC and −1 ATK until end of turn |
+| BONY | on_attack_roll | roll == 1 | Gain +2 ATK until end of turn |
+| MEGA_FATTY | on_combat_damage_dealt | positive damage dealt | Heal 1 HP |
 
 **New monster cards this sprint:**
 
@@ -76,6 +78,8 @@ The card text reads: *"This can be done on any player's turn in response to any 
 |---|---|---:|---:|---:|---|---|
 | BIG_SPIDER | Basic | 3 | 4 | 1 | 1 Loot | When this dies, the active player may attack the monster deck an additional time |
 | CARRION_QUEEN | Boss | 3 | 4 | 1 | 1 Soul, 1 Treasure | This takes no combat damage on attack rolls of 4 or 5 |
+| BONY | Basic | 2 | 3 | 1 | 1 Loot | Gain +2 ATK on each attack roll of 1 |
+| MEGA_FATTY | Boss | 3 | 3 | 1 | 1 Soul, 2 Loot | Heal 1 HP whenever it deals combat damage |
 
 **Infrastructure:**
 - Store `last_combat_roll: int` on `CombatState` so ability checks can read the triggering roll value.
@@ -98,8 +102,8 @@ The card text reads: *"This can be done on any player's turn in response to any 
 - ✅ R13.3 — Printed monster abilities pack A (`GAPER`, `HORF`)
 - ✅ R13.4 — Printed monster abilities pack B (`BIG_SPIDER`, `CARRION_QUEEN`)
 - ✅ R13.5 — Boss trigger pattern (`HEADLESS_HORSEMAN`)
-- R13.6 — RESERVED — optional future card insertion (not part of the five-card acceptance scope)
-- R13.7 — RESERVED — optional future boss insertion (not part of the five-card acceptance scope)
+- ✅ R13.6 — Bony (Four Souls+ V2; attack-roll trigger)
+- ✅ R13.7 — Mega Fatty (Base Game V2; combat-damage trigger)
 
 **Completion note:** Separate forced and optional deck-attack allowances, reveal then select a slot, covered monster restoration and out-of-combat death prevention are implemented. The full declaration/priority timing, generalized triggers and zone identity rules remain separate roadmap work.
 

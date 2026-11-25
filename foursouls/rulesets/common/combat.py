@@ -236,6 +236,9 @@ def resolve_roll(game: Game) -> None:
         attack_stat=attack_stat,
     ))
 
+    if monster.on_attack_roll is not None:
+        monster.on_attack_roll(game, monster, combat.defender_slot, roll)
+
     # ── Death checks (hit path only; miss damage is on the stack) ────────────
     if check_combat_defender_death(game, kill_roll=roll):
         pass  # monster died; resolve_monster_death already reset priority

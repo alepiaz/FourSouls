@@ -130,3 +130,27 @@ WE_NEED_TO_GO_DEEPER:
   is_event: true
   event_effect:
     type: reset_attack
+
+
+# R13.6 — Four Souls+ V2: https://foursouls.com/cards/fsp2-bony/
+BONY:
+  base_hp: 2
+  evade: 3
+  attack: 1
+  reward_loot: 1
+  on_attack_roll:
+    type: attack_bonus_on_roll
+    roll_condition: 1
+    amount: 2
+
+# R13.7 — Base Game V2: https://foursouls.com/cards/b2-mega_fatty/
+MEGA_FATTY:
+  base_hp: 3
+  evade: 3
+  attack: 1
+  has_soul: true
+  is_boss: true
+  reward_loot: 2
+  on_combat_damage_dealt:
+    type: heal_on_combat_damage
+    amount: 1

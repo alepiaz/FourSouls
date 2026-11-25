@@ -62,7 +62,7 @@ def test_demo_decks_are_populated():
     loot, monsters, treasures = _loot_deck(), _monster_deck(), _treasure_deck()
     assert len(loot) == 40
     assert len({c.card_id for c in loot}) == 10
-    assert len({c.card_id for c in monsters}) == 15
+    assert len({c.card_id for c in monsters}) == 17
     assert all(c.card_id in TREASURE_REGISTRY for c in treasures)
     assert all(not TREASURE_REGISTRY[c.card_id].eternal for c in treasures)
     assert len({c.instance_id for c in loot + monsters + treasures}) == len(loot + monsters + treasures)

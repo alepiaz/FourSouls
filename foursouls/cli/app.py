@@ -22,8 +22,8 @@ from foursouls.cards.loot import (
     LOOT_COIN, NICKEL, SOUL_HEART, THREE_CENTS, TWO_CENTS,
 )
 from foursouls.cards.monsters import (
-    ATTACK_FLY, BIG_SPIDER, BOOM_FLY, CARRION_QUEEN, CLOTTY, CURSED_CHEST,
-    DINGA, FLY, GAPER, HEADLESS_HORSEMAN, HORF, MONSTRO, MULLIBOIL,
+    ATTACK_FLY, BIG_SPIDER, BONY, BOOM_FLY, CARRION_QUEEN, CLOTTY, CURSED_CHEST,
+    DINGA, FLY, GAPER, HEADLESS_HORSEMAN, HORF, MEGA_FATTY, MONSTRO, MULLIBOIL,
     SPIDER, WE_NEED_TO_GO_DEEPER,
 )
 from foursouls.cards.treasures import DRY_BABY, MAMA_MEGA, MEAT_BANG
@@ -77,10 +77,10 @@ def _treasure_deck() -> List[CardRef]:
 def _monster_deck() -> List[CardRef]:
     """Demo pool, not an official deck distribution; enough souls for victory."""
     return _make_deck("monster", [
-        (FLY, 4), (GAPER, 3), (SPIDER, 3), (HORF, 2),
+        (FLY, 3), (BONY, 1), (GAPER, 3), (SPIDER, 3), (HORF, 2),
         (DINGA, 2), (ATTACK_FLY, 2), (BOOM_FLY, 2),
         (CLOTTY, 2), (MULLIBOIL, 2), (BIG_SPIDER, 2),
-        (MONSTRO, 3), (CARRION_QUEEN, 3), (HEADLESS_HORSEMAN, 3),
+        (MONSTRO, 2), (MEGA_FATTY, 1), (CARRION_QUEEN, 3), (HEADLESS_HORSEMAN, 3),
         (CURSED_CHEST, 1), (WE_NEED_TO_GO_DEEPER, 1),
     ])
 

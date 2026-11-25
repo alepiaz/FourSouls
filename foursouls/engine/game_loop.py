@@ -23,7 +23,7 @@ from foursouls.model.game_state import GameState
 from foursouls.model.refs import CardRef, PlayerId
 from foursouls.rulesets.base_rules import BaseRuleset
 from foursouls.rulesets.common.combat import check_all_monster_deaths_out_of_combat, check_combat_attacker_death, check_combat_defender_death, enter_combat, reveal_deck_attack, place_revealed_monster, resolve_roll
-from foursouls.rulesets.common.effects import PlayLootEffect
+from foursouls.rulesets.common.effects import CombatMissDamageEffect, PlayLootEffect
 from foursouls.rulesets.common.loot import on_play_loot
 from foursouls.rulesets.common.shop import on_buy_shop
 from foursouls.rulesets.common.items import on_activate_item
@@ -114,7 +114,18 @@ class Game:
                         # (e.g. Bomb! vs a non-combat slot, AoE effects).
                         check_all_monster_deaths_out_of_combat(self)
                         # Check if CombatMissDamageEffect just killed the attacker.
+                        # Capture the source before death cleanup clears combat.
+                        miss = item.effect if isinstance(item.effect, CombatMissDamageEffect) else None
+                        source = None
+                        if miss is not None and miss.damage_dealt > 0 and self.zones is not None:
+                            source = self.zones.monster_slots.get(miss.combat.defender_slot)
+                            if source is not None and source.card_ref != miss.combat.monster_ref:
+                                source = None
                         check_combat_attacker_death(self)
+                        # A lethal hit still dealt combat damage. Queue its trigger after
+                        # the current simplified death cleanup, which drains the stack.
+                        if source is not None and source.on_combat_damage_dealt is not None:
+                            source.on_combat_damage_dealt(self, source, miss.combat.defender_slot, miss.damage_dealt)
                     else:
                         if isinstance(item.effect, PlayLootEffect):
                             item.effect.discard()

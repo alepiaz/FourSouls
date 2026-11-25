@@ -204,15 +204,46 @@ class CombatMissDamageEffect:
     attacker_id: PlayerId
     amount: int
     combat: object  # CombatState — checked for is_active at resolve time
+    damage_dealt: int = field(default=0, init=False)
 
     def validate(self, ctx: GameState) -> bool:  # noqa: ARG002
         return self.combat.is_active  # type: ignore[union-attr]
 
     def apply(self, ctx: GameState) -> None:
         player = ctx.get_player(self.attacker_id)
-        absorbed = min(player.prevent_damage, self.amount)
-        player.prevent_damage = max(0, player.prevent_damage - self.amount)
-        player.hp = max(0, player.hp - (self.amount - absorbed))
+        amount = min(self.amount, player.damage_cap) if player.damage_cap > 0 else self.amount
+        absorbed = min(player.prevent_damage, amount)
+        player.prevent_damage = max(0, player.prevent_damage - amount)
+        self.damage_dealt = amount - absorbed
+        player.hp = max(0, player.hp - self.damage_dealt)
+
+
+@dataclass(slots=True)
+class ModifyMonsterAttackEffect:
+    monster_slots: object
+    slot_index: int
+    monster: object
+    amount: int
+
+    def validate(self, ctx: GameState) -> bool:
+        return self.monster_slots.get(self.slot_index) is self.monster and self.monster.is_alive()
+
+    def apply(self, ctx: GameState) -> None:
+        self.monster.attack_bonus += self.amount
+
+
+@dataclass(slots=True)
+class HealMonsterEffect:
+    monster_slots: object
+    slot_index: int
+    monster: object
+    amount: int
+
+    def validate(self, ctx: GameState) -> bool:
+        return self.monster_slots.get(self.slot_index) is self.monster and self.monster.is_alive()
+
+    def apply(self, ctx: GameState) -> None:
+        self.monster.current_hp = min(self.monster.base_hp, self.monster.current_hp + self.amount)
 
 
 @dataclass(slots=True)
