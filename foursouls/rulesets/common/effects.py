@@ -233,6 +233,25 @@ class ModifyMonsterAttackEffect:
 
 
 @dataclass(slots=True)
+class ModifyMonsterStatsEffect:
+    monster_slots: object
+    slot_index: int
+    monster: object
+    attack_delta: int = 0
+    evade_delta: int = 0
+
+    def validate(self, ctx: GameState) -> bool:
+        return (
+            self.monster_slots.get(self.slot_index) is self.monster
+            and self.monster.is_alive()
+        )
+
+    def apply(self, ctx: GameState) -> None:
+        self.monster.attack_bonus += self.attack_delta
+        self.monster.evade_bonus += self.evade_delta
+
+
+@dataclass(slots=True)
 class HealMonsterEffect:
     monster_slots: object
     slot_index: int
