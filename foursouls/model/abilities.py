@@ -119,6 +119,12 @@ class GrantDeckAttackEffect(_StrictDefinition):
     required: bool = False
 
 
+class DealDamageEffect(_StrictDefinition):
+    type: Literal["deal_damage"] = "deal_damage"
+    amount: int = Field(gt=0)
+    damage_type: Literal["combat", "ability"] = "ability"
+
+
 class ModifyEventAmountEffect(_StrictDefinition):
     type: Literal["modify_event_amount"] = "modify_event_amount"
     delta: int
@@ -148,6 +154,7 @@ class ModifySourceStatsEffect(_StrictDefinition):
 EffectDefinition = Annotated[
     Union[
         GrantDeckAttackEffect,
+        DealDamageEffect,
         ModifyEventAmountEffect,
         PreventEventEffect,
         HealSourceEffect,
