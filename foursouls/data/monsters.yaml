@@ -171,6 +171,7 @@ THE_BLOAT:
       trigger: {type: event, event_type: MonsterEnteredActiveSlot}
       conditions:
         - {type: source_in_zone, zone: monster_slot}
+        - {type: event_source_is_ability_source}
       targets:
         - {type: random_other_player}
       effects:
@@ -178,6 +179,8 @@ THE_BLOAT:
     - ability_id: the_bloat_death_damage
       kind: triggered
       trigger: {type: event, event_type: MonsterDied}
+      conditions:
+        - {type: event_source_is_ability_source}
       targets:
         - {type: random_other_player}
       effects:
