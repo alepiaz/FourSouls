@@ -398,23 +398,22 @@ def _do_resolve_monster_death(game: Game, slot_index: int, attacker_id: object, 
     game.zones.monster_discard.add(dead_monster.card_ref)
     uncovered = game.zones.monster_slots.remove_top(slot_index)
 
-    # Refill only if no underlying monster was uncovered.
-    if uncovered is None and not game.zones.monster_deck.empty():
-        new_ref = game.zones.monster_deck.draw(1)[0]
-        place_monster_card(game, slot_index, new_ref)
-
     attacker = game.state.get_player(attacker_id)  # type: ignore[arg-type]
 
-    game.log.append(MonsterDied(
-        attacker_id=attacker_id,  # type: ignore[arg-type]
-        slot_index=slot_index,
-        card_ref=dead_monster.card_ref,
-        monster_name=monster_name,
-        reward_coin=dead_monster.reward_coin,
-        had_soul=dead_monster.has_soul,
-        reward_loot=dead_monster.reward_loot,
-        reward_treasure=dead_monster.reward_treasure,
-    ))
+    game.emit(
+        MonsterDied(
+            attacker_id=attacker_id,  # type: ignore[arg-type]
+            slot_index=slot_index,
+            card_ref=dead_monster.card_ref,
+            monster_name=monster_name,
+            reward_coin=dead_monster.reward_coin,
+            had_soul=dead_monster.has_soul,
+            reward_loot=dead_monster.reward_loot,
+            reward_treasure=dead_monster.reward_treasure,
+            kill_roll=kill_roll,
+        )
+    )
+    game.activate_next_trigger()
 
     # Grant cent reward (always, even if 0 — keeps the path uniform).
     attacker.cents += dead_monster.reward_coin
@@ -457,14 +456,12 @@ def _do_resolve_monster_death(game: Game, slot_index: int, attacker_id: object, 
             card_name=monster_name,
         ))
 
-    # on_death: fires after rewards; callback receives the triggering roll
-    if dead_monster.on_death is not None:
-        game.log.append(MonsterTriggerFired(
-            card_id=dead_monster.card_ref.card_id,
-            trigger="on_death",
-            roll=kill_roll,
-        ))
-        dead_monster.on_death(game, kill_roll)                 # type: ignore[call-arg]
+    unregister_monster_abilities(game, dead_monster)
+    if uncovered is not None:
+        activate_monster_in_slot(game, slot_index, uncovered)
+    elif not game.zones.monster_deck.empty():
+        new_ref = game.zones.monster_deck.draw(1)[0]
+        place_monster_card(game, slot_index, new_ref)
 
     # Check win condition
     if len(attacker.souls) >= SOULS_TO_WIN:
