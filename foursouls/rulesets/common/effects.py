@@ -117,6 +117,21 @@ class ResetAttackEffect:
 
 
 @dataclass(slots=True)
+class GrantDeckAttackEffect:
+    """Grant a separate additional attack restricted to the monster deck."""
+    required: bool = False
+
+    def validate(self, ctx: GameState) -> bool:
+        return True
+
+    def apply(self, ctx: GameState) -> None:
+        if self.required:
+            ctx.turn_flags.forced_deck_attacks += 1
+        else:
+            ctx.turn_flags.optional_deck_attacks += 1
+
+
+@dataclass(slots=True)
 class AllPlayersGainCentsEffect:
     """Each player in turn order gains a fixed number of cents."""
 
@@ -236,7 +251,7 @@ class CancelStackItemEffect:
     def apply(self, ctx: GameState) -> None:  # noqa: ARG002
         from foursouls.engine.events import StackItemCancelled
         item = self.stack.remove(self.target_stack_id)  # type: ignore[union-attr]
-        if item is not None and isinstance(item.effect, PlayLootEffect):
+        if item is not None and isinstance(item.effect, (PlayLootEffect, EventCardEffect)):
             item.effect.discard()
         if item is not None and self.log is not None:
             self.log.append(StackItemCancelled(stack_id=item.stack_id, label=item.label))
@@ -319,7 +334,10 @@ class EventCardEffect:
     def apply(self, ctx: GameState) -> None:
         if self.inner.validate(ctx):
             self.inner.apply(ctx)
-        self.monster_slots.clear(self.slot_index)
+        self.discard()
+
+    def discard(self) -> None:
+        self.monster_slots.remove_top(self.slot_index)
         self.monster_discard.add(self.card_ref)
 
 

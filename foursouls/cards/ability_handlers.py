@@ -20,11 +20,11 @@ if TYPE_CHECKING:
 def _make_forced_extra_attack(roll_condition=None):
     def on_death(game: "Game", roll: int) -> None:
         if roll_condition is None or roll == roll_condition:
-            from foursouls.rulesets.common.effects import ResetAttackEffect
+            from foursouls.rulesets.common.effects import GrantDeckAttackEffect
             game.push_to_stack(
                 controller_id=game.state.active_player_id,
                 source="monster:forced_extra_attack",
-                effect=ResetAttackEffect(),
+                effect=GrantDeckAttackEffect(required=True),
                 label="ForcedExtraAttack",
             )
     return on_death
@@ -32,11 +32,11 @@ def _make_forced_extra_attack(roll_condition=None):
 
 def _make_optional_extra_attack():
     def on_death(game: "Game", roll: int) -> None:  # noqa: ARG001
-        from foursouls.rulesets.common.effects import ResetAttackEffect
+        from foursouls.rulesets.common.effects import GrantDeckAttackEffect
         game.push_to_stack(
             controller_id=game.state.active_player_id,
             source="monster:optional_extra_attack",
-            effect=ResetAttackEffect(),
+            effect=GrantDeckAttackEffect(),
             label="MayAttackAgain",
         )
     return on_death
@@ -61,7 +61,10 @@ def _make_shield_on_rolls(rolls):
 
 def _make_death_prevention_with_heal(heal, evade_delta=0, attack_delta=0):
     def on_would_die(game: "Game") -> bool:
-        defender = game.zones.monster_slots.get(game.combat.defender_slot)
+        slot = game.monster_death_slot
+        if slot is None and game.combat is not None:
+            slot = game.combat.defender_slot
+        defender = game.zones.monster_slots.get(slot) if slot is not None else None
         if defender is None:
             return False
         defender.current_hp = min(defender.base_hp, defender.current_hp + heal)

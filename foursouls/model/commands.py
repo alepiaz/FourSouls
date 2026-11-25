@@ -55,3 +55,15 @@ class ActivateItem(Command):
     instance_id: InstanceId
     target: Optional[AnyTarget] = None
     kind: str = "ACTIVATE_ITEM"
+
+@dataclass(frozen=True, slots=True)
+class AttackMonsterDeck(Command):
+    """Commit to an attack against the top of the monster deck."""
+    kind: str = "ATTACK_MONSTER_DECK"
+
+
+@dataclass(frozen=True, slots=True)
+class PlaceRevealedMonster(Command):
+    """Choose a slot for the revealed card after committing to the attack."""
+    slot_index: int
+    kind: str = "PLACE_REVEALED_MONSTER"

@@ -17,12 +17,12 @@ from foursouls.engine.priority import PriorityManager
 from foursouls.engine.rng import RNG
 from foursouls.engine.stack import Stack, StackItem
 from foursouls.model.combat_state import CombatState
-from foursouls.model.commands import ActivateCharacterAbility, ActivateItem, AttackMonster, BuyShop, Command, EndTurn, PassPriority, PlayLoot, RollCombat
+from foursouls.model.commands import ActivateCharacterAbility, ActivateItem, AttackMonster, AttackMonsterDeck, PlaceRevealedMonster, BuyShop, Command, EndTurn, PassPriority, PlayLoot, RollCombat
 from foursouls.model.effects import Effect
 from foursouls.model.game_state import GameState
-from foursouls.model.refs import PlayerId
+from foursouls.model.refs import CardRef, PlayerId
 from foursouls.rulesets.base_rules import BaseRuleset
-from foursouls.rulesets.common.combat import check_all_monster_deaths_out_of_combat, check_combat_attacker_death, check_combat_defender_death, enter_combat, resolve_roll
+from foursouls.rulesets.common.combat import check_all_monster_deaths_out_of_combat, check_combat_attacker_death, check_combat_defender_death, enter_combat, reveal_deck_attack, place_revealed_monster, resolve_roll
 from foursouls.rulesets.common.effects import PlayLootEffect
 from foursouls.rulesets.common.loot import on_play_loot
 from foursouls.rulesets.common.shop import on_buy_shop
@@ -50,6 +50,8 @@ class Game:
     zones: Optional[GameZones] = None
     combat: Optional[CombatState] = None
     game_over: bool = False
+    pending_deck_attack: Optional[CardRef] = None
+    monster_death_slot: Optional[int] = None
     rng: RNG = field(default_factory=RNG)
     stack: Stack = field(default_factory=Stack)
     priority: PriorityManager = field(init=False)
@@ -142,6 +144,12 @@ class Game:
 
         elif isinstance(command, ActivateItem):
             on_activate_item(self, command.instance_id, command.target)
+
+        elif isinstance(command, AttackMonsterDeck):
+            reveal_deck_attack(self)
+
+        elif isinstance(command, PlaceRevealedMonster):
+            place_revealed_monster(self, command.slot_index)
 
         elif isinstance(command, AttackMonster):
             enter_combat(self, command.slot_index)

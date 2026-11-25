@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 SOULS_TO_WIN = 4
 
 
-def place_monster_card(game: Game, slot_index: int, card_ref: CardRef) -> None:
+def place_monster_card(game: Game, slot_index: int, card_ref: CardRef, *, cover: bool = False) -> None:
     """
     Place a card into a monster slot.
 
@@ -41,7 +41,10 @@ def place_monster_card(game: Game, slot_index: int, card_ref: CardRef) -> None:
     from foursouls.rulesets.common.effects import EventCardEffect
 
     monster = make_monster_in_play(card_ref)
-    game.zones.monster_slots.set(slot_index, monster)
+    if cover:
+        game.zones.monster_slots.cover(slot_index, monster)
+    else:
+        game.zones.monster_slots.set(slot_index, monster)
 
     if monster.is_event:
         defn = get_monster_def(card_ref.card_id)
@@ -75,7 +78,32 @@ class _NoOpEffect:
         pass
 
 
-def enter_combat(game: Game, slot_index: int) -> None:
+def reveal_deck_attack(game: Game) -> None:
+    """Consume the appropriate attack allowance and reveal the top card."""
+    flags = game.state.turn_flags
+    if flags.forced_deck_attacks:
+        flags.forced_deck_attacks -= 1
+    elif flags.optional_deck_attacks:
+        flags.optional_deck_attacks -= 1
+    else:
+        flags.attack_used = True
+    game.pending_deck_attack = game.zones.monster_deck.draw(1)[0]
+
+
+def place_revealed_monster(game: Game, slot_index: int) -> None:
+    """Place the already revealed card; events end the attack without combat."""
+    ref = game.pending_deck_attack
+    assert ref is not None
+    game.pending_deck_attack = None
+    place_monster_card(game, slot_index, ref, cover=True)
+    monster = game.zones.monster_slots.get(slot_index)
+    if not monster.is_event:
+        enter_combat(game, slot_index, from_deck=True)
+    else:
+        game.priority.reset_to(game.state.active_player_id)
+
+
+def enter_combat(game: Game, slot_index: int, *, from_deck: bool = False) -> None:
     """
     Declare an attack against the monster in slot_index.
 
@@ -96,12 +124,14 @@ def enter_combat(game: Game, slot_index: int) -> None:
     assert monster is not None, f"Monster slot {slot_index} is empty"
 
     attacker_id = game.state.active_player_id
-    game.state.turn_flags.attack_used = True
+    if not from_deck:
+        game.state.turn_flags.attack_used = True
 
     game.combat = CombatState(
         attacker_id=attacker_id,
         defender_slot=slot_index,
         monster_ref=monster.card_ref,
+        from_deck=from_deck,
     )
 
     monster_name = str(monster.card_ref.card_id or "unknown")
@@ -199,13 +229,31 @@ def resolve_roll(game: Game) -> None:
     ))
 
     # ── Death checks (hit path only; miss damage is on the stack) ────────────
-    if check_combat_defender_death(game):
+    if check_combat_defender_death(game, kill_roll=roll):
         pass  # monster died; resolve_monster_death already reset priority
     else:
         game.priority.reset_to(combat.attacker_id)
 
 
-def check_combat_defender_death(game: Game) -> bool:
+def _prevent_monster_death(game: Game, slot_index: int) -> bool:
+    monster = game.zones.monster_slots.get(slot_index)
+    if monster is None or monster.on_would_die is None or monster.prevent_death_used:
+        return False
+    game.log.append(MonsterTriggerFired(
+        card_id=monster.card_ref.card_id, trigger="on_would_die", roll=0,
+    ))
+    previous = game.monster_death_slot
+    game.monster_death_slot = slot_index
+    try:
+        prevented = monster.on_would_die(game)
+    finally:
+        game.monster_death_slot = previous
+    if prevented:
+        monster.prevent_death_used = True
+    return prevented
+
+
+def check_combat_defender_death(game: Game, *, kill_roll: int = 0) -> bool:
     """
     If there is active combat and the defender's HP has reached zero, resolve
     its death (including the on_would_die trigger).
@@ -223,19 +271,8 @@ def check_combat_defender_death(game: Game) -> bool:
     if monster is None or monster.is_alive():
         return False
 
-    prevented = False
-    if monster.on_would_die is not None and not monster.prevent_death_used:
-        game.log.append(MonsterTriggerFired(
-            card_id=monster.card_ref.card_id,
-            trigger="on_would_die",
-            roll=0,
-        ))
-        prevented = monster.on_would_die(game)  # type: ignore[call-arg]
-        if prevented:
-            monster.prevent_death_used = True
-
-    if not prevented:
-        resolve_monster_death(game)
+    if not _prevent_monster_death(game, game.combat.defender_slot):
+        resolve_monster_death(game, kill_roll=kill_roll)
         return True
 
     return False
@@ -259,10 +296,10 @@ def _do_resolve_monster_death(game: Game, slot_index: int, attacker_id: object, 
 
     # Discard card, clear slot
     game.zones.monster_discard.add(dead_monster.card_ref)
-    game.zones.monster_slots.clear(slot_index)
+    uncovered = game.zones.monster_slots.remove_top(slot_index)
 
-    # Refill from deck if possible
-    if not game.zones.monster_deck.empty():
+    # Refill only if no underlying monster was uncovered.
+    if uncovered is None and not game.zones.monster_deck.empty():
         new_ref = game.zones.monster_deck.draw(1)[0]
         place_monster_card(game, slot_index, new_ref)
 
@@ -338,7 +375,7 @@ def _do_resolve_monster_death(game: Game, slot_index: int, attacker_id: object, 
         game.game_over = True
 
 
-def resolve_monster_death(game: Game) -> None:
+def resolve_monster_death(game: Game, *, kill_roll: int | None = None) -> None:
     """
     Clean up after a monster's hp reaches 0 during active combat.
 
@@ -357,7 +394,8 @@ def resolve_monster_death(game: Game) -> None:
     assert game.zones is not None
 
     combat = game.combat
-    _do_resolve_monster_death(game, combat.defender_slot, combat.attacker_id, combat.last_combat_roll)
+    _do_resolve_monster_death(game, combat.defender_slot, combat.attacker_id,
+                              combat.last_combat_roll if kill_roll is None else kill_roll)
     # Signal any pending CombatMissDamageEffect on the stack to fizzle (R14.1).
     game.combat.is_active = False
     game.combat = None
@@ -404,7 +442,7 @@ def check_all_monster_deaths_out_of_combat(game: Game) -> None:
     for idx in dead_slots:
         # Re-check: the slot may have been refilled by an earlier death in this loop.
         monster = game.zones.monster_slots.get(idx)
-        if monster is not None and not monster.is_alive():
+        if monster is not None and not monster.is_alive() and not _prevent_monster_death(game, idx):
             resolve_monster_death_out_of_combat(game, idx)
 
 

@@ -25,6 +25,8 @@ from foursouls.model.commands import (
     ActivateCharacterAbility,
     ActivateItem,
     AttackMonster,
+    AttackMonsterDeck,
+    PlaceRevealedMonster,
     BuyShop,
     Command,
     EndTurn,
@@ -149,6 +151,13 @@ def _build_action(game: Game, cmd: Command) -> LegalAction:
         return _activate_item(game, cmd)
     if isinstance(cmd, BuyShop):
         return _buy_shop(game, cmd)
+    if isinstance(cmd, AttackMonsterDeck):
+        return LegalAction(key="attack_deck", kind=cmd.kind, description="Attack the top of the monster deck", command=cmd)
+    if isinstance(cmd, PlaceRevealedMonster):
+        name = str(game.pending_deck_attack.card_id or "unknown")
+        return LegalAction(key=f"place_revealed:{cmd.slot_index}", kind=cmd.kind,
+                           description=f"Place {name} in monster slot {cmd.slot_index + 1}", command=cmd,
+                           metadata={"slot_index": cmd.slot_index, "card_id": name})
     if isinstance(cmd, AttackMonster):
         return _attack_monster(game, cmd)
     if isinstance(cmd, RollCombat):

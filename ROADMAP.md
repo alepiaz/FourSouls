@@ -15,7 +15,7 @@
 | 10 | Loot card diversity + targeting system | ✅ done |
 | 11 | Treasure card effects + starting eternal items | ✅ done |
 | 12 | Character stats and ability window | ✅ done |
-| 13 | Monster abilities + expansion pack | 🔄 in progress |
+| 13 | Monster abilities + expansion pack | 🔄 R13.1–R13.5 implemented; CI verification pending |
 | 14 | Combat miss on stack + cancel | 🔄 R14.1–R14.3 implemented; remaining scope open |
 | 14.5 | Stabilization & integration | 🔄 implementation; regression verification pending |
 | 15 | Dice on stack + roll control | 📋 planned |
@@ -95,11 +95,13 @@ The card text reads: *"This can be done on any player's turn in response to any 
 **Releases:**
 - ✅ R13.1 — Monster trigger substrate
 - ✅ R13.2 — Combat integration
-- R13.3 — Printed monster abilities pack A (`GAPER`, `HORF`)
-- R13.4 — Printed monster abilities pack B (`BIG_SPIDER`, `CARRION_QUEEN`)
-- R13.5 — Boss trigger pattern (`HEADLESS_HORSEMAN`)
-- R13.6 — RESERVED — `<insert monster> card insertion A`
-- R13.7 — RESERVED — `<insert boss monster> card insertion B`
+- ✅ R13.3 — Printed monster abilities pack A (`GAPER`, `HORF`)
+- ✅ R13.4 — Printed monster abilities pack B (`BIG_SPIDER`, `CARRION_QUEEN`)
+- ✅ R13.5 — Boss trigger pattern (`HEADLESS_HORSEMAN`)
+- R13.6 — RESERVED — optional future card insertion (not part of the five-card acceptance scope)
+- R13.7 — RESERVED — optional future boss insertion (not part of the five-card acceptance scope)
+
+**Completion note:** Separate forced and optional deck-attack allowances, reveal then select a slot, covered monster restoration and out-of-combat death prevention are implemented. The full declaration/priority timing, generalized triggers and zone identity rules remain separate roadmap work.
 
 **Key files:** `foursouls/cards/monsters.py`, `foursouls/model/combat_state.py`, `foursouls/model/monster_in_play.py`, `foursouls/rulesets/common/combat.py`, `foursouls/engine/events.py`
 
