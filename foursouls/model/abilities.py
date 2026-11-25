@@ -78,12 +78,22 @@ class TriggerTargetSelector(_StrictDefinition):
     type: Literal["trigger_target"] = "trigger_target"
 
 
+class TriggeringPlayerSelector(_StrictDefinition):
+    type: Literal["triggering_player"] = "triggering_player"
+
+
+class RandomOtherPlayerSelector(_StrictDefinition):
+    type: Literal["random_other_player"] = "random_other_player"
+
+
 TargetSelectorDefinition = Annotated[
     Union[
         SourceSelector,
         ControllerSelector,
         ActivePlayerSelector,
         TriggerTargetSelector,
+        TriggeringPlayerSelector,
+        RandomOtherPlayerSelector,
     ],
     Field(discriminator="type"),
 ]
@@ -123,6 +133,11 @@ class HealSourceEffect(_StrictDefinition):
     amount: int = Field(gt=0)
 
 
+class DealDamageEffect(_StrictDefinition):
+    type: Literal["deal_damage"] = "deal_damage"
+    amount: int = Field(gt=0)
+
+
 class ModifySourceStatsEffect(_StrictDefinition):
     type: Literal["modify_source_stats"] = "modify_source_stats"
     attack_delta: int = 0
@@ -136,6 +151,7 @@ EffectDefinition = Annotated[
         ModifyEventAmountEffect,
         PreventEventEffect,
         HealSourceEffect,
+        DealDamageEffect,
         ModifySourceStatsEffect,
     ],
     Field(discriminator="type"),
