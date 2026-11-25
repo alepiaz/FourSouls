@@ -8,25 +8,102 @@ from foursouls.engine.events import (
     CombatEntered,
     CombatRollResult,
     DamageDealt,
+    DamageWouldBeDealt,
     DeathPenaltyPaid,
     EffectFizzled,
     EventEntered,
     GameWon,
+    ItemActivated,
+    MonsterDeathWouldOccur,
     MonsterDied,
-    MonsterTriggerFired,
+    MonsterEnteredActiveSlot,
     PhaseChanged,
     PlayerDied,
     SoulGranted,
 )
+from foursouls.model.abilities import AbilityInstance
 from foursouls.model.phase import Phase
 from foursouls.model.combat_state import CombatState
 from foursouls.model.refs import CardRef
+from foursouls.model.target import MonsterTarget
 from foursouls.rulesets.common.effects import CombatMissDamageEffect
 
 if TYPE_CHECKING:
     from foursouls.engine.game_loop import Game
 
 SOULS_TO_WIN = 4
+
+_MONSTER_ABILITY_EVENT_TYPES = {
+    event_type.__name__: event_type
+    for event_type in (
+        CombatRollResult,
+        DamageDealt,
+        DamageWouldBeDealt,
+        ItemActivated,
+        MonsterDeathWouldOccur,
+        MonsterDied,
+        MonsterEnteredActiveSlot,
+    )
+}
+
+
+def register_monster_abilities(game: Game, slot_index: int, monster) -> None:
+    """Register one face-up monster incarnation with the shared dispatcher."""
+    if monster.is_event or not monster.abilities:
+        return
+    if (
+        monster.zone_entry_id is not None
+        and game.zone_identities.is_active(monster.zone_entry_id)
+    ):
+        return
+
+    source = game.zone_identities.enter(
+        monster.card_ref,
+        zone="monster_slot",
+        target=MonsterTarget(slot_index),
+    )
+    monster.zone_entry_id = source.zone_entry_id
+
+    for index, definition in enumerate(monster.abilities):
+        trigger = definition.trigger
+        if trigger is None:
+            continue
+        try:
+            event_type = _MONSTER_ABILITY_EVENT_TYPES[trigger.event_type]
+        except KeyError as exc:
+            raise ValueError(
+                f"unsupported monster ability event: {trigger.event_type}"
+            ) from exc
+        ability = AbilityInstance(
+            instance_id=(
+                f"{source.zone_entry_id}:{index}:{definition.ability_id}"
+            ),
+            definition=definition,
+            source=source,
+            controller_id=game.state.active_player_id,
+        )
+        game.event_dispatcher.subscribe(event_type, ability)
+
+
+def unregister_monster_abilities(game: Game, monster) -> None:
+    """Remove subscriptions and durations for one monster incarnation."""
+    zone_entry_id = monster.zone_entry_id
+    if zone_entry_id is None:
+        return
+    game.leave_zone_entry(zone_entry_id)
+    monster.zone_entry_id = None
+
+
+def activate_monster_in_slot(game: Game, slot_index: int, monster) -> None:
+    register_monster_abilities(game, slot_index, monster)
+    if not monster.is_event:
+        game.emit(
+            MonsterEnteredActiveSlot(
+                slot_index=slot_index,
+                card_ref=monster.card_ref,
+            )
+        )
+        game.activate_next_trigger()
 
 
 def place_monster_card(game: Game, slot_index: int, card_ref: CardRef, *, cover: bool = False) -> None:
@@ -44,15 +121,17 @@ def place_monster_card(game: Game, slot_index: int, card_ref: CardRef, *, cover:
     if cover:
         previous = game.zones.monster_slots.get(slot_index)
         if previous is not None:
-            # Covered objects leave play; their transient damage/modifiers do not carry over.
+            unregister_monster_abilities(game, previous)
+            # Covered objects leave play; transient state does not carry over.
             previous.current_hp = previous.base_hp
             previous.prevent_damage = 0
-            previous.prevent_death_used = False
             previous.evade_bonus = 0
             previous.attack_bonus = 0
         game.zones.monster_slots.cover(slot_index, monster)
     else:
         game.zones.monster_slots.set(slot_index, monster)
+
+    activate_monster_in_slot(game, slot_index, monster)
 
     if monster.is_event:
         defn = get_monster_def(card_ref.card_id)
