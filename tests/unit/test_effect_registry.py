@@ -136,6 +136,46 @@ def test_end_of_turn_source_stat_effect_is_atomic():
     effect.apply(game.state)
     assert monster.attack_bonus == 2
     assert monster.evade_bonus == -1
+    assert game.durations.active_count() == 1
+
+    assert game.durations.expire_end_of_turn(
+        game.state.turn_number
+    ) == 1
+    assert monster.attack_bonus == 0
+    assert monster.evade_bonus == 0
+    assert game.durations.active_count() == 0
+
+
+def test_zone_exit_expires_only_that_entry_modifiers():
+    game = _game()
+    first_ref = CardRef(InstanceId("first"), THE_BLOAT)
+    second_ref = CardRef(InstanceId("second"), THE_BLOAT)
+    first = make_monster_in_play(first_ref)
+    second = make_monster_in_play(second_ref)
+    game.zones.monster_slots.set(0, first)
+    game.zones.monster_slots.set(1, second)
+
+    for slot, monster, card_ref in (
+        (0, first, first_ref),
+        (1, second, second_ref),
+    ):
+        context = _context(card_ref, (MonsterTarget(slot),))
+        effect = EffectRegistry().build(
+            ModifySourceStatsEffect(
+                attack_delta=1,
+                duration="end_of_turn",
+            ),
+            context,
+            game,
+        )
+        effect.apply(game.state)
+
+    assert game.durations.expire_zone_entry(
+        "first:entry-1"
+    ) == 1
+    assert first.attack_bonus == 0
+    assert second.attack_bonus == 1
+    assert game.durations.active_count() == 1
 
 
 def test_source_effect_rejects_a_stale_or_wrong_slot():
