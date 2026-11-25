@@ -101,6 +101,14 @@ class AbilityEngine:
             strict=True,
         ):
             ability = subscription.ability
+            # Face-up monsters are game-controlled. Capture the current active
+            # player as controller when their ability actually triggers.
+            if ability.source.zone == "monster_slot":
+                ability.controller_id = game.state.active_player_id
+                context = replace(
+                    context,
+                    controller_id=game.state.active_player_id,
+                )
             # Replacement abilities are resolved synchronously by the
             # replacement pipeline before the event reaches the normal queue.
             if ability.definition.kind is AbilityKind.REPLACEMENT:
