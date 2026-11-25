@@ -16,7 +16,7 @@
 | 11 | Treasure card effects + starting eternal items | ✅ done |
 | 12 | Character stats and ability window | ✅ done |
 | 13 | Monster abilities + expansion pack | ✅ R13.1–R13.7 merged via PR #4 |
-| 13.5 | Ability architecture refactoring | 🔄 in progress — R13.5.1–R13.5.6 complete |
+| 13.5 | Ability architecture refactoring | 🔄 in progress — R13.5.1–R13.5.7 complete |
 | 14 | Combat miss on stack + cancel | 🔄 R14.1–R14.3 implemented; remaining scope open |
 | 14.5 | Stabilization & integration | ✅ done — merged PR #3; CI passed |
 | 15 | Dice on stack + roll control | 📋 planned |
@@ -138,7 +138,7 @@ The card text reads: *"This can be done on any player's turn in response to any 
 | R13.5.4 | Shared effect registry and composable atomic effects | ✅ complete |
 | R13.5.5 | Target resolution, identity, costs, durations and usage limits for current scope | ✅ complete |
 | R13.5.6 | Minimal trigger queue and replacement/prevention adapter | ✅ complete |
-| R13.5.7 | Migrate all seven Sprint 13 monsters; remove superseded specialized handlers and direct monster-ability dispatch from core | 📋 planned |
+| R13.5.7 | Migrate all seven Sprint 13 monsters; remove superseded specialized handlers and direct monster-ability dispatch from core | ✅ complete |
 | R13.5.8 | Regression, composition and deterministic integration tests | 📋 planned |
 
 **Acceptance criteria:**
