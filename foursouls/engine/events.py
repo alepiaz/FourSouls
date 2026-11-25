@@ -197,6 +197,12 @@ class CombatEntered(Event):
 
 
 @dataclass(frozen=True, slots=True)
+class MonsterEnteredActiveSlot(Event):
+    slot_index: int
+    card_ref: CardRef
+
+
+@dataclass(frozen=True, slots=True)
 class CombatRollResult(Event):
     attacker_id: PlayerId
     defender_slot: int
