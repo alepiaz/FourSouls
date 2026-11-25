@@ -421,6 +421,7 @@ class EventCardEffect:
     inner: Effect
     monster_slots: object    # SlotsZone[MonsterInPlay]
     monster_discard: object  # DiscardZone[CardRef]
+    on_uncover: object = None
 
     def validate(self, ctx: GameState) -> bool:  # noqa: ARG002
         return True  # event resolution never cancels
@@ -432,8 +433,11 @@ class EventCardEffect:
 
     def discard(self) -> None:
         occupant = self.monster_slots.get(self.slot_index)
+        uncovered = None
         if occupant is not None and occupant.card_ref == self.card_ref:
-            self.monster_slots.remove_top(self.slot_index)
+            uncovered = self.monster_slots.remove_top(self.slot_index)
+        if uncovered is not None and self.on_uncover is not None:
+            self.on_uncover(uncovered)
         if self.card_ref not in self.monster_discard.cards:
             self.monster_discard.add(self.card_ref)
 
