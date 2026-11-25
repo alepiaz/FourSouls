@@ -393,6 +393,7 @@ def _do_resolve_monster_death(game: Game, slot_index: int, attacker_id: object, 
     Does NOT clear game.combat or reset priority — callers handle that.
     """
     assert game.zones is not None
+    game.sync_monster_abilities()
 
     dead_monster = game.zones.monster_slots.get(slot_index)
     assert dead_monster is not None
