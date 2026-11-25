@@ -142,6 +142,11 @@ def place_monster_card(game: Game, slot_index: int, card_ref: CardRef, *, cover:
             inner=inner,
             monster_slots=game.zones.monster_slots,
             monster_discard=game.zones.monster_discard,
+            on_uncover=lambda uncovered: activate_monster_in_slot(
+                game,
+                slot_index,
+                uncovered,
+            ),
         )
         card_name = str(card_ref.card_id or "event")
         game.log.append(EventEntered(
