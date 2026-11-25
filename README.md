@@ -40,7 +40,7 @@ pytest
 python -m foursouls.cli
 ```
 
-You will be prompted for the number of players, their names, and an RNG seed. The board is rendered in the terminal after each action and you pick moves from a numbered menu.
+You will be prompted for the number of players, their names, and an RNG seed. The board is rendered in the terminal after each action and you pick moves from a numbered menu. The demo uses a deliberately small, non-official card distribution with registered loot, monsters and functional non-eternal treasures. Starting eternals and several rules remain incomplete.
 
 ### Start a game from code
 

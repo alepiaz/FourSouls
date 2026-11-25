@@ -483,6 +483,9 @@ def resolve_player_death(game: Game) -> None:
     if attacker_id == game.state.active_player_id:
         while not game.stack.empty():
             item = game.stack.pop()
+            from foursouls.rulesets.common.effects import PlayLootEffect
+            if isinstance(item.effect, PlayLootEffect):
+                item.effect.discard()
             game.log.append(EffectFizzled(
                 stack_id=item.stack_id,
                 reason="active_player_death",

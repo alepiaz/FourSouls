@@ -8,6 +8,10 @@ Legend:
 
 ---
 
+## Sprint 14.5 verification note
+
+The branch changes priority ownership, loot cleanup and demo decks. These corrections are subject to regression verification. Remaining rule gaps in this audit are not considered closed by those changes. In particular, dice timing, covered slots, forced deck attacks, generalized triggers and replacement/continuous effects remain open.
+
 ## Anatomy of a Card
 
 **Name Box — "Contains a card's name."**
@@ -145,7 +149,7 @@ The rules that depend on this zone:
 - ✅ `PriorityManager.all_passed()` triggers resolution of the top stack item in `game_loop.py`.
 
 **"If a loot or ability is canceled, it is removed from the stack without resolving. Loot cards removed this way go to the loot discard."**
-- ⚠️ `CancelStackItemEffect` (triggered by Butter Bean) removes the target `StackItem` from the stack. However, when a `PlayLootEffect` wrapper is the item canceled, the loot card has already been removed from hand but the wrapper's discard step never runs — the card could be left in limbo. The cancel correctly targets the inner loot effect in current card implementations (Butter Bean targets the activated ability, not the wrapper), but this is fragile. [Medium] — `CancelStackItemEffect` should check if the canceled item is a loot wrapper and explicitly discard the loot card to the loot discard as part of the cancel.
+- ✅ `CancelStackItemEffect` removes the target `StackItem` and discards a cancelled `PlayLootEffect` wrapper.
 
 ---
 

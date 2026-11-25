@@ -23,6 +23,7 @@ from foursouls.model.game_state import GameState
 from foursouls.model.refs import PlayerId
 from foursouls.rulesets.base_rules import BaseRuleset
 from foursouls.rulesets.common.combat import check_all_monster_deaths_out_of_combat, check_combat_attacker_death, check_combat_defender_death, enter_combat, resolve_roll
+from foursouls.rulesets.common.effects import PlayLootEffect
 from foursouls.rulesets.common.loot import on_play_loot
 from foursouls.rulesets.common.shop import on_buy_shop
 from foursouls.rulesets.common.items import on_activate_item
@@ -113,6 +114,8 @@ class Game:
                         # Check if CombatMissDamageEffect just killed the attacker.
                         check_combat_attacker_death(self)
                     else:
+                        if isinstance(item.effect, PlayLootEffect):
+                            item.effect.discard()
                         self.log.append(EffectFizzled(stack_id=item.stack_id, reason="validate_failed", label=item.label))
 
                     # Auto-advance phase after resolution so START does not

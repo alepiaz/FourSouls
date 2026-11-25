@@ -21,3 +21,9 @@ dev = [
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-q"
+
+[tool.setuptools.packages.find]
+include = ["foursouls*", "agents*"]
+
+[tool.setuptools.package-data]
+foursouls = ["data/*.yaml"]
