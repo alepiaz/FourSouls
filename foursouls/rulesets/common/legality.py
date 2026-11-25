@@ -31,10 +31,12 @@ def legal_commands(game: Game) -> List[Command]:
     state = game.state
     stack = game.stack
 
+    holder_id = game.priority.current()
+    is_active_holder = holder_id == state.active_player_id
     cmds: List[Command] = [PassPriority()]
 
     # EndTurn is legal in ACTION (normal) or END (after active-player death)
-    if state.phase in (Phase.ACTION, Phase.END) and stack.empty():
+    if is_active_holder and state.phase in (Phase.ACTION, Phase.END) and stack.empty():
         cmds.append(EndTurn())
 
     # ActivateCharacterAbility: legal for the priority holder whenever their
@@ -47,7 +49,6 @@ def legal_commands(game: Game) -> List[Command]:
     if state.phase == Phase.ACTION:
         active = state.get_player(state.active_player_id)
         flags = state.turn_flags
-        holder_id = game.priority.current()
 
         # PlayLoot and ActivateItem are instant-speed: legal whenever the
         # priority holder has priority during ACTION, stack state irrelevant.
@@ -78,7 +79,7 @@ def legal_commands(game: Game) -> List[Command]:
             return plays
 
         # Active player's on-turn loot plays.
-        if flags.loot_plays_used < flags.loot_plays_allowed:
+        if is_active_holder and flags.loot_plays_used < flags.loot_plays_allowed:
             for card_ref in active.hand:
                 cmds.extend(_loot_play_cmds(active.hand, card_ref))
 
@@ -93,7 +94,7 @@ def legal_commands(game: Game) -> List[Command]:
 
         # ActivateItem: instant-speed, legal regardless of stack state.
         if game.zones is not None:
-            for item in active.items:
+            for item in priority_holder.items:
                 if item.is_tapped or item.card_ref.card_id is None:
                     continue
                 defn = TREASURE_REGISTRY.get(item.card_ref.card_id)
@@ -115,7 +116,7 @@ def legal_commands(game: Game) -> List[Command]:
                     cmds.append(ActivateItem(instance_id=iid))
 
         # The remaining actions require a clear stack.
-        if stack.empty():
+        if is_active_holder and stack.empty():
             if not flags.purchase_used and game.zones is not None:
                 for idx in game.zones.shop_slots.filled_indices():
                     if active.cents >= TREASURE_COST:

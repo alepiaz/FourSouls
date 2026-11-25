@@ -16,7 +16,8 @@
 | 11 | Treasure card effects + starting eternal items | ✅ done |
 | 12 | Character stats and ability window | ✅ done |
 | 13 | Monster abilities + expansion pack | 🔄 in progress |
-| 14 | Combat miss on stack + cancel | 📋 planned |
+| 14 | Combat miss on stack + cancel | 🔄 R14.1–R14.3 implemented; remaining scope open |
+| 14.5 | Stabilization & integration | 🔄 implementation; regression verification pending |
 | 15 | Dice on stack + roll control | 📋 planned |
 | 16 | Cancel / response stack interaction | 📋 planned |
 | 17 | Priority auto-advance | 📋 planned |
@@ -121,9 +122,9 @@ The card text reads: *"This can be done on any player's turn in response to any 
 - Easy gap fills (from IMPL_STATUS [Easy]): `DestroyItemEffect`, `HealEffect`, `HealMonsterEffect`, `ForceAttackEffect` / `forced_attack_slot` on `TurnFlags`.
 
 **Releases:**
-- R14.1 — `CombatMissDamageEffect` on stack; fizzles if combat ends before it resolves
-- R14.2 — `StackItemTarget`; `Soul Heart` targets monster slot (`prevent_damage`); `DealDamageToMonsterEffect` consumes `prevent_damage` first
-- R14.3 — `BUTTER_BEAN` + `CancelStackItemEffect` + `StackItemCancelled` event
+- ✅ R14.1 — `CombatMissDamageEffect` on stack; fizzles if combat ends before it resolves
+- ✅ R14.2 — `StackItemTarget`; `Soul Heart` targets monster slot (`prevent_damage`); `DealDamageToMonsterEffect` consumes `prevent_damage` first
+- ✅ R14.3 — `BUTTER_BEAN` + `CancelStackItemEffect` + `StackItemCancelled` event
 - R14.4 — `DestroyItemEffect` + `HealEffect` + `HealMonsterEffect` + `ForceAttackEffect` (easy gap fills)
 - R14.5 — RESERVED — `<insert cancel loot> card insertion A`
 - R14.6 — Acceptance
@@ -131,6 +132,15 @@ The card text reads: *"This can be done on any player's turn in response to any 
 **Key files:** `foursouls/rulesets/common/combat.py`, `foursouls/rulesets/common/effects.py`, `foursouls/model/target.py`, `foursouls/engine/actions.py`, `foursouls/cards/loot.py`
 
 ---
+
+## Sprint 14.5 — Stabilization & integration
+
+- Fix active-player vs priority-holder legality and item ownership.
+- Discard cancelled and fizzled loot, including defensive stack cleanup.
+- Populate demo decks with registered cards and remove duplicate effect class.
+- Explicit package discovery and YAML package data.
+- Add regression tests; require a passing full suite before declaring completion.
+- Keep outstanding R13/R14 rule gaps open (mandatory deck attacks, general trigger handling and remaining effects).
 
 ## Sprint 15 — Dice on stack + roll control
 **Goal:** Make dice rolls first-class stack items so cards can respond to, reroll, or replace roll results. Also fixes `LootRollEffect` (currently resolves synchronously in `apply()`) to push the roll onto the stack and branch via a triggered ability.

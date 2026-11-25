@@ -39,7 +39,7 @@ def fire_on_start_of_turn(game: Game) -> None:
 def on_activate_item(game: Game, instance_id: InstanceId, target: Optional[AnyTarget]) -> None:
     """
     Process an ActivateItem command:
-      1. Locate the item in the active player's items.
+      1. Locate the item in the priority holder's items.
       2. Look up its TreasureDef in the registry.
       3. Tap the item and emit ItemActivated.
       4. Build the inner effect via TreasureDef.make_tap_effect.
@@ -50,7 +50,8 @@ def on_activate_item(game: Game, instance_id: InstanceId, target: Optional[AnyTa
     from foursouls.rulesets.common.effects import TreasureActivateEffect
 
     active_id = game.state.active_player_id
-    player = game.state.get_player(active_id)
+    acting_id = game.priority.current()
+    player = game.state.get_player(acting_id)
 
     item = next(
         (i for i in player.items if i.card_ref.instance_id == instance_id),
@@ -65,12 +66,12 @@ def on_activate_item(game: Game, instance_id: InstanceId, target: Optional[AnyTa
         return
 
     item.tap()
-    game.log.append(ItemActivated(player_id=active_id, source=f"item:{card_id}"))
+    game.log.append(ItemActivated(player_id=acting_id, source=f"item:{card_id}"))
 
     inner = defn.make_tap_effect(target, game)
 
     wrapper = TreasureActivateEffect(
-        player_id=active_id,
+        player_id=acting_id,
         instance_id=instance_id,
         inner=inner,
         is_one_use=defn.is_one_use,
@@ -79,7 +80,7 @@ def on_activate_item(game: Game, instance_id: InstanceId, target: Optional[AnyTa
     )
 
     game.push_to_stack(
-        controller_id=active_id,
+        controller_id=acting_id,
         source=f"item:{card_id}",
         effect=wrapper,
         label=defn.name,

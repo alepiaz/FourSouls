@@ -9,7 +9,7 @@ Scenarios
 2. Miss uses monster.attack:
    - Monster with attack=3 → player loses 3 HP on miss.
 
-3. HORF (attack=2) deals 2 damage on miss.
+3. HORF (attack=1) deals 2 damage when its miss trigger fires.
 
 4. Zero-damage hit skips DamageDealt event.
 
@@ -22,6 +22,7 @@ from __future__ import annotations
 from foursouls.cards.monsters import HORF, make_monster_in_play
 from foursouls.cli.app import build_demo_game
 from foursouls.engine.events import CombatRollResult, DamageDealt
+from foursouls.engine.rng import RNG
 from foursouls.model.monster_in_play import MonsterInPlay
 from foursouls.model.phase import Phase
 from foursouls.model.refs import CardRef, InstanceId, PlayerId
@@ -113,17 +114,17 @@ def test_hit_deals_attack_plus_bonus_damage():
 # Test 2: miss damage = monster.attack
 # ---------------------------------------------------------------------------
 
-def test_miss_deals_monster_attack_damage():
+def test_miss_deals_monster_attack_damage(monkeypatch):
     """On a guaranteed miss, player loses monster.attack HP."""
-    # Use seed that produces a miss (roll < evade=6)
-    # We'll try seeds until we get a miss, or force it by inspection
+    # Isolate the combat roll from randomness consumed by deck setup.
     g = build_demo_game(["P1", "P2"], seed=42)
     _advance_to_action(g)
 
     p1 = g.state.get_player(PlayerId("P1"))
     initial_hp = p1.hp
 
-    # Monster with evade=6 (always miss), attack=3
+    monkeypatch.setattr(RNG, "roll_d6", lambda self: 2)
+    # Monster with evade=6 and attack=3; the controlled roll of 2 misses.
     _plant_monster(g, base_hp=10, evade=6, attack=3)
 
     from foursouls.model.commands import AttackMonster, PassPriority, RollCombat
@@ -137,13 +138,14 @@ def test_miss_deals_monster_attack_damage():
     roll_events = [e for e in roll_result.events if isinstance(e, CombatRollResult)]
     assert roll_events
     roll = roll_events[0]
-    assert not roll.is_hit, "Expected a miss (evade=6)"
+    assert roll.roll == 2
+    assert not roll.is_hit, "Expected a miss (roll=2, evade=6)"
     assert roll.attack_stat == 3
     assert p1.hp == max(0, initial_hp - 3)
 
 
 # ---------------------------------------------------------------------------
-# Test 3: HORF monster has attack=2 by registry
+# Test 3: HORF has attack=1 and a roll-2 miss trigger
 # ---------------------------------------------------------------------------
 
 def test_horf_attack_is_1():
@@ -153,26 +155,17 @@ def test_horf_attack_is_1():
     assert horf.attack == 1
 
 
-def test_horf_miss_deals_2_damage():
-    """Missing against HORF costs the attacker 2 HP."""
+def test_horf_miss_deals_2_damage(monkeypatch):
+    """HORF's printed miss trigger adds one damage on a roll of 2."""
     g = build_demo_game(["P1", "P2"], seed=42)
     _advance_to_action(g)
 
     p1 = g.state.get_player(PlayerId("P1"))
     initial_hp = p1.hp
 
-    # Plant HORF (evade=2, attack=2) but override evade to 6 to guarantee miss
+    monkeypatch.setattr(RNG, "roll_d6", lambda self: 2)
     g.zones.monster_slots.set(
-        0,
-        MonsterInPlay(
-            card_ref=CardRef(InstanceId("horf-test")),
-            base_hp=2,
-            current_hp=2,
-            evade=6,
-            reward_coin=10,
-            has_soul=True,
-            attack=2,
-        ),
+        0, make_monster_in_play(CardRef(InstanceId("horf-test"), HORF))
     )
 
     from foursouls.model.commands import AttackMonster, PassPriority, RollCombat
@@ -185,6 +178,7 @@ def test_horf_miss_deals_2_damage():
 
     roll_events = [e for e in all_events if isinstance(e, CombatRollResult)]
     assert roll_events and not roll_events[0].is_hit
+    assert roll_events[0].roll == 2
     assert roll_events[0].attack_stat == 2
     assert p1.hp == max(0, initial_hp - 2)
 

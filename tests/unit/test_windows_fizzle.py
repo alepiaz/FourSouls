@@ -6,7 +6,7 @@ test_loot_play.py and test_activated_abilities.py:
 
   1. Response window around loot: priority flow, stack gating, resolve timing.
   2. Fizzle path: PlayLootEffect delegates validate to inner; EffectFizzled fires,
-     card stays in limbo, no state mutation.
+     card goes to discard, no inner effect mutation.
   3. End-to-end extra-loot: activate ability → full response cycle → play two
      separate loot cards → quota exhausted.
   4. Tap-cost guarantees: cost is paid at activation time; the effect resolving
@@ -174,8 +174,8 @@ class TestFizzle:
 
         assert any(isinstance(e, EffectFizzled) for e in events)
 
-    def test_fizzle_does_not_discard_card(self):
-        """When inner fizzles, PlayLootEffect.apply is never called — card stays in limbo."""
+    def test_fizzle_discards_card(self):
+        """A fizzled loot card still goes to the loot discard."""
         coin = _ref("coin-fz2", LOOT_COIN)
         g = _game_at_action(extra_hand=[coin])
         discard_before = len(g.zones.loot_discard.cards)
@@ -184,7 +184,8 @@ class TestFizzle:
         g.step(PassPriority())
         g.step(PassPriority())
 
-        assert len(g.zones.loot_discard.cards) == discard_before  # card in limbo
+        assert len(g.zones.loot_discard.cards) == discard_before + 1
+        assert coin in g.zones.loot_discard.cards
 
     def test_fizzle_does_not_mutate_state(self):
         """State is unchanged when a loot effect fizzles."""

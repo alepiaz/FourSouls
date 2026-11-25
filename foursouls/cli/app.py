@@ -17,8 +17,16 @@ from __future__ import annotations
 from typing import List, Optional
 
 from foursouls.cards.characters import CAIN, EVE, ISAAC, MAGDALENE, get_character_def
-from foursouls.cards.loot import BLANK_RUNE, BOMB_BANG, LOOT_COIN, SOUL_HEART
-from foursouls.cards.monsters import CURSED_CHEST, FLY, GAPER, HEADLESS_HORSEMAN, HORF, MONSTRO, SPIDER, WE_NEED_TO_GO_DEEPER
+from foursouls.cards.loot import (
+    BLANK_RUNE, BOMB_BANG, BUTTER_BEAN, FOUR_CENTS, GOLD_BOMB_BANG_BANG,
+    LOOT_COIN, NICKEL, SOUL_HEART, THREE_CENTS, TWO_CENTS,
+)
+from foursouls.cards.monsters import (
+    ATTACK_FLY, BIG_SPIDER, BOOM_FLY, CARRION_QUEEN, CLOTTY, CURSED_CHEST,
+    DINGA, FLY, GAPER, HEADLESS_HORSEMAN, HORF, MONSTRO, MULLIBOIL,
+    SPIDER, WE_NEED_TO_GO_DEEPER,
+)
+from foursouls.cards.treasures import DRY_BABY, MAMA_MEGA, MEAT_BANG
 from foursouls.cli.controller import (
     display_board,
     display_events,
@@ -41,53 +49,40 @@ from foursouls.rulesets.common.setup import setup_game
 
 # ─── Deck builders ────────────────────────────────────────────────────────────
 
-def _loot_deck() -> List[CardRef]:
-    """40-card loot deck: mostly coins, a few bombs."""
-    pool = [
-        LOOT_COIN, LOOT_COIN, LOOT_COIN,
-        LOOT_COIN, LOOT_COIN,
-        LOOT_COIN,
-        BOMB_BANG,
-        SOUL_HEART,
-        BLANK_RUNE,
+def _make_deck(prefix: str, pool: list[tuple]) -> List[CardRef]:
+    """Build distinct runtime cards from an explicit demo distribution."""
+    return [
+        CardRef(InstanceId(f"{prefix}-{index}"), card_id)
+        for index, card_id in enumerate(
+            card_id for card_id, count in pool for _ in range(count)
+        )
     ]
-    cards: List[CardRef] = []
-    iid = 0
-    for _ in range(5):          # 5 copies of the 7-card pool = 35 cards + padding
-        for cid in pool:
-            cards.append(CardRef(InstanceId(f"loot-{iid}"), cid))
-            iid += 1
-    # pad to 40
-    while len(cards) < 40:
-        cards.append(CardRef(InstanceId(f"loot-{iid}"), LOOT_COIN))
-        iid += 1
-    return cards
+
+
+def _loot_deck() -> List[CardRef]:
+    """40-card demo deck covering all implemented loot definitions."""
+    return _make_deck("loot", [
+        (LOOT_COIN, 12), (TWO_CENTS, 6), (THREE_CENTS, 4),
+        (FOUR_CENTS, 3), (NICKEL, 2), (BOMB_BANG, 4),
+        (GOLD_BOMB_BANG_BANG, 1), (SOUL_HEART, 3),
+        (BLANK_RUNE, 2), (BUTTER_BEAN, 3),
+    ])
 
 
 def _treasure_deck() -> List[CardRef]:
-    """12-card placeholder treasure deck (buy effects TBD)."""
-    return [CardRef(InstanceId(f"treasure-{i}")) for i in range(12)]
+    """Demo treasures with functional effects; starting eternals stay separate."""
+    return _make_deck("treasure", [(DRY_BABY, 4), (MEAT_BANG, 4), (MAMA_MEGA, 4)])
 
 
 def _monster_deck() -> List[CardRef]:
-    """21-card monster deck — basic monsters, bosses (soul), and events."""
-    pool = [
-        (FLY,               6),
-        (GAPER,             4),
-        (SPIDER,            4),
-        (HORF,              2),
-        (MONSTRO,           1),
-        (HEADLESS_HORSEMAN, 1),
-        (CURSED_CHEST,           1),
-        (WE_NEED_TO_GO_DEEPER,   1),
-    ]
-    cards: List[CardRef] = []
-    iid = 0
-    for cid, count in pool:
-        for _ in range(count):
-            cards.append(CardRef(InstanceId(f"monster-{iid}"), cid))
-            iid += 1
-    return cards
+    """Demo pool, not an official deck distribution; enough souls for victory."""
+    return _make_deck("monster", [
+        (FLY, 4), (GAPER, 3), (SPIDER, 3), (HORF, 2),
+        (DINGA, 2), (ATTACK_FLY, 2), (BOOM_FLY, 2),
+        (CLOTTY, 2), (MULLIBOIL, 2), (BIG_SPIDER, 2),
+        (MONSTRO, 3), (CARRION_QUEEN, 3), (HEADLESS_HORSEMAN, 3),
+        (CURSED_CHEST, 1), (WE_NEED_TO_GO_DEEPER, 1),
+    ])
 
 
 # ─── Game factory ─────────────────────────────────────────────────────────────

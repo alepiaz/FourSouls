@@ -162,7 +162,7 @@ def test_loot_effect_can_fizzle_if_target_invalid():
     """
     PlayLootEffect delegates validate() to its inner effect.
     If inner fizzles (e.g. target no longer valid), EffectFizzled fires
-    and the card is NOT discarded.
+    and the card is discarded without applying the inner effect.
     """
     coin = _ref("coin-6", LOOT_COIN)
     g = _new_game()
@@ -181,7 +181,8 @@ def test_loot_effect_can_fizzle_if_target_invalid():
     events = g.step(PassPriority()).events
 
     assert any(isinstance(e, EffectFizzled) for e in events)
-    assert len(g.zones.loot_discard.cards) == 0  # card in limbo, not discarded
+    assert g.zones.loot_discard.cards == [coin]
+    assert p1.cents == 0
 
 
 def test_priority_window_opens_before_loot_resolves():

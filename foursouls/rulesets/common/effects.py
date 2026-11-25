@@ -236,6 +236,8 @@ class CancelStackItemEffect:
     def apply(self, ctx: GameState) -> None:  # noqa: ARG002
         from foursouls.engine.events import StackItemCancelled
         item = self.stack.remove(self.target_stack_id)  # type: ignore[union-attr]
+        if item is not None and isinstance(item.effect, PlayLootEffect):
+            item.effect.discard()
         if item is not None and self.log is not None:
             self.log.append(StackItemCancelled(stack_id=item.stack_id, label=item.label))
 
@@ -267,9 +269,7 @@ class PlayLootEffect:
     """
     Wrapper that resolves a loot card's inner effect then discards the card.
 
-    If inner.validate() returns False the card remains out-of-zone (limbo).
-    No loot card in Sprint 2 is expected to fizzle, so this is acceptable
-    until a proper 'card in-play zone' is introduced.
+    Discard the card on resolution, cancellation, or fizzle.
     """
 
     card_ref: CardRef
@@ -282,8 +282,11 @@ class PlayLootEffect:
         return self.inner.validate(ctx)
 
     def apply(self, ctx: GameState) -> None:
-        from foursouls.engine.events import CardDiscarded
         self.inner.apply(ctx)
+        self.discard()
+
+    def discard(self) -> None:
+        from foursouls.engine.events import CardDiscarded
         self.loot_discard.add(self.card_ref)
         if self.log is not None and self.player_id is not None:
             card_name = str(self.card_ref.card_id or "unknown")
@@ -342,23 +345,6 @@ class GrantExtraLootPlayEffect:
             ctx.turn_flags.extra_loot_plays[pid] = (
                 ctx.turn_flags.extra_loot_plays.get(pid, 0) + 1
             )
-
-
-@dataclass(slots=True)
-class PreventDamageToMonsterEffect:
-    """Add a damage prevention shield to a monster in a given slot."""
-
-    slot_index: int
-    amount: int
-    monster_slots: object   # SlotsZone[MonsterInPlay]
-
-    def validate(self, ctx: GameState) -> bool:  # noqa: ARG002
-        return self.monster_slots.get(self.slot_index) is not None  # type: ignore[union-attr]
-
-    def apply(self, ctx: GameState) -> None:  # noqa: ARG002
-        monster = self.monster_slots.get(self.slot_index)  # type: ignore[union-attr]
-        if monster is not None:
-            monster.prevent_damage += self.amount
 
 
 @dataclass(slots=True)
