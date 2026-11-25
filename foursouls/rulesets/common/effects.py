@@ -298,10 +298,15 @@ class HealMonsterEffect:
     amount: int
 
     def validate(self, ctx: GameState) -> bool:
-        return self.monster_slots.get(self.slot_index) is self.monster and self.monster.is_alive()
+        # Death-prevention replacements heal from 0 HP while the same source
+        # still occupies its slot.
+        return self.monster_slots.get(self.slot_index) is self.monster
 
     def apply(self, ctx: GameState) -> None:
-        self.monster.current_hp = min(self.monster.base_hp, self.monster.current_hp + self.amount)
+        self.monster.current_hp = min(
+            self.monster.base_hp,
+            self.monster.current_hp + self.amount,
+        )
 
 
 @dataclass(slots=True)
