@@ -57,6 +57,14 @@ def register_monster_abilities(game: Game, slot_index: int, monster) -> None:
     ):
         return
 
+    source = game.zone_identities.active_source(
+        monster.card_ref,
+        zone="monster_slot",
+    )
+    if source is not None:
+        monster.zone_entry_id = source.zone_entry_id
+        return
+
     source = game.zone_identities.enter(
         monster.card_ref,
         zone="monster_slot",
