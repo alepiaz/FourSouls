@@ -174,6 +174,14 @@ class DealDamageEffect(_StrictDefinition):
     damage_type: Literal["combat", "ability"] = "ability"
 
 
+class DestroyItemEffect(_StrictDefinition):
+    type: Literal["destroy_item"] = "destroy_item"
+
+
+class ForceAttackEffect(_StrictDefinition):
+    type: Literal["force_attack"] = "force_attack"
+
+
 class DestroySoulEffect(_StrictDefinition):
     type: Literal["destroy_soul"] = "destroy_soul"
 
@@ -197,6 +205,8 @@ EffectDefinition = Annotated[
         PreventEventEffect,
         HealEffect,
         HealSourceEffect,
+        DestroyItemEffect,
+        ForceAttackEffect,
         DestroySoulEffect,
         DestroySourceEffect,
         ModifySourceStatsEffect,
