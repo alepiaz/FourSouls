@@ -53,6 +53,19 @@ class GainCentsEffect:
 
 
 @dataclass(slots=True)
+class HealEffect:
+    player_id: PlayerId
+    amount: int
+
+    def validate(self, ctx: GameState) -> bool:
+        return ctx.get_player(self.player_id).is_alive()
+
+    def apply(self, ctx: GameState) -> None:
+        player = ctx.get_player(self.player_id)
+        player.hp = min(player.max_hp, player.hp + self.amount)
+
+
+@dataclass(slots=True)
 class DealDamageEffect:
     """Deal damage to a player, reducing their HP (minimum 0)."""
 
