@@ -23,6 +23,12 @@ class SoulTarget:
 
 
 @dataclass(frozen=True, slots=True)
+class ItemTarget:
+    player_id: PlayerId
+    card_ref: CardRef
+
+
+@dataclass(frozen=True, slots=True)
 class StackItemTarget:
     stack_id: int
 
@@ -31,5 +37,6 @@ AnyTarget = Union[
     PlayerTarget,
     MonsterTarget,
     SoulTarget,
+    ItemTarget,
     StackItemTarget,
 ]
