@@ -14,6 +14,7 @@ from foursouls.model.abilities import (
     AbilityInstance,
     ActivePlayerSelector,
     AllMonstersSelector,
+    ChosenItemSelector,
     ChosenPlayerSelector,
     ChosenSoulSelector,
     ControllerSelector,
@@ -26,6 +27,7 @@ from foursouls.model.abilities import (
 from foursouls.model.refs import PlayerId
 from foursouls.model.target import (
     AnyTarget,
+    ItemTarget,
     MonsterTarget,
     PlayerTarget,
     SoulTarget,
@@ -105,6 +107,18 @@ class TargetResolver:
                     for player_id in game.state.turn_order
                 ),
                 chooser_id=ability.controller_id,
+            )
+
+        if isinstance(selector, ChosenItemSelector):
+            candidates = tuple(
+                ItemTarget(player_id, item.card_ref)
+                for player_id in game.state.turn_order
+                for item in game.state.get_player(player_id).items
+                if not item.eternal
+            )
+            return TargetResolution(
+                candidates=candidates,
+                chooser_id=context.controller_id,
             )
 
         if isinstance(selector, ChosenSoulSelector):
