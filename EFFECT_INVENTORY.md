@@ -9,6 +9,9 @@ This snapshot covers the Sprint 14 interactions and selected architecture probes
 | Bomb! | Play loot / loot allowance | Acting player, player or monster slot | Deal damage, consuming applicable shields first | Loot-specific path | `tests/acceptance/test_sprint14_acceptance.py` |
 | Carrion Queen | Incoming combat damage on 4 or 5 | Automatic, self | Prevent the damage | Shared replacement pipeline | `tests/acceptance/test_sprint13_completion.py` |
 | Headless Horseman | Would die, once per turn | Automatic, self | Prevent death, heal, and modify stats until end of turn | Shared replacement pipeline | `tests/acceptance/test_sprint13_completion.py` |
+| Sprint 14 healing primitive | Supplied by ability | Selected player | Restore HP up to max HP | Shared YAML | `tests/acceptance/test_sprint14_gap_effects.py` |
+| Sprint 14 item-destruction primitive | Supplied by ability | Selected non-eternal item | Move item to treasure discard | Shared YAML | `tests/acceptance/test_sprint14_gap_effects.py` |
+| Sprint 14 forced attack primitive | Supplied by ability | Selected monster | Require an attack on that monster while it remains valid this turn | Shared YAML | `tests/acceptance/test_sprint14_gap_effects.py` |
 | Wizoob probe | Simulated death trigger | Choose player, then that player chooses a soul | Destroy the chosen soul | Shared primitives verified in isolation | `tests/unit/test_trigger_pipeline.py` |
 | Cursed Gaper | Resolved roll | Automatic group targeting | Temporary group stat modifier | Universal roll event and group application pending | Pending |
 | Death’s Head | Static and linked death behavior | Automatic | Attack restriction and linked removal | Static legality and death linkage pending | Pending |
