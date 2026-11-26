@@ -10,6 +10,7 @@ from foursouls.model.abilities import (
     DestroySourceEffect as DestroySourceDefinition,
     EffectDefinition,
     GrantDeckAttackEffect as GrantDeckAttackDefinition,
+    HealEffect as HealDefinition,
     HealSourceEffect as HealSourceDefinition,
     ModifyEventAmountEffect,
     ModifySourceStatsEffect as ModifySourceStatsDefinition,
@@ -22,6 +23,7 @@ from foursouls.rulesets.common.effects import (
     DestroyMonsterEffect,
     DestroySoulEffect,
     GrantDeckAttackEffect,
+    HealEffect,
     HealMonsterEffect,
     ModifyMonsterStatsEffect,
 )
@@ -42,6 +44,7 @@ class EffectRegistry:
         self._builders: dict[type[object], EffectBuilder] = {}
         self.register(GrantDeckAttackDefinition, self._build_grant_deck_attack)
         self.register(DealDamageDefinition, self._build_deal_damage)
+        self.register(HealDefinition, self._build_heal)
         self.register(HealSourceDefinition, self._build_heal_source)
         self.register(DestroySoulDefinition, self._build_destroy_soul)
         self.register(DestroySourceDefinition, self._build_destroy_source)
@@ -110,6 +113,17 @@ class EffectRegistry:
             amount=definition.amount,
             damage_type=definition.damage_type,
         )
+
+    @staticmethod
+    def _build_heal(
+        definition: object,
+        context: AbilityContext,
+        game: "Game",
+    ) -> Effect:
+        if not isinstance(definition, HealDefinition):
+            raise TypeError("invalid heal definition")
+        target = _single_target(context, PlayerTarget)
+        return HealEffect(player_id=target.player_id, amount=definition.amount)
 
     @staticmethod
     def _build_heal_source(
