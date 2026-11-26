@@ -158,6 +158,11 @@ class PreventEventEffect(_StrictDefinition):
     type: Literal["prevent_event"] = "prevent_event"
 
 
+class HealEffect(_StrictDefinition):
+    type: Literal["heal"] = "heal"
+    amount: int = Field(gt=0)
+
+
 class HealSourceEffect(_StrictDefinition):
     type: Literal["heal_source"] = "heal_source"
     amount: int = Field(gt=0)
@@ -190,6 +195,7 @@ EffectDefinition = Annotated[
         DealDamageEffect,
         ModifyEventAmountEffect,
         PreventEventEffect,
+        HealEffect,
         HealSourceEffect,
         DestroySoulEffect,
         DestroySourceEffect,
