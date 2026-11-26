@@ -172,9 +172,9 @@ The card text reads: *"This can be done on any player's turn in response to any 
 - ✅ R14.1 — `CombatMissDamageEffect` on stack; fizzles if combat ends before it resolves
 - ✅ R14.2 — `StackItemTarget`; `Soul Heart` targets monster slot (`prevent_damage`); `DealDamageToMonsterEffect` consumes `prevent_damage` first
 - ✅ R14.3 — `BUTTER_BEAN` + `CancelStackItemEffect` + `StackItemCancelled` event
-- R14.4 — `DestroyItemEffect` + `HealEffect` + `ForceAttackEffect` (remaining gap fills); `HealMonsterEffect` implemented in R13.7, integrate with shared effect registry
-- R14.5 — RESERVED — `<insert cancel loot> card insertion A`
-- R14.6 — Acceptance and first effect inventory snapshot
+- ✅ R14.4 — `DestroyItemEffect` + `HealEffect` + `ForceAttackEffect` (remaining gap fills); `HealMonsterEffect` implemented in R13.7, integrate with shared effect registry
+- R14.5 — Optional card insertion slot remains reserved
+- R14.6 — Acceptance tests and [first effect inventory snapshot](EFFECT_INVENTORY.md)
 
 **Effect inventory milestone:** Use Base Game V2 as the initial corpus. Track one row per ability with card ID and source, trigger, conditions, cost, chooser and target, atomic effects, duration and usage limit, implementation status, and regression test. Distinguish shared YAML support, legacy-only support, and missing primitives or timing. Start with the effects shipped in Sprint 14 and publish the coverage boundary of the first snapshot. Track remaining corpus coverage separately from engine implementation.
 
