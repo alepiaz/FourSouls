@@ -71,7 +71,7 @@ def test_mega_fatty_heals_only_after_damage_resolves(monkeypatch):
     assert m.current_hp == 1
     _resolve_one(g)
     assert p.hp == 19 and m.current_hp == 1
-    assert g.stack.top().label == "MonsterHeal"
+    assert g.stack.top().label == "Ability:mega_fatty_heal:0"
     _resolve(g)
     assert m.current_hp == 2
     g.step(RollCombat())

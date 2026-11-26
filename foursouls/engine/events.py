@@ -197,6 +197,12 @@ class CombatEntered(Event):
 
 
 @dataclass(frozen=True, slots=True)
+class MonsterEnteredActiveSlot(Event):
+    slot_index: int
+    card_ref: CardRef
+
+
+@dataclass(frozen=True, slots=True)
 class CombatRollResult(Event):
     attacker_id: PlayerId
     defender_slot: int
@@ -204,6 +210,20 @@ class CombatRollResult(Event):
     evade: int
     is_hit: bool
     attack_stat: int = 1    # effective ATK used for damage this roll
+
+
+@dataclass(frozen=True, slots=True)
+class DamageWouldBeDealt(Event):
+    source_player_id: Optional[PlayerId]
+    source_monster_slot: Optional[int]
+    target_player_id: Optional[PlayerId]
+    target_monster_slot: Optional[int]
+    amount: int
+    reason: str
+    damage_type: str = "combat"
+    roll: Optional[int] = None
+    source_card_ref: Optional[CardRef] = None
+    target_card_ref: Optional[CardRef] = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -216,6 +236,8 @@ class DamageDealt(Event):
     amount: int
     reason: str             # e.g. "combat_hit", "combat_miss", "loot_bomb"
     damage_type: str = "combat"   # "combat" | "ability"
+    source_card_ref: Optional[CardRef] = None
+    target_card_ref: Optional[CardRef] = None
 
 
 # ---------------------------------------------------------------------------
@@ -235,6 +257,15 @@ class EventEntered(Event):
 # ---------------------------------------------------------------------------
 
 @dataclass(frozen=True, slots=True)
+class MonsterDeathWouldOccur(Event):
+    attacker_id: PlayerId
+    slot_index: int
+    card_ref: CardRef
+    monster_name: str
+    kill_roll: int = 0
+
+
+@dataclass(frozen=True, slots=True)
 class MonsterDied(Event):
     attacker_id: PlayerId
     slot_index: int
@@ -244,6 +275,7 @@ class MonsterDied(Event):
     reward_coin: int = 0
     reward_loot: int = 0
     reward_treasure: int = 0
+    kill_roll: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -289,28 +321,6 @@ class GameWon(Event):
     """Fired when a player reaches the soul win threshold."""
     player_id: PlayerId
     soul_count: int
-
-
-# ---------------------------------------------------------------------------
-# Monster triggers (Sprint 13)
-# ---------------------------------------------------------------------------
-
-@dataclass(frozen=True, slots=True)
-class MonsterTriggerFired(Event):
-    """
-    Fired when a monster's trigger callback is invoked by the combat engine.
-
-    Fields
-    ------
-    card_id  : the triggering monster's card ID (None for unknown/stub monsters)
-    trigger  : one of ``"on_death"``, ``"on_miss"``,
-               ``"on_would_take_combat_damage"``, ``"on_would_die"``
-    roll     : the d6 result that caused the trigger (0 for triggers that are
-               not roll-dependent, e.g. ``on_would_die``)
-    """
-    card_id: Optional[CardId]
-    trigger: str
-    roll: int
 
 
 # ---------------------------------------------------------------------------

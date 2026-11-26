@@ -2,26 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Optional, TYPE_CHECKING
+from typing import Dict, Optional
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
+from foursouls.model.abilities import AbilityDefinition
 from foursouls.model.monster_in_play import MonsterInPlay
 from foursouls.model.refs import CardId, CardRef
-
-if TYPE_CHECKING:
-    from foursouls.engine.game_loop import Game
-    from foursouls.model.effects import Effect
-
-# Type aliases for monster trigger callbacks (used only for documentation;
-# TYPE_CHECKING guards keep these from being imported at runtime).
-#
-#   on_death(game, roll) -> None          — fires after combat confirms kill
-#   on_miss(game, roll) -> int            — returns (possibly modified) miss damage
-#   on_would_take_combat_damage(game, roll, amount) -> int
-#                                         — returns (possibly modified) hit damage
-#   on_would_die(game) -> bool            — returns True if death is prevented
 
 # ── Card ID constants ─────────────────────────────────────────────────────────
 
@@ -38,6 +26,8 @@ BIG_SPIDER    = CardId("BIG_SPIDER")
 BONY          = CardId("BONY")
 MEGA_FATTY    = CardId("MEGA_FATTY")
 CARRION_QUEEN = CardId("CARRION_QUEEN")
+THE_BLOAT     = CardId("THE_BLOAT")
+CURSED_PSY_HORF = CardId("CURSED_PSY_HORF")
 
 # Boss card IDs
 MONSTRO           = CardId("MONSTRO")            # Base Game V2
@@ -61,22 +51,9 @@ class MonsterDef:
     reward_treasure: int = 0  # treasure cards drawn by attacker on kill (e.g. Headless Horseman)
     is_boss: bool = False
     is_event: bool = False
+    abilities: tuple[AbilityDefinition, ...] = ()
     # Callable[[Game], Effect] — not part of equality or hash
     event_effect: object = field(default=None, compare=False, hash=False)
-    # ── Sprint 13 trigger hooks (R13.1 substrate) ─────────────────────────────
-    # None means "no trigger for this monster".  Callables are excluded from
-    # equality and hashing so MonsterDef instances remain safely comparable.
-    #
-    # on_death(game, roll) -> None
-    on_death: object = field(default=None, compare=False, hash=False)
-    # on_miss(game, roll) -> int   (return value = final miss damage)
-    on_miss: object = field(default=None, compare=False, hash=False)
-    # on_would_take_combat_damage(game, roll, amount) -> int   (return = final damage)
-    on_would_take_combat_damage: object = field(default=None, compare=False, hash=False)
-    # on_would_die(game) -> bool   (return True = death prevented)
-    on_would_die: object = field(default=None, compare=False, hash=False)
-    on_attack_roll: object = field(default=None, compare=False, hash=False)
-    on_combat_damage_dealt: object = field(default=None, compare=False, hash=False)
 
 
 # ── YAML schema (Pydantic) ────────────────────────────────────────────────────
@@ -96,19 +73,14 @@ class _MonsterEntry(BaseModel):
     reward_treasure: int = Field(default=0, ge=0)
     is_boss: bool = False
     is_event: bool = False
-    on_death: Optional[_AbilityConfig] = None
-    on_miss: Optional[_AbilityConfig] = None
-    on_would_take_combat_damage: Optional[_AbilityConfig] = None
-    on_would_die: Optional[_AbilityConfig] = None
-    on_attack_roll: Optional[_AbilityConfig] = None
-    on_combat_damage_dealt: Optional[_AbilityConfig] = None
+    abilities: tuple[AbilityDefinition, ...] = ()
     event_effect: Optional[_AbilityConfig] = None
 
 
 # ── Registry loader ───────────────────────────────────────────────────────────
 
 def _load_registry() -> Dict[CardId, MonsterDef]:
-    from foursouls.cards.ability_handlers import build_trigger, build_event_effect
+    from foursouls.cards.ability_handlers import build_event_effect
 
     data_path = Path(__file__).parent.parent / "data" / "monsters.yaml"
     raw: dict = yaml.safe_load(data_path.read_text(encoding="utf-8"))
@@ -129,13 +101,12 @@ def _load_registry() -> Dict[CardId, MonsterDef]:
             reward_treasure=entry.reward_treasure,
             is_boss=entry.is_boss,
             is_event=entry.is_event,
-            event_effect=build_event_effect(entry.event_effect.model_dump()) if entry.event_effect else None,
-            on_death=build_trigger(entry.on_death.model_dump()) if entry.on_death else None,
-            on_miss=build_trigger(entry.on_miss.model_dump()) if entry.on_miss else None,
-            on_would_take_combat_damage=build_trigger(entry.on_would_take_combat_damage.model_dump()) if entry.on_would_take_combat_damage else None,
-            on_would_die=build_trigger(entry.on_would_die.model_dump()) if entry.on_would_die else None,
-            on_attack_roll=build_trigger(entry.on_attack_roll.model_dump()) if entry.on_attack_roll else None,
-            on_combat_damage_dealt=build_trigger(entry.on_combat_damage_dealt.model_dump()) if entry.on_combat_damage_dealt else None,
+            abilities=entry.abilities,
+            event_effect=(
+                build_event_effect(entry.event_effect.model_dump())
+                if entry.event_effect
+                else None
+            ),
         )
 
     return registry
@@ -179,11 +150,5 @@ def make_monster_in_play(card_ref: CardRef) -> MonsterInPlay:
         reward_treasure=defn.reward_treasure,
         is_boss=defn.is_boss,
         is_event=defn.is_event,
-        # Sprint 13 R13.2: copy trigger hooks from the definition
-        on_death=defn.on_death,
-        on_miss=defn.on_miss,
-        on_would_take_combat_damage=defn.on_would_take_combat_damage,
-        on_would_die=defn.on_would_die,
-        on_attack_roll=defn.on_attack_roll,
-        on_combat_damage_dealt=defn.on_combat_damage_dealt,
+        abilities=defn.abilities,
     )

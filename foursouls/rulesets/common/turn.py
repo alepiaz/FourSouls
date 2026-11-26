@@ -66,7 +66,6 @@ def on_activate_character_ability(game: Game) -> None:
     active_id = game.state.active_player_id
     acting_id = game.priority.current()
     game.state.get_player(acting_id).character.tap()
-    game.log.append(ItemActivated(player_id=acting_id, source="character:tap_ability"))
     effect = GrantExtraLootPlayEffect(player_id=acting_id)
     game.push_to_stack(
         controller_id=acting_id,
@@ -74,6 +73,13 @@ def on_activate_character_ability(game: Game) -> None:
         effect=effect,
         label="GrantExtraLootPlay",
     )
+    game.emit(
+        ItemActivated(
+            player_id=acting_id,
+            source="character:tap_ability",
+        )
+    )
+    game.activate_next_trigger()
     game.priority.reset_to(active_id)
 
 
@@ -112,6 +118,9 @@ def on_end_turn(game: Game) -> None:
         player.hp = player.max_hp
         player.prevent_damage = 0
 
+    # Expire declarative modifiers before legacy per-turn fields are reset.
+    game.durations.expire_end_of_turn(old_turn_number)
+
     # All monsters in slots also heal to full and clear per-turn state at end of every turn
     if game.zones is not None:
         for idx in game.zones.monster_slots.filled_indices():
@@ -119,8 +128,6 @@ def on_end_turn(game: Game) -> None:
             if monster is not None:
                 monster.current_hp = monster.base_hp
                 monster.prevent_damage = 0
-                # Sprint 13 (R13.1): reset trigger-derived per-turn flags
-                monster.prevent_death_used = False
                 monster.evade_bonus = 0
                 monster.attack_bonus = 0
 

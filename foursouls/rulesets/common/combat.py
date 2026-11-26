@@ -8,25 +8,110 @@ from foursouls.engine.events import (
     CombatEntered,
     CombatRollResult,
     DamageDealt,
+    DamageWouldBeDealt,
     DeathPenaltyPaid,
     EffectFizzled,
     EventEntered,
     GameWon,
+    ItemActivated,
+    MonsterDeathWouldOccur,
     MonsterDied,
-    MonsterTriggerFired,
+    MonsterEnteredActiveSlot,
     PhaseChanged,
     PlayerDied,
     SoulGranted,
 )
+from foursouls.model.abilities import AbilityInstance
 from foursouls.model.phase import Phase
 from foursouls.model.combat_state import CombatState
 from foursouls.model.refs import CardRef
+from foursouls.model.target import MonsterTarget
 from foursouls.rulesets.common.effects import CombatMissDamageEffect
 
 if TYPE_CHECKING:
     from foursouls.engine.game_loop import Game
 
 SOULS_TO_WIN = 4
+
+_MONSTER_ABILITY_EVENT_TYPES = {
+    event_type.__name__: event_type
+    for event_type in (
+        CombatRollResult,
+        DamageDealt,
+        DamageWouldBeDealt,
+        ItemActivated,
+        MonsterDeathWouldOccur,
+        MonsterDied,
+        MonsterEnteredActiveSlot,
+    )
+}
+
+
+def register_monster_abilities(game: Game, slot_index: int, monster) -> None:
+    """Register one face-up monster incarnation with the shared dispatcher."""
+    if monster.is_event or not monster.abilities:
+        return
+    if (
+        monster.zone_entry_id is not None
+        and game.zone_identities.is_active(monster.zone_entry_id)
+    ):
+        return
+
+    source = game.zone_identities.active_source(
+        monster.card_ref,
+        zone="monster_slot",
+    )
+    if source is not None:
+        monster.zone_entry_id = source.zone_entry_id
+        return
+
+    source = game.zone_identities.enter(
+        monster.card_ref,
+        zone="monster_slot",
+        target=MonsterTarget(slot_index),
+    )
+    monster.zone_entry_id = source.zone_entry_id
+
+    for index, definition in enumerate(monster.abilities):
+        trigger = definition.trigger
+        if trigger is None:
+            continue
+        try:
+            event_type = _MONSTER_ABILITY_EVENT_TYPES[trigger.event_type]
+        except KeyError as exc:
+            raise ValueError(
+                f"unsupported monster ability event: {trigger.event_type}"
+            ) from exc
+        ability = AbilityInstance(
+            instance_id=(
+                f"{source.zone_entry_id}:{index}:{definition.ability_id}"
+            ),
+            definition=definition,
+            source=source,
+            controller_id=game.state.active_player_id,
+        )
+        game.event_dispatcher.subscribe(event_type, ability)
+
+
+def unregister_monster_abilities(game: Game, monster) -> None:
+    """Remove subscriptions and durations for one monster incarnation."""
+    zone_entry_id = monster.zone_entry_id
+    if zone_entry_id is None:
+        return
+    game.leave_zone_entry(zone_entry_id)
+    monster.zone_entry_id = None
+
+
+def activate_monster_in_slot(game: Game, slot_index: int, monster) -> None:
+    register_monster_abilities(game, slot_index, monster)
+    if not monster.is_event:
+        game.emit(
+            MonsterEnteredActiveSlot(
+                slot_index=slot_index,
+                card_ref=monster.card_ref,
+            )
+        )
+        game.activate_next_trigger()
 
 
 def place_monster_card(game: Game, slot_index: int, card_ref: CardRef, *, cover: bool = False) -> None:
@@ -44,15 +129,17 @@ def place_monster_card(game: Game, slot_index: int, card_ref: CardRef, *, cover:
     if cover:
         previous = game.zones.monster_slots.get(slot_index)
         if previous is not None:
-            # Covered objects leave play; their transient damage/modifiers do not carry over.
+            unregister_monster_abilities(game, previous)
+            # Covered objects leave play; transient state does not carry over.
             previous.current_hp = previous.base_hp
             previous.prevent_damage = 0
-            previous.prevent_death_used = False
             previous.evade_bonus = 0
             previous.attack_bonus = 0
         game.zones.monster_slots.cover(slot_index, monster)
     else:
         game.zones.monster_slots.set(slot_index, monster)
+
+    activate_monster_in_slot(game, slot_index, monster)
 
     if monster.is_event:
         defn = get_monster_def(card_ref.card_id)
@@ -63,6 +150,11 @@ def place_monster_card(game: Game, slot_index: int, card_ref: CardRef, *, cover:
             inner=inner,
             monster_slots=game.zones.monster_slots,
             monster_discard=game.zones.monster_discard,
+            on_uncover=lambda uncovered: activate_monster_in_slot(
+                game,
+                slot_index,
+                uncovered,
+            ),
         )
         card_name = str(card_ref.card_id or "event")
         game.log.append(EventEntered(
@@ -155,17 +247,7 @@ def enter_combat(game: Game, slot_index: int, *, from_deck: bool = False) -> Non
 
 
 def resolve_roll(game: Game) -> None:
-    """
-    Execute one combat exchange:
-    - Roll d6.
-    - Hit (roll >= monster.evade + evade_bonus): invoke on_would_take_combat_damage
-      (if defined), then apply final damage to monster.
-    - Miss (roll < evade): invoke on_miss (if defined) to determine final miss
-      damage, then apply to attacker.
-    - Skip the damage step if the final amount is 0.
-    - Log CombatRollResult and DamageDealt.
-    - Check for death; invoke on_would_die before resolving monster death.
-    """
+    """Resolve one combat roll through declarative trigger/replacement paths."""
     assert game.combat is not None and game.combat.is_active
     assert game.zones is not None
 
@@ -175,45 +257,55 @@ def resolve_roll(game: Game) -> None:
 
     attacker = game.state.get_player(combat.attacker_id)
     roll = game.rng.roll_d6()
-    combat.last_combat_roll = roll                              # R13.1 substrate
+    combat.last_combat_roll = roll
 
-    effective_evade = monster.evade + monster.evade_bonus      # R13.1 substrate
+    effective_evade = monster.evade + monster.evade_bonus
     is_hit = roll >= effective_evade
 
     if is_hit:
-        damage = attacker.attack + attacker.attack_bonus
-        # on_would_take_combat_damage: let the monster modify incoming damage
-        if monster.on_would_take_combat_damage is not None:
-            game.log.append(MonsterTriggerFired(
-                card_id=monster.card_ref.card_id,
-                trigger="on_would_take_combat_damage",
-                roll=roll,
-            ))
-            damage = monster.on_would_take_combat_damage(game, roll, damage)  # type: ignore[call-arg]
+        proposed_damage = attacker.attack + attacker.attack_bonus
+        would_deal = DamageWouldBeDealt(
+            source_player_id=combat.attacker_id,
+            source_monster_slot=None,
+            target_player_id=None,
+            target_monster_slot=combat.defender_slot,
+            amount=proposed_damage,
+            reason="combat_hit",
+            roll=roll,
+            target_card_ref=monster.card_ref,
+        )
+        game.log.append(would_deal)
+        damage = game.replacements.apply_damage(would_deal, game).amount
         if damage > 0:
             monster.take_damage(damage)
-            game.log.append(DamageDealt(
-                source_player_id=combat.attacker_id,
-                source_monster_slot=None,
-                target_player_id=None,
-                target_monster_slot=combat.defender_slot,
-                amount=damage,
-                reason="combat_hit",
-                damage_type="combat",
-            ))
+            game.emit(
+                DamageDealt(
+                    source_player_id=combat.attacker_id,
+                    source_monster_slot=None,
+                    target_player_id=None,
+                    target_monster_slot=combat.defender_slot,
+                    amount=damage,
+                    reason="combat_hit",
+                    damage_type="combat",
+                    target_card_ref=monster.card_ref,
+                )
+            )
+            game.activate_next_trigger()
         attack_stat = damage
     else:
-        damage = monster.attack + monster.attack_bonus         # R13.1 substrate
-        # on_miss: let the monster modify miss damage
-        if monster.on_miss is not None:
-            game.log.append(MonsterTriggerFired(
-                card_id=monster.card_ref.card_id,
-                trigger="on_miss",
-                roll=roll,
-            ))
-            damage = monster.on_miss(game, roll)               # type: ignore[call-arg]
-        # Push miss damage to the stack so players can respond (R14.1).
-        # Actual HP reduction happens when the effect resolves in game_loop.
+        proposed_damage = monster.attack + monster.attack_bonus
+        would_deal = DamageWouldBeDealt(
+            source_player_id=None,
+            source_monster_slot=combat.defender_slot,
+            target_player_id=combat.attacker_id,
+            target_monster_slot=None,
+            amount=proposed_damage,
+            reason="combat_miss",
+            roll=roll,
+            source_card_ref=monster.card_ref,
+        )
+        game.log.append(would_deal)
+        damage = game.replacements.apply_damage(would_deal, game).amount
         if damage > 0:
             game.push_to_stack(
                 controller_id=combat.attacker_id,
@@ -227,51 +319,53 @@ def resolve_roll(game: Game) -> None:
             )
         attack_stat = damage
 
-    game.log.append(CombatRollResult(
-        attacker_id=combat.attacker_id,
-        defender_slot=combat.defender_slot,
-        roll=roll,
-        evade=effective_evade,
-        is_hit=is_hit,
-        attack_stat=attack_stat,
-    ))
+    game.emit(
+        CombatRollResult(
+            attacker_id=combat.attacker_id,
+            defender_slot=combat.defender_slot,
+            roll=roll,
+            evade=effective_evade,
+            is_hit=is_hit,
+            attack_stat=attack_stat,
+        )
+    )
+    game.activate_next_trigger()
 
-    # Attack-roll triggers are active on all face-up monsters. Individual
-    # handlers can restrict their scope when their printed text requires it.
-    for slot_index in game.zones.monster_slots.filled_indices():
-        source = game.zones.monster_slots.get(slot_index)
-        if source is not None and not source.is_event and source.on_attack_roll is not None:
-            source.on_attack_roll(game, source, slot_index, roll)
-
-    # ── Death checks (hit path only; miss damage is on the stack) ────────────
     if check_combat_defender_death(game, kill_roll=roll):
-        pass  # monster died; resolve_monster_death already reset priority
+        pass
     else:
         game.priority.reset_to(combat.attacker_id)
 
 
-def _prevent_monster_death(game: Game, slot_index: int) -> bool:
+def _prevent_monster_death(
+    game: Game,
+    slot_index: int,
+    *,
+    kill_roll: int = 0,
+) -> bool:
     monster = game.zones.monster_slots.get(slot_index)
-    if monster is None or monster.on_would_die is None or monster.prevent_death_used:
+    if monster is None:
         return False
-    game.log.append(MonsterTriggerFired(
-        card_id=monster.card_ref.card_id, trigger="on_would_die", roll=0,
-    ))
-    previous = game.monster_death_slot
-    game.monster_death_slot = slot_index
-    try:
-        prevented = monster.on_would_die(game)
-    finally:
-        game.monster_death_slot = previous
-    if prevented:
-        monster.prevent_death_used = True
-    return prevented
+
+    event = MonsterDeathWouldOccur(
+        attacker_id=(
+            game.combat.attacker_id
+            if game.combat is not None
+            else game.state.active_player_id
+        ),
+        slot_index=slot_index,
+        card_ref=monster.card_ref,
+        monster_name=str(monster.card_ref.card_id or "unknown"),
+        kill_roll=kill_roll,
+    )
+    game.log.append(event)
+    return game.replacements.apply_monster_death(event, game).prevented
 
 
 def check_combat_defender_death(game: Game, *, kill_roll: int = 0) -> bool:
     """
     If there is active combat and the defender's HP has reached zero, resolve
-    its death (including the on_would_die trigger).
+    its death (including declarative death replacements).
 
     Returns True  → monster death was resolved; game.combat is now None.
     Returns False → monster is still alive, or death was prevented by a trigger.
@@ -286,7 +380,11 @@ def check_combat_defender_death(game: Game, *, kill_roll: int = 0) -> bool:
     if monster is None or monster.is_alive():
         return False
 
-    if not _prevent_monster_death(game, game.combat.defender_slot):
+    if not _prevent_monster_death(
+        game,
+        game.combat.defender_slot,
+        kill_roll=kill_roll,
+    ):
         resolve_monster_death(game, kill_roll=kill_roll)
         return True
 
@@ -297,12 +395,13 @@ def _do_resolve_monster_death(game: Game, slot_index: int, attacker_id: object, 
     """
     Shared core for monster-death resolution.
 
-    Handles rewards, slot refill, on_death trigger, and win-condition check.
+    Handles rewards, slot refill, death events, and win-condition checks.
     Called by both resolve_monster_death (combat path) and
     resolve_monster_death_out_of_combat (loot/ability path).
     Does NOT clear game.combat or reset priority — callers handle that.
     """
     assert game.zones is not None
+    game.sync_monster_abilities()
 
     dead_monster = game.zones.monster_slots.get(slot_index)
     assert dead_monster is not None
@@ -313,23 +412,22 @@ def _do_resolve_monster_death(game: Game, slot_index: int, attacker_id: object, 
     game.zones.monster_discard.add(dead_monster.card_ref)
     uncovered = game.zones.monster_slots.remove_top(slot_index)
 
-    # Refill only if no underlying monster was uncovered.
-    if uncovered is None and not game.zones.monster_deck.empty():
-        new_ref = game.zones.monster_deck.draw(1)[0]
-        place_monster_card(game, slot_index, new_ref)
-
     attacker = game.state.get_player(attacker_id)  # type: ignore[arg-type]
 
-    game.log.append(MonsterDied(
-        attacker_id=attacker_id,  # type: ignore[arg-type]
-        slot_index=slot_index,
-        card_ref=dead_monster.card_ref,
-        monster_name=monster_name,
-        reward_coin=dead_monster.reward_coin,
-        had_soul=dead_monster.has_soul,
-        reward_loot=dead_monster.reward_loot,
-        reward_treasure=dead_monster.reward_treasure,
-    ))
+    game.emit(
+        MonsterDied(
+            attacker_id=attacker_id,  # type: ignore[arg-type]
+            slot_index=slot_index,
+            card_ref=dead_monster.card_ref,
+            monster_name=monster_name,
+            reward_coin=dead_monster.reward_coin,
+            had_soul=dead_monster.has_soul,
+            reward_loot=dead_monster.reward_loot,
+            reward_treasure=dead_monster.reward_treasure,
+            kill_roll=kill_roll,
+        )
+    )
+    game.activate_next_trigger()
 
     # Grant cent reward (always, even if 0 — keeps the path uniform).
     attacker.cents += dead_monster.reward_coin
@@ -372,14 +470,12 @@ def _do_resolve_monster_death(game: Game, slot_index: int, attacker_id: object, 
             card_name=monster_name,
         ))
 
-    # on_death: fires after rewards; callback receives the triggering roll
-    if dead_monster.on_death is not None:
-        game.log.append(MonsterTriggerFired(
-            card_id=dead_monster.card_ref.card_id,
-            trigger="on_death",
-            roll=kill_roll,
-        ))
-        dead_monster.on_death(game, kill_roll)                 # type: ignore[call-arg]
+    unregister_monster_abilities(game, dead_monster)
+    if uncovered is not None:
+        activate_monster_in_slot(game, slot_index, uncovered)
+    elif not game.zones.monster_deck.empty():
+        new_ref = game.zones.monster_deck.draw(1)[0]
+        place_monster_card(game, slot_index, new_ref)
 
     # Check win condition
     if len(attacker.souls) >= SOULS_TO_WIN:
@@ -459,7 +555,7 @@ def check_all_monster_deaths_out_of_combat(game: Game) -> None:
         # Re-check: the slot may have been refilled by an earlier death in this loop.
         monster = game.zones.monster_slots.get(idx)
         if (monster is not None and not monster.is_event and not monster.is_alive()
-                and not _prevent_monster_death(game, idx)):
+                and not _prevent_monster_death(game, idx, kill_roll=0)):
             resolve_monster_death_out_of_combat(game, idx)
 
 

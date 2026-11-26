@@ -66,8 +66,6 @@ def on_activate_item(game: Game, instance_id: InstanceId, target: Optional[AnyTa
         return
 
     item.tap()
-    game.log.append(ItemActivated(player_id=acting_id, source=f"item:{card_id}"))
-
     inner = defn.make_tap_effect(target, game)
 
     wrapper = TreasureActivateEffect(
@@ -85,4 +83,11 @@ def on_activate_item(game: Game, instance_id: InstanceId, target: Optional[AnyTa
         effect=wrapper,
         label=defn.name,
     )
+    game.emit(
+        ItemActivated(
+            player_id=acting_id,
+            source=f"item:{card_id}",
+        )
+    )
+    game.activate_next_trigger()
     game.priority.reset_to(active_id)

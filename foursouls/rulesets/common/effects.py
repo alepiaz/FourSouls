@@ -233,6 +233,64 @@ class ModifyMonsterAttackEffect:
 
 
 @dataclass(slots=True)
+class DestroySoulEffect:
+    player_id: PlayerId
+    card_ref: CardRef
+
+    def validate(self, ctx: GameState) -> bool:
+        return self.card_ref in ctx.get_player(self.player_id).souls
+
+    def apply(self, ctx: GameState) -> None:
+        ctx.get_player(self.player_id).souls.remove(self.card_ref)
+
+
+@dataclass(slots=True)
+class DestroyMonsterEffect:
+    monster_slots: object
+    slot_index: int
+    monster: object
+
+    def validate(self, ctx: GameState) -> bool:
+        return (
+            self.monster_slots.get(self.slot_index) is self.monster
+            and self.monster.is_alive()
+        )
+
+    def apply(self, ctx: GameState) -> None:
+        self.monster.current_hp = 0
+
+
+@dataclass(slots=True)
+class ModifyMonsterStatsEffect:
+    monster_slots: object
+    slot_index: int
+    monster: object
+    attack_delta: int = 0
+    evade_delta: int = 0
+    duration_manager: object = None
+    zone_entry_id: str = ""
+    expires_turn: int = 0
+
+    def validate(self, ctx: GameState) -> bool:
+        return (
+            self.monster_slots.get(self.slot_index) is self.monster
+            and self.monster.is_alive()
+        )
+
+    def apply(self, ctx: GameState) -> None:
+        self.monster.attack_bonus += self.attack_delta
+        self.monster.evade_bonus += self.evade_delta
+        if self.duration_manager is not None:
+            self.duration_manager.register_monster_stats(
+                zone_entry_id=self.zone_entry_id,
+                monster=self.monster,
+                attack_delta=self.attack_delta,
+                evade_delta=self.evade_delta,
+                expires_turn=self.expires_turn,
+            )
+
+
+@dataclass(slots=True)
 class HealMonsterEffect:
     monster_slots: object
     slot_index: int
@@ -240,10 +298,15 @@ class HealMonsterEffect:
     amount: int
 
     def validate(self, ctx: GameState) -> bool:
-        return self.monster_slots.get(self.slot_index) is self.monster and self.monster.is_alive()
+        # Death-prevention replacements heal from 0 HP while the same source
+        # still occupies its slot.
+        return self.monster_slots.get(self.slot_index) is self.monster
 
     def apply(self, ctx: GameState) -> None:
-        self.monster.current_hp = min(self.monster.base_hp, self.monster.current_hp + self.amount)
+        self.monster.current_hp = min(
+            self.monster.base_hp,
+            self.monster.current_hp + self.amount,
+        )
 
 
 @dataclass(slots=True)
@@ -358,6 +421,7 @@ class EventCardEffect:
     inner: Effect
     monster_slots: object    # SlotsZone[MonsterInPlay]
     monster_discard: object  # DiscardZone[CardRef]
+    on_uncover: object = None
 
     def validate(self, ctx: GameState) -> bool:  # noqa: ARG002
         return True  # event resolution never cancels
@@ -369,8 +433,11 @@ class EventCardEffect:
 
     def discard(self) -> None:
         occupant = self.monster_slots.get(self.slot_index)
+        uncovered = None
         if occupant is not None and occupant.card_ref == self.card_ref:
-            self.monster_slots.remove_top(self.slot_index)
+            uncovered = self.monster_slots.remove_top(self.slot_index)
+        if uncovered is not None and self.on_uncover is not None:
+            self.on_uncover(uncovered)
         if self.card_ref not in self.monster_discard.cards:
             self.monster_discard.add(self.card_ref)
 

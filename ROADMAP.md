@@ -15,8 +15,8 @@
 | 10 | Loot card diversity + targeting system | ✅ done |
 | 11 | Treasure card effects + starting eternal items | ✅ done |
 | 12 | Character stats and ability window | ✅ done |
-| 13 | Monster abilities + expansion pack | ✅ R13.1–R13.7 verified; PR #4 awaiting merge |
-| 13.5 | Ability architecture refactoring | 📋 next — foundation before further card expansion |
+| 13 | Monster abilities + expansion pack | ✅ R13.1–R13.7 merged via PR #4 |
+| 13.5 | Ability architecture refactoring | ✅ done — R13.5.1–R13.5.8 complete |
 | 14 | Combat miss on stack + cancel | 🔄 R14.1–R14.3 implemented; remaining scope open |
 | 14.5 | Stabilization & integration | ✅ done — merged PR #3; CI passed |
 | 15 | Dice on stack + roll control | 📋 planned |
@@ -132,14 +132,14 @@ The card text reads: *"This can be done on any player's turn in response to any 
 
 | Release | Deliverable | Status |
 |---|---|---|
-| R13.5.1 | Shared ability definitions, runtime context and validated YAML schema | 📋 planned |
-| R13.5.2 | Domain event dispatcher and zone-aware subscriptions | 📋 planned |
-| R13.5.3 | Typed condition evaluator and event/source matching | 📋 planned |
-| R13.5.4 | Shared effect registry and composable atomic effects | 📋 planned |
-| R13.5.5 | Target resolution, identity, costs, durations and usage limits for current scope | 📋 planned |
-| R13.5.6 | Minimal trigger queue and replacement/prevention adapter | 📋 planned |
-| R13.5.7 | Migrate all seven Sprint 13 monsters; remove superseded specialized handlers and direct monster-ability dispatch from core | 📋 planned |
-| R13.5.8 | Regression, composition and deterministic integration tests | 📋 planned |
+| R13.5.1 | Shared ability definitions, runtime context and validated YAML schema | ✅ complete |
+| R13.5.2 | Domain event dispatcher and zone-aware subscriptions | ✅ complete |
+| R13.5.3 | Typed condition evaluator and event/source matching | ✅ complete |
+| R13.5.4 | Shared effect registry and composable atomic effects | ✅ complete |
+| R13.5.5 | Target resolution, identity, costs, durations and usage limits for current scope | ✅ complete |
+| R13.5.6 | Minimal trigger queue and replacement/prevention adapter | ✅ complete |
+| R13.5.7 | Migrate all seven Sprint 13 monsters; remove superseded specialized handlers and direct monster-ability dispatch from core | ✅ complete |
+| R13.5.8 | Regression, composition and deterministic integration tests | ✅ complete |
 
 **Acceptance criteria:**
 - Gaper, Horf, Big Spider, Carrion Queen, Headless Horseman, Bony and Mega Fatty retain their existing verified behavior.
@@ -442,6 +442,8 @@ The card text reads: *"This can be done on any player's turn in response to any 
 |---|---|---|
 | Generic ability model / event dispatcher / subscriptions | 13.5 | Shared foundation for future cards |
 | Condition / selector / effect composition | 13.5 | YAML-only combinations of known primitives |
+| `DestroySoulEffect` / `DestroySourceEffect` | 13.5 | Atomic effects; target selection is completed in R13.5.5 |
+| `chosen_player` / `all_monsters` selectors | 13.5 | Explicit R13.5.5 target-resolution scope |
 | Minimal trigger queue and replacement adapter | 13.5 | Migrated monster abilities; expanded in 23–24 |
 | Combat miss damage on stack | 14 | First step toward full dice-on-stack |
 | Stack-item targeting (`StackItemTarget`) | 14 | Required by Butter Bean and cancel effects |
@@ -463,6 +465,7 @@ The card text reads: *"This can be done on any player's turn in response to any 
 | Full trigger queue system | 23 | Extend 13.5 foundation; all trigger sites updated |
 | Replacement effect system | 24 | Depends on trigger queue |
 | Continuous effects layer | 25 | Depends on replacement effects |
+| Static legality modifiers (`cannot_be_attacked`) | 25 | Derived legality from in-play static abilities |
 
 ---
 

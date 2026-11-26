@@ -139,11 +139,8 @@ def test_basic_monster_def_stats(card_id, hp, evade, atk, coins, loot, soul):
     assert defn.has_soul == soul
     assert not defn.is_boss
     assert not defn.is_event
-    # Phase 0 basics have no trigger hooks
-    assert defn.on_death is None
-    assert defn.on_miss is None
-    assert defn.on_would_take_combat_damage is None
-    assert defn.on_would_die is None
+    # Phase 0 basics have no declarative abilities.
+    assert defn.abilities == ()
 
 
 @pytest.mark.parametrize("card_id,hp,evade,atk,coins,loot,soul", BASIC_MONSTER_SPECS)

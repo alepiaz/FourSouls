@@ -48,9 +48,15 @@ GAPER:
   attack: 1
   reward_coin: 3
   has_soul: false
-  on_death:
-    type: forced_extra_attack
-    roll_condition: 6
+  abilities:
+    - ability_id: gaper_forced_attack
+      kind: triggered
+      trigger: {type: event, event_type: MonsterDied}
+      conditions:
+        - {type: event_source_is_ability_source}
+        - {type: roll_equals, value: 6}
+      effects:
+        - {type: grant_deck_attack, required: true}
 
 SPIDER:
   base_hp: 1
@@ -65,10 +71,16 @@ HORF:
   attack: 1
   reward_coin: 3
   has_soul: false
-  on_miss:
-    type: extra_miss_damage
-    roll_condition: 2
-    amount: 1
+  abilities:
+    - ability_id: horf_extra_miss_damage
+      kind: replacement
+      trigger: {type: event, event_type: DamageWouldBeDealt}
+      conditions:
+        - {type: source_in_zone, zone: monster_slot}
+        - {type: event_source_is_ability_source}
+        - {type: roll_equals, value: 2}
+      effects:
+        - {type: modify_event_amount, delta: 1}
 
 BIG_SPIDER:
   base_hp: 3
@@ -76,8 +88,14 @@ BIG_SPIDER:
   attack: 1
   has_soul: false
   reward_loot: 1
-  on_death:
-    type: optional_extra_attack
+  abilities:
+    - ability_id: big_spider_optional_attack
+      kind: triggered
+      trigger: {type: event, event_type: MonsterDied}
+      conditions:
+        - {type: event_source_is_ability_source}
+      effects:
+        - {type: grant_deck_attack, required: false}
 
 CARRION_QUEEN:
   base_hp: 3
@@ -86,9 +104,16 @@ CARRION_QUEEN:
   has_soul: true
   reward_treasure: 1
   is_boss: true
-  on_would_take_combat_damage:
-    type: shield_on_rolls
-    rolls: [4, 5]
+  abilities:
+    - ability_id: carrion_queen_prevent_combat_damage
+      kind: replacement
+      trigger: {type: event, event_type: DamageWouldBeDealt}
+      conditions:
+        - {type: source_in_zone, zone: monster_slot}
+        - {type: event_target_is_ability_source}
+        - {type: roll_in, values: [4, 5]}
+      effects:
+        - {type: prevent_event}
 
 # ── Bosses ───────────────────────────────────────────────────────────────────
 
@@ -107,11 +132,23 @@ HEADLESS_HORSEMAN:
   has_soul: true
   reward_treasure: 1
   is_boss: true
-  on_would_die:
-    type: death_prevention_with_heal
-    heal: 2
-    evade_delta: 1
-    attack_delta: -1
+  abilities:
+    - ability_id: headless_horseman_prevent_death
+      kind: replacement
+      trigger: {type: event, event_type: MonsterDeathWouldOccur}
+      conditions:
+        - {type: source_in_zone, zone: monster_slot}
+        - {type: event_target_is_ability_source}
+      targets:
+        - {type: source}
+      effects:
+        - {type: prevent_event}
+        - {type: heal_source, amount: 2}
+        - type: modify_source_stats
+          attack_delta: -1
+          evade_delta: 1
+          duration: end_of_turn
+      usage_limit: {max_uses: 1, reset: each_turn}
 
 # ── Events ───────────────────────────────────────────────────────────────────
 
@@ -138,10 +175,19 @@ BONY:
   evade: 3
   attack: 1
   reward_loot: 1
-  on_attack_roll:
-    type: attack_bonus_on_roll
-    roll_condition: 1
-    amount: 2
+  abilities:
+    - ability_id: bony_attack_bonus
+      kind: triggered
+      trigger: {type: event, event_type: CombatRollResult}
+      conditions:
+        - {type: source_in_zone, zone: monster_slot}
+        - {type: roll_equals, value: 1}
+      targets:
+        - {type: source}
+      effects:
+        - type: modify_source_stats
+          attack_delta: 2
+          duration: end_of_turn
 
 # R13.7 — Base Game V2: https://foursouls.com/cards/b2-mega_fatty/
 MEGA_FATTY:
@@ -151,6 +197,63 @@ MEGA_FATTY:
   has_soul: true
   is_boss: true
   reward_loot: 2
-  on_combat_damage_dealt:
-    type: heal_on_combat_damage
-    amount: 1
+  abilities:
+    - ability_id: mega_fatty_heal
+      kind: triggered
+      trigger: {type: event, event_type: DamageDealt}
+      conditions:
+        - {type: source_in_zone, zone: monster_slot}
+        - {type: event_source_is_ability_source}
+        - {type: positive_damage}
+      targets:
+        - {type: source}
+      effects:
+        - {type: heal_source, amount: 1}
+
+
+# Sprint 13.5 declarative monster abilities.
+# Promo: https://foursouls.com/cards/p-the_bloat_3/
+THE_BLOAT:
+  base_hp: 5
+  evade: 3
+  attack: 2
+  has_soul: true
+  is_boss: true
+  reward_treasure: 1
+  abilities:
+    - ability_id: the_bloat_enter_damage
+      kind: triggered
+      trigger: {type: event, event_type: MonsterEnteredActiveSlot}
+      conditions:
+        - {type: source_in_zone, zone: monster_slot}
+        - {type: event_source_is_ability_source}
+      targets:
+        - {type: random_other_player}
+      effects:
+        - {type: deal_damage, amount: 2}
+    - ability_id: the_bloat_death_damage
+      kind: triggered
+      trigger: {type: event, event_type: MonsterDied}
+      conditions:
+        - {type: event_source_is_ability_source}
+      targets:
+        - {type: random_other_player}
+      effects:
+        - {type: deal_damage, amount: 2}
+
+# Base Game V2: https://foursouls.com/cards/b2-cursed_psy_horf/
+CURSED_PSY_HORF:
+  base_hp: 1
+  evade: 5
+  attack: 1
+  reward_loot: 2
+  abilities:
+    - ability_id: cursed_psy_horf_item_damage
+      kind: triggered
+      trigger: {type: event, event_type: ItemActivated}
+      conditions:
+        - {type: source_in_zone, zone: monster_slot}
+      targets:
+        - {type: triggering_player}
+      effects:
+        - {type: deal_damage, amount: 1}
