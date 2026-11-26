@@ -552,3 +552,47 @@ class TreasureActivateEffect:
                         card_name=str(item.card_ref.card_id or "unknown"),
                         zone="treasure_discard",
                     ))
+
+
+@dataclass(slots=True)
+class DestroyItemEffect:
+    player_id: PlayerId
+    card_ref: CardRef
+    treasure_discard: DiscardZone
+
+    def _target(self, ctx: GameState):
+        return next(
+            (item for item in ctx.get_player(self.player_id).items
+             if item.card_ref == self.card_ref and not item.eternal),
+            None,
+        )
+
+    def validate(self, ctx: GameState) -> bool:
+        return self._target(ctx) is not None
+
+    def apply(self, ctx: GameState) -> None:
+        item = self._target(ctx)
+        if item is not None:
+            ctx.get_player(self.player_id).items.remove(item)
+            self.treasure_discard.add(item.card_ref)
+
+
+@dataclass(slots=True)
+class ForceAttackEffect:
+    slot_index: int
+    card_ref: CardRef
+    monster_slots: object
+
+    def validate(self, ctx: GameState) -> bool:
+        monster = self.monster_slots.get(self.slot_index)
+        return (
+            ctx.get_player(ctx.active_player_id).is_alive()
+            and monster is not None
+            and monster.card_ref == self.card_ref
+            and not monster.is_event
+            and monster.is_alive()
+        )
+
+    def apply(self, ctx: GameState) -> None:
+        ctx.turn_flags.forced_attack_slot = self.slot_index
+        ctx.turn_flags.forced_attack_card = self.card_ref
