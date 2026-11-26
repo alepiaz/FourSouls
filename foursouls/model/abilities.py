@@ -104,6 +104,10 @@ class ChosenPlayerSelector(_StrictDefinition):
     type: Literal["chosen_player"] = "chosen_player"
 
 
+class ChosenItemSelector(_StrictDefinition):
+    type: Literal["chosen_item"] = "chosen_item"
+
+
 class ChosenSoulSelector(_StrictDefinition):
     type: Literal["chosen_soul"] = "chosen_soul"
     player_target_index: int = Field(default=0, ge=0)
@@ -122,6 +126,7 @@ TargetSelectorDefinition = Annotated[
         TriggeringPlayerSelector,
         RandomOtherPlayerSelector,
         ChosenPlayerSelector,
+        ChosenItemSelector,
         ChosenSoulSelector,
         AllMonstersSelector,
     ],
