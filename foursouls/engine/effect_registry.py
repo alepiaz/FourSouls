@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING
 from foursouls.model.abilities import (
     AbilityContext,
     DealDamageEffect as DealDamageDefinition,
+    DestroyItemEffect as DestroyItemDefinition,
+    ForceAttackEffect as ForceAttackDefinition,
     DestroySoulEffect as DestroySoulDefinition,
     DestroySourceEffect as DestroySourceDefinition,
     EffectDefinition,
@@ -17,9 +19,11 @@ from foursouls.model.abilities import (
     PreventEventEffect,
 )
 from foursouls.model.effects import Effect
-from foursouls.model.target import MonsterTarget, PlayerTarget, SoulTarget
+from foursouls.model.target import ItemTarget, MonsterTarget, PlayerTarget, SoulTarget
 from foursouls.rulesets.common.effects import (
     DealDamageEffect,
+    DestroyItemEffect,
+    ForceAttackEffect,
     DestroyMonsterEffect,
     DestroySoulEffect,
     GrantDeckAttackEffect,
@@ -46,6 +50,8 @@ class EffectRegistry:
         self.register(DealDamageDefinition, self._build_deal_damage)
         self.register(HealDefinition, self._build_heal)
         self.register(HealSourceDefinition, self._build_heal_source)
+        self.register(DestroyItemDefinition, self._build_destroy_item)
+        self.register(ForceAttackDefinition, self._build_force_attack)
         self.register(DestroySoulDefinition, self._build_destroy_soul)
         self.register(DestroySourceDefinition, self._build_destroy_source)
         self.register(ModifySourceStatsDefinition, self._build_modify_source_stats)
@@ -140,6 +146,26 @@ class EffectRegistry:
             monster=monster,
             amount=definition.amount,
         )
+
+    @staticmethod
+    def _build_destroy_item(definition, context, game) -> Effect:
+        target = _single_target(context, ItemTarget)
+        if game.zones is None:
+            raise EffectBuildError("game zones are not initialized")
+        return DestroyItemEffect(
+            target.player_id, target.card_ref, game.zones.treasure_discard
+        )
+
+    @staticmethod
+    def _build_force_attack(definition, context, game) -> Effect:
+        target = _single_target(context, MonsterTarget)
+        if game.zones is None:
+            raise EffectBuildError("game zones are not initialized")
+        slots = game.zones.monster_slots
+        monster = slots.get(target.slot_index)
+        if monster is None:
+            raise EffectBuildError("forced attack requires an occupied slot")
+        return ForceAttackEffect(target.slot_index, monster.card_ref, slots)
 
     @staticmethod
     def _build_destroy_soul(
