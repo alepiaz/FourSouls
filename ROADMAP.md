@@ -1,4 +1,113 @@
+# Delivery roadmap
+
+## Playable baseline
+
+Two or more seats can run a seeded CLI demo, draw/play loot, activate selected items, buy from the shop, attack face-up monsters or the deck, pass priority, resolve combat and win at four one-point soul cards. Trusted CPU policies can submit the same commands. The default pools are hand-built and mix editions. Several registered cards have incomplete or incorrect effects; roll responses, general player decisions, death timing, deck recycling, fair private views and large-batch analysis remain incomplete.
+
+| Reference | Status on 28 November 2026 |
+|---|---|
+| Sprint 14.5, Sprint 13, Sprint 13.5 | Merged in that order via PRs #3, #4 and #5. Merged baseline `main@b39edc6`. R13.5 is also the historical Headless Horseman release within Sprint 13. |
+| Sprint 14 completion | `sprint-14-completion@0e668c1`, open [PR #6](https://github.com/alepiaz/FourSouls/pull/6). Use main for shipped claims and this tip for audited-engine claims. Integration of #6 is a prerequisite only for work using its changes. |
+| Audit and planning | [Batch 055](BASE_GAME_V2_AUDIT.md), `audit-base-game-v2@0b3bef1`. 287 grouped designs, 370 ability/setup/reward rows. [Capability and wiring map](EFFECT_INVENTORY.md) · [Execution traces and tested baselines](IMPL_STATUS.md). |
+
+## Next playable milestone
+
+**A corrected V2 demo pack and a board that refills after ordinary events.** Deliver four new demo entries, repair Clotty, and remove a reproduced cause of stalled CPU games. The content and refill changes can start on merged Sprint 13.5. Publish the pack only after both lanes pass. This milestone has its own name (V2 demo pack); the historical optional R14.5 insertion and the completed Sprint 14.5 keep their meanings.
+
+| Order | Developer task and files | Acceptance |
+|---|---|---|
+| 1 | Start with the incorrect Clotty expectation in `tests/unit/test_phase0_cards.py::BASIC_MONSTER_SPECS`. Change expected HP/DC/ATK/reward to 2/3/1/4. Confirm the old definition fails; fix `foursouls/data/monsters.yaml`. | Exact definition and instance, no abilities or soul. A plain 1-ATK hit leaves 1 HP; second hit pays four cents once. |
+| 2 | Extend the existing numeric registries in `cards/monsters.py`, `cards/loot.py`, `data/monsters.yaml`, `data/loot.yaml`. Add Dip (1/4/1, 1¢), Pale Fatty (4/3/1, 6¢), Red Host (2/3/1, 5¢), A Dime!! (gain 10¢). | Each ref loads its exact definition, no fallback, no new effect type. Test amounts and empty monster ability tuples. A canceled Dime pays zero and reaches loot discard once. |
+| 3 | Wire the IDs in `cli/app.py::_monster_deck/_loot_deck`. Use one demo copy each, adjusting counts of ordinary monsters/coins to retain the existing demo pool sizes; record the demo distribution. Extend `test_stabilization.py`. | Pool contains each ID, distinct physical refs, stable order before shuffle and reproducible setup. Reach cards from a normal factory. Preserve existing named cards and a winnable soul supply. Official multiplicities stay at R26. |
+| 4 (parallel with 1–3) | Split the existing `test_event_slot_cleared_after_resolution` expectation in `tests/acceptance/test_sprint9_acceptance.py` into empty-supply and available-supply cases. Trace `EventCardEffect.apply`, `place_monster_card`, `Game.step` and `SlotsZone.remove_top`. At the normal priority boundary service a due vacant slot through existing placement. Restore covered occupants first. Expose the same refill operation to R24 when that milestone introduces death-held slots. | Consecutive ordinary events each get their actual response/resolve window, then expose one monster. With an uncovered occupant draw zero new cards. Empty supply returns control without spinning. Event discard/entry/subscription happens once. No recursion or auto-pass past an actionable response. |
+| 5 | Add one scenario fixture built with `setup_game`, genuine YAML IDs, fixed deck composition and a scripted roll stream or selected seed. Use `get_legal_actions` and `Game.step` for all moves, including both seats' passes. Reuse Sprint 10/13 acceptance helpers where possible. | After setup, play Dime from hand. Respond/pass until it pays 10¢. Attack corrected Clotty; roll two hits. Verify HP after the first, a **net 14¢** from the two cards, one Clotty in discard, no soul, a fixed refill event with no coin change resolves and the next monster is attackable when an allowance is available. Assert command actor and ordered events; repeat same seed/actions. No direct effect call, synthetic death, or clearing the stack in this test. |
+| 6 | Run the existing suite and the fixed 20-seed CPU panel described in IMPL_STATUS. Record completion/caps and investigate residual caps independently of throughput. | All pack and refill scenarios pass. No capped game leaves ordinary monster slots empty indefinitely while eligible cards remain. Report residual reasons and names/IDs wired; the strict full-design verification gate remains per audit row. |
+
+**Delivery accounting.** The pack changes four absent designs to demo-wired and repairs one already-wired design. The refill fix earns zero additional card credits. Register-only alternatives include single-loot and boss monsters listed in the inventory. Count those at their actual pack. A universal final-roll signal alone also earns zero cards: Cursed Gaper needs group resolution and expiry, Holy Dinga additionally needs healing and a variable reward, and item listeners need acquisition/subscription.
+
+<a id="ordering-rationale"></a>
+
+## Dependency order
+
+| Start when | Work that can proceed | Integration gate |
+|---|---|---|
+| Merged main | Demo data and refill in parallel; reproduce the known timing/visibility failures. Review PR #6 on its own merits. | Compare the suite and replay panel on each baseline before calling a branch feature shipped. |
+| Existing command/stack kernel | R23 decision and captured-context slice, R16 stack kind/sequence contract, R20 target incarnation slice. Private observation work in R17 can start with current actions. | A pending ability can ask the authorized owner once on resolution; source exit and target exit have different effects. A nested roll returns to its original instruction. Decide this contract before card packs depend on eager target binding. |
+| Stack metadata and decision contract | R15 roll path, R16 cancellation pack, R23 typed event subscriptions. Build R20 deck transactions in parallel. | Attack and non-attack rolls are actionable, revalidate by ID and finalize once; unchanged seed/decisions replay. This is the next rules-heavy playable release after the demo pack. |
+| Staged resolution and identity | R24 damage/death/rewards (ordinary souls first); R25 simple derived stats; R17 quiescence/private views; R20 piles/trinket. | Wizoob normal death with delegated choice, Cursed Gaper group expiry, legal off-turn responses. Each feature runs with CLI or scripted CPU. |
+| Choice, zones and per-viewer observations | R21 transfer/votes; R22 curses/bonus souls after death stages; R25 complex statics; R18 measured batch runner, then R19 bot comparison. | Fair observation for agent comparison; consistent transfer/replacement for card certification. Full V2 is independent of heuristic bot tuning. |
+| Individual capability exits | R26 edition-specific content/edge packs can land incrementally. Multiplicity research can start immediately. | Every design satisfies the verification gate; manifest reconciles all 340 entries. |
+
+<a id="mechanics-placed-in-existing-sprints"></a>
+
+## Release ownership and migration
+
+Completed milestone IDs are retained below. The ranges here keep the original planned release IDs as lookup keys; the order above governs delivery. Optional reserved slots are available for audited cards only after all their dependencies pass. They never count as shipped work by themselves.
+
+### Sprint 15 — Dice on stack + roll control
+
+R15.1–2 add a roll stack kind and resumable consumers in `engine/stack.py`, `game_loop.py`, `common/combat.py` and `common/effects.py` after early R16/R23 contracts. R15.3 supports roll branches, flip, set and add; R15.4 wires The D6 and Lucky Foot, R15.5 Dice Shard and Godhead. R15.6–7 remain optional packs. R15.8 requires attack and non-attack responses, reroll by original controller, category-restricted Lucky Foot, bounds 1–6, source cancellation, final-only observer and unchanged seeded replay. Reserve the pre-final and continuous-modifier stages; Sacred Heart/Bum-Bo! require those later providers. Integrate Cursed Gaper once R23 group selection and per-beneficiary expiry are available, independently of full R25 statics.
+
+### Sprint 16 — Cancel / response stack interaction
+
+Pull R16.1 stack-kind metadata ahead of R15. Include source kind, ability ID, mode and captured controller. R16.2 uses one cancelable entry per printed ability with ordered effects. Expose tap/paid item IDs and explicit costs here for The Bone, Battery Bum and No!; compound payments wait for R21. R16.3 wires No!, R16.4 filters Butter Bean targets, R16.5–6 remain optional. R16.7 exit: cancel a paid item ability without refunding it, reject a roll as a Butter Bean target, discard one canceled physical loot and zero synthetic copies. Depends on early R23 decisions for mode/target choice.
+
+### Sprint 17 — Priority auto-advance
+
+R17.1–3 put pass-only advancement in the referee, bind legal actions/decisions to a viewer, project private hands and events, and adapt `cli/render.py`, `cli/app.py` and trusted bots. Retain explicit passing anywhere another action is legal; support entitled loot/item responses during START/END. R17.4–5 reserved; R17.6 exit: two states differing only in an opponent hand or secret order serialize identically to the viewer. A character-granted off-turn play remains available to its owner. Current priority, active player and decision owner can differ. An interactive handoff must avoid leaving private cards on a shared terminal. Depends on early R23 chooser contract; R18/19 consume the public interface.
+
+### Sprint 18 — Statistics pipeline
+
+R18.1–3 ship a bounded headless runner and streaming aggregation with run metadata (revision, deck hash, seeds, policies, cap policy), winner/turns, capped games and reasons. Keep independent per-game RNG streams and a configurable trace sink. R18.4–5 optional benchmark fixtures. R18.6 exit: same 20 seeds twice produce identical per-seed outcomes/events, short batch equals the concatenation of shards, wins plus caps/errors equals attempts, and peak memory stays bounded with summary-only output. Publish games/s, commands/s and cap rate. Depends on stable actions/decisions and R17 for fair-agent measurements; the diagnostic seed panel runs today. Million-game throughput is a measured later target.
+
+### Sprint 19 — Heuristic bot
+
+R19.1–3 score public legal actions/decisions, including off-turn choices, and compare policies on paired seeds with reversed seats. R19.4–5 optional. R19.6 exit: reproduce a 500-game comparison with wins/losses/caps, seat split and uncertainty; retain the historical 55% target as an experiment. Requires R17 and R18. Bot strength does not gate V2 rules delivery.
+
+### Sprint 20 — Trinkets + pile targeting
+
+Pull the incarnation part of R20.1 forward for slot targets, rolls and beneficiaries. Complete pile selection, multi-card inspection/reorder, reveal, search/shuffle, recycling, expand/refill, and conservation after R17 private decisions. R20.2 models trinket entry carrying loot origin; R20.3 integrates pile abilities including We Need to Go Deeper! after R23 attack grants. R20.4–5 optional; R20.6 exit: short pile reorders preserve exact identities, buried cards have no active subscriptions, a previously covered ref becomes a fresh incarnation, a destroyed trinket goes to loot discard. Private “look”/continuous permission and public “reveal” have distinct views.
+
+### Sprint 21 — Player interaction
+
+R21.1–2 reuse R20 zone/ownership and R23 decision contracts for give, steal, swap, rotate, chooser-owned discard and compound costs. Include turn-relative neighbors, seeded random selection including self where printed, optional decisions and Remote Detonator ballots. R21.3 pack: Decoy, Incubus, Chaos or Remote Detonator after their own dependencies. R21.4–5 optional; R21.6 exit: exchange two items atomically with counters preserved, a previously activated ability resolves for its original controller, private hand selection goes to the proper seat, ties destroy nothing, failed costs leave all assets untouched.
+
+### Sprint 22 — Curses + rooms
+
+R22.1/R22.3–4 deliver curse entry, transfer, owner-bound subscriptions and removal on owner death, then optional outside-game bonus souls, threshold checks, permanent retirement and victory on any grant/transfer. Depends on R20 incarnation/origin, R23 timing and R24 death/soul value. R22.6 exit: Curse of Loss fires at the correct death stage and leaves once; Soul of Greed is claimed at the threshold and cannot be reclaimed after destruction. R22.2/R22.5 room deck/room pack explicitly deferred beyond Base V2. This frees the original room capacity for the three audited bonus souls.
+
+### Sprint 23 — Trigger queue
+
+Pull the decision/continuation part of R23.1–2 forward. Add the event and producer through the shared dispatcher; extend registration from monsters to items, characters, curses and outside-game listeners as those zones ship. R23.3 orders simultaneous triggers by rules, including the appropriate player's ordering decision. R23.4 adds start/end, purchase/attack declaration before/after target selection, optional/mandatory allowances, future/skip turns, force-end cleanup and pre/post-reward timing with R24. R23.5 shares one R15 final-roll notification. R23.6 exit: no stale registration, no event doubled, no priority inside a single instruction sequence except rules-defined interruptions. Cursed Psy Horf listens to successful item activation, including a paid ability, and ignores a character tap. Verify observed roller, active seat and captured controller independently.
+
+### Sprint 24 — Replacement effects
+
+R24.1 extends selected combat interception to shared, observable amount/recipient transactions for gain/loot, loss, acquisition, destruction, prevention and replacement. R24.2 models pending damage with origin, cause, combat/ability and actual positive amount; R24.3 provides resumable monster/player death and cleanup, holding zone, exact destination, replaceable rewards, soul values and victory check. R24.4 adds affected-player ordering and once-per-event application; depends on early R23 decisions and R16 metadata. R24.5 exit: Wizoob's two owners and loot-three order through normal play, a boss never in both discard and souls, lethal damage to a non-attacker, zero damage and direct kill differentiated. Variable/doubled rewards and rolled prevention also require R15. Test a short reward deck, simultaneous deaths and before/after penalty triggers separately.
+
+### Sprint 25 — Continuous effects + static ability layer
+
+Start R25.1–2 after R20 identity to derive ordinary HP, ATK, evasion, roll modifiers, hand limits, loot/purchase/attack allowances and shop cost from current sources. R25.3 adds evolving conditions, targeting/attack restrictions and private top-card permission. R25.4 covers counters, first/every-N occurrence and effective characteristics for R26 copies. R25.5 exit: Stoney cannot be attacked but can be damaged, buffs vanish when it leaves; Cursed Gaper's already granted buffs persist on surviving recipients. Repeated queries never accumulate stats. A change of control/hand size refreshes conditions. Depends on R15 only for roll-dependent statics and on R24 only for replacement-dependent behavior. Death’s Head remains an out-of-set probe.
+
+### Sprint 26 — Base Game V2 closure
+
+Deliver remaining audited items, loot, monsters, characters, curses and events in small packs as their capability families pass. Include copying an ability vs copying a loot/physical item, delayed/conditional effects, setup exceptions (Eden, Cain), vote and deck-search rulings, Guppy tags, optional bonus souls and catalog validation. Revisit original short entries as well as later detailed rows. R26 owns every residual test and card-specific edge case in [the 370-row routing index](EFFECT_INVENTORY.md#audit-row-routing), even if an earlier feature has shipped.
+
+**Exit:** each of the 287 distinct designs has a matching edition-specific definition, normal setup/entry, every required ability and a reproducible normal-play test. Verify the 20 provisional representative IDs and reconcile 53 extra copies to reach 340 exact physical entries, filtering by player count/options. Reject missing, duplicate or unknown manifest IDs. Run mixed-deck seeded matches with conservation, winner rules, replay and cap diagnostics. Publish verified numerator, remaining open rulings and exact profile. Full V2 release requires closure of all blocking rulings; expansions and rooms stay outside it.
+
+## Open rules and operating assumptions
+
+| Decision to settle | Owner and gate |
+|---|---|
+| Which obligation is consumed when several restricted and unrestricted attack grants can satisfy one declaration? What if none is legal? | R23.4 before certifying Portal/Conquest/Ambush. Resolve against declaration rules and test multiple simultaneous grants, optionality, cancel and forced end. |
+| At which damage stage and amount do Dople/Evil Twin/Rage Creep duplicate, and how are linked instances prevented or replaced? | R24 before these cards. Preserve cause/recipient links and test two seats, both neighbor directions and shields without recursive duplication. |
+| Does a canceled first attack roll consume the ordinal for Polydactyly/Curved Horn? How do roll ordinal and continuous modifiers interact? | R15 captures stable roll identity; R25 resolves the ruling before granting either design credit. Rerolling the same die never creates a second identity. |
+| Per-card ambiguities on optional choices, costs, source movement and alternate destinations | Each audit assessment records the disputed case. The owning capability milestone supplies a ruling or retains it in R26. Add the official citation and a discriminating test; keep unresolved cases out of verified totals. |
+
+The [extended rulebook](https://foursouls.com/rules/extended-rulebook/) governs timing, refills, targets, rolls, damage and zone changes. The [historical proposed R15–25 breakdown](https://github.com/alepiaz/FourSouls/blob/0e668c1a524288e3fdebb24eca03f9471178641c/ROADMAP.md#L196-L487) preserves the original detail. History below is the completed scope at the relevant release, with PR #6 status called out separately.
+
 ## Status at a glance
+
+Historical releases through Sprint 14.5. Future release IDs, outcomes and dependencies are listed above.
 
 | Sprint | Name | Status |
 |--------|------|--------|
@@ -17,21 +126,8 @@
 | 12 | Character stats and ability window | ✅ done |
 | 13 | Monster abilities + expansion pack | ✅ R13.1–R13.7 merged via PR #4 |
 | 13.5 | Ability architecture refactoring | ✅ done — R13.5.1–R13.5.8 complete |
-| 14 | Combat miss on stack + cancel | ✅ R14.1–R14.4 and R14.6 complete |
+| 14 | Combat miss on stack + cancel | R14.1–3 merged; R14.4/R14.6 implemented on open PR #6 |
 | 14.5 | Stabilization & integration | ✅ done — merged PR #3; CI passed |
-| 15 | Dice on stack + roll control | 📋 planned |
-| 16 | Cancel / response stack interaction | 📋 planned |
-| 17 | Priority auto-advance | 📋 planned |
-| 18 | Statistics pipeline | 📋 planned |
-| 19 | Heuristic bot | 📋 planned |
-| 20 | Trinkets + pile targeting | 🔮 future |
-| 21 | Player interaction | 🔮 future |
-| 22 | Curses + rooms | 🔮 future |
-| 23 | Trigger queue | 🔮 future |
-| 24 | Replacement effects | 🔮 future |
-| 25 | Continuous effects + static ability layer | 🔮 future |
-
----
 
 ## Sprint 12 — Character stats and ability window
 **Goal:** Correct character HP to 2 for all four characters and fix the legality window for the character tap ability.
@@ -82,7 +178,7 @@ The card text reads: *"This can be done on any player's turn in response to any 
 | BONY | Basic | 2 | 3 | 1 | 1 Loot | Gain +2 ATK on each attack roll of 1 |
 | MEGA_FATTY | Boss | 3 | 3 | 1 | 1 Soul, 2 Loot | Heal 1 HP whenever it deals combat damage |
 
-**Infrastructure:**
+**Historical Sprint 13 infrastructure (the callback fields below were retired by PR #5):**
 - Store `last_combat_roll: int` on `CombatState` so ability checks can read the triggering roll value.
 - `on_death: Optional[Callable[[Game, int], None]]` on `MonsterDef` (second arg = the roll); called from `resolve_monster_death` when set.
 - `on_miss: Optional[Callable[[Game, int], int]]` on `MonsterDef` — returns modified damage amount; called in `resolve_roll` before applying miss damage.
@@ -148,11 +244,13 @@ The card text reads: *"This can be done on any player's turn in response to any 
 - No duplicate dispatch or recursive resolution; same seed and commands yield the same state/events; all existing regression tests remain green on Python 3.11 and 3.12.
 - Loot and treasure legacy paths remain compatible; migrate them when touched by later releases rather than broadening the sprint into a rewrite.
 
-**Key files (proposed):** `foursouls/model/abilities.py`, `foursouls/engine/ability_engine.py`, `foursouls/engine/event_dispatcher.py`, existing effect/target/stack models and card YAML loaders.
+**Implementation files:** `foursouls/model/abilities.py`, `foursouls/engine/ability_engine.py`, `foursouls/engine/event_dispatcher.py`, existing effect/target/stack models and card YAML loaders.
 
 ---
 
 ## Sprint 14 — Combat miss on stack + cancel
+**Branch status:** R14.1–3 are on main. R14.4 and the R14.6 inventory/acceptance delta are in open PR #6 at this checkpoint. R14.5 is optional.
+
 **Goal:** Make combat miss damage a first-class stack item so players can respond before it resolves; introduce `StackItemTarget` and stack-item cancellation via Butter Bean.
 
 **New cards this sprint:**
@@ -178,7 +276,7 @@ The card text reads: *"This can be done on any player's turn in response to any 
 
 **Effect inventory milestone:** Use Base Game V2 as the initial corpus. Track one row per ability with card ID and source, trigger, conditions, cost, chooser and target, atomic effects, duration and usage limit, implementation status, and regression test. Distinguish shared YAML support, legacy-only support, and missing primitives or timing. Start with the effects shipped in Sprint 14 and publish the coverage boundary of the first snapshot. Track remaining corpus coverage separately from engine implementation.
 
-**Depends on (remaining work):** Sprint 13.5; reuse shared ability/effect definitions rather than introducing parallel handlers.
+**Dependency:** The R14.4 implementation uses the merged Sprint 13.5 foundation.
 
 **Key files:** `foursouls/rulesets/common/combat.py`, `foursouls/rulesets/common/effects.py`, `foursouls/model/target.py`, `foursouls/engine/actions.py`, `foursouls/cards/loot.py`
 
@@ -191,297 +289,4 @@ The card text reads: *"This can be done on any player's turn in response to any 
 - Populate demo decks with registered cards and remove duplicate effect class.
 - Explicit package discovery and YAML package data.
 - Add regression tests; require a passing full suite before declaring completion.
-- Completed and merged via PR #3 (`c38b712`); CI passed. Mandatory deck attacks are addressed by Sprint 13; remaining ability infrastructure is scheduled for Sprint 13.5 and later sprints.
-
-## Sprint 15 — Dice on stack + roll control
-**Goal:** Make dice rolls first-class stack items so cards can respond to, reroll, or replace roll results. Also fixes `LootRollEffect` (currently resolves synchronously in `apply()`) to push the roll onto the stack and branch via a triggered ability.
-
-**New cards this sprint:**
-
-| Card | Type | Effect |
-|---|---|---|
-| DICE_SHARD | Loot — Dice Shard | Choose a dice roll. Its controller rerolls it |
-| GODHEAD | Active Treasure | **↷ Effect** — Change the result of a dice roll to a 1 or 6 |
-
-**New mechanics:**
-- Dice rolls become real stack items.
-- Rolls carry metadata: controller, source, and roll category (`"attack"` or `"non_attack"`).
-- Reroll / modify / replace-result pipeline.
-- Roll-response legality window.
-- `LootRollEffect` refactored: roll pushed onto stack; branch selection triggered after roll resolves. [Hard]
-- Branching roll abilities extend the shared Sprint 13.5 ability/effect schema (`RollAbilityDef` or equivalent adapter); do not introduce a parallel ability model. [Medium]
-- `flip_roll()` helper: sets `roll.value = 7 - roll.value`; usable by any flip-a-roll card. [Easy]
-- Circled-number trigger listening: triggered abilities that fire when a roll resolves with a specific value. [Easy]
-- This sprint makes the Sprint 11 stubs for **The D6** and **Lucky Foot** functional.
-
-**Releases:**
-- R15.1 — Dice-on-stack infrastructure
-- R15.2 — Roll-response framework + `LootRollEffect` refactor
-- R15.3 — `RollAbilityDef` declarative model + `flip_roll()` helper
-- R15.4 — Existing stubs become functional (`THE_D6`, `LUCKY_FOOT`)
-- R15.5 — Roll-control card pack (`DICE_SHARD`, `GODHEAD`)
-- R15.6 — RESERVED — `<insert dice shard> card insertion A`
-- R15.7 — RESERVED — `<insert roll-control treasure> card insertion B`
-- R15.8 — Acceptance
-
-**Key files:** `foursouls/engine/game_loop.py`, `foursouls/model/stack.py`, `foursouls/rulesets/common/effects.py`, `foursouls/rulesets/common/combat.py`, `foursouls/cards/loot.py`, `foursouls/cards/treasures.py`
-
----
-
-## Sprint 16 — Cancel / response stack interaction
-**Goal:** Introduce the `NO` active treasure for targeted cancellation of item abilities while they are on the stack. (Loot cancellation via Butter Bean was shipped in Sprint 14.)
-
-**New cards this sprint:**
-
-| Card | Type | Effect |
-|---|---|---|
-| NO | Active Treasure | **↷ Effect** — Cancel the ↷ or $ ability of an item |
-
-**New mechanics:**
-- Stack items must expose enough metadata to distinguish:
-  - loot being played
-  - item tap abilities
-  - item paid abilities
-- Canceled stack items fizzle cleanly when resolved.
-- Cancellation legality rules.
-
-**Releases:**
-- R16.1 — Cancelable stack-item substrate (item ability metadata)
-- R16.2 — Cancel resolution for item abilities
-- R16.3 — `NO` card
-- R16.4 — Rules hardening
-- R16.5 — RESERVED — `<insert cancel loot> card insertion A`
-- R16.6 — RESERVED — `<insert cancel treasure> card insertion B`
-- R16.7 — Acceptance
-
-**Key files:** `foursouls/model/stack.py`, `foursouls/engine/game_loop.py`, `foursouls/rulesets/common/effects.py`, `foursouls/cards/treasures.py`
-
----
-
-## Sprint 17 — Priority auto-advance
-**Goal:** Players with no meaningful actions are automatically skipped. The engine runs to quiescence after every command — callers no longer drive a manual `PassPriority` loop.
-
-**Rules:**
-- A player with only `PassPriority` available is auto-skipped; priority advances to the next player.
-- A player who *has* other actions may still explicitly pass priority without playing anything.
-- After any priority reset, `Game._run_to_quiescence()` loops: auto-pass each player whose only legal command is `PassPriority()`, until someone has a real action or all have passed.
-- If all pass, the existing resolution logic fires (resolve stack top, or call `on_all_passed_empty_stack`), then quiescence re-runs.
-- `step()` returns only when a player with real choices holds priority, or when the game is over.
-- Stack forced-pop cleanup: let the priority/resolution loop drain the stack naturally; no force-pops. [Medium, from IMPL_STATUS]
-
-**Impact:** All existing tests that manually drive `PassPriority` pairs to resolve a stack item need updating — the stack resolves automatically inside `step(PlayLoot(...))`. Tests simplify from three calls to one.
-
-**Releases:**
-- R17.1 — `_run_to_quiescence()` core
-- R17.2 — Preserve explicit pass for meaningful-choice states
-- R17.3 — Simplify CLI/tests/API expectations
-- R17.4 — RESERVED — `<insert reactive loot> card insertion A`
-- R17.5 — RESERVED — `<insert interrupt treasure> card insertion B`
-- R17.6 — Acceptance / regression pass
-
-**Key files:** `foursouls/engine/game_loop.py`
-
----
-
-## Sprint 18 — Statistics pipeline
-**Goal:** A headless batch runner plays N games and records structured per-game statistics.
-
-**New module `foursouls/sim/`:**
-- `runner.py` — `run_game(game, agents) -> GameRecord`; `max_turns=500` guard emitting `GameTimeout`
-- `batch.py` — `run_batch(n, factory, agents, seed_start=0) -> List[GameRecord]`
-- `stats.py` — `summarise(records) -> dict` with win rates, mean/median turn count, timeout rate
-- `__main__.py` — `python -m foursouls.sim --games 1000 --players 2 --seed 0`
-
-**`GameRecord` fields:** `winner_id`, `turn_count`, `souls_per_player`, `items_bought_per_player`, `damage_taken_per_player`
-
-**Releases:**
-- R18.1 — `GameRecord` schema
-- R18.2 — Headless runner
-- R18.3 — Batch + summary
-- R18.4 — RESERVED — `<insert benchmark monster> card insertion A`
-- R18.5 — RESERVED — `<insert benchmark treasure/loot> card insertion B`
-- R18.6 — Acceptance
-
-**Key files:** `foursouls/sim/` (new package)
-
-**Acceptance test:** 20 games with `combat_bot` vs `combat_bot`; all complete without timeout; `summarise()` returns `win_rates` and `mean_turns`.
-
----
-
-## Sprint 19 — Heuristic bot
-**Goal:** A scoring-based bot demonstrably outperforms `combat_bot` (≥55% win rate over 500 games).
-
-**Scoring function per action kind:**
-- `RollCombat`: `reward/10 + has_soul*5 - evade/6 * (1/hp)`
-- `AttackMonster`: prefer soul monsters; among equal, prefer reward/evade ratio
-- `BuyShop`: score by `TreasureDef.archetype` weighted by game state (low HP → HP items; late game → attack items)
-- `PlayLoot`: expected value (coin=face, heal=HP_deficit*0.5, draw=1.0)
-- `ActivateCharacterAbility` / `ActivateItem`: contextual (heal if HP < max/2; buff if in combat)
-- `EndTurn`: 0.0; `PassPriority`: −0.1
-
-**New files:** `agents/heuristic_bot.py`; `foursouls/sim/compare.py` (`head_to_head(n, factory, agent_a, agent_b) -> CompareResult`)
-
-**Releases:**
-- R19.1 — Feature extraction from legal actions
-- R19.2 — First scoring policy
-- R19.3 — Compare harness + tuning
-- R19.4 — RESERVED — `<insert bot-facing monster> card insertion A`
-- R19.5 — RESERVED — `<insert bot-facing treasure/loot> card insertion B`
-- R19.6 — Acceptance
-
-**Acceptance test:** `head_to_head(500, factory, heuristic_bot, combat_bot)` → `heuristic_win_rate >= 0.55`.
-
----
-
-## Sprint 20 — Trinkets + pile targeting
-**Goal:** Introduce trinket loot-to-item transition and the pile/discard browsing mechanics needed for deferred effects.
-
-**Releases:**
-- R20.1 — `PileTarget` / pile browsing substrate
-- R20.2 — Trinket lifecycle (`is_trinket` flag, `TrinketResolveEffect`) [Easy from IMPL_STATUS]
-- R20.3 — First trinket pack + complete *We Need To Go Deeper!*
-- R20.4 — RESERVED — `<insert trinket> card insertion A`
-- R20.5 — RESERVED — `<insert trinket> card insertion B`
-- R20.6 — Acceptance
-
----
-
-## Sprint 21 — Player interaction
-**Goal:** Add give/steal/swap mechanics between players.
-
-**Releases:**
-- R21.1 — Ownership transfer infrastructure (`StealItemEffect`) [Medium from IMPL_STATUS]
-- R21.2 — Interaction legality + resolution
-- R21.3 — First interaction card pack
-- R21.4 — RESERVED — `<insert interaction loot> card insertion A`
-- R21.5 — RESERVED — `<insert interaction treasure> card insertion B`
-- R21.6 — Acceptance
-
----
-
-## Sprint 22 — Curses + rooms
-**Goal:** Add the two remaining persistent side-system families after the stack and targeting architecture are stable.
-
-**Releases:**
-- R22.1 — Curse state model + lifecycle (`is_curse` flag, `PlayerState.curses`, discard-on-death hook) [Easy from IMPL_STATUS]
-- R22.2 — Room deck + room slot + lifecycle [Complex from IMPL_STATUS]
-- R22.3 — First curse/room pack
-- R22.4 — RESERVED — `<insert curse> card insertion A`
-- R22.5 — RESERVED — `<insert room> card insertion B`
-- R22.6 — Acceptance
-
----
-
-## Sprint 23 — Trigger queue
-**Goal:** Extend the Sprint 13.5 dispatcher and minimal pending-trigger queue to all triggered abilities, with full rules-compliant timing and controller/turn ordering; retire remaining synchronous trigger adapters.
-
-**Gaps covered (from IMPL_STATUS):**
-- Trigger queue system [Complex] — enqueue instead of execute-immediately; all trigger sites updated
-- Simultaneous trigger ordering [Complex] — sorted by game-controlled-first + turn order
-- Declared ability hooks (attack/purchase triggers) [Complex]
-- End-of-turn triggered abilities [Complex]
-- Circled-number triggers (fully generalised) — reads `resolved_value` from roll stack item
-
-**Depends on:** Sprint 13.5 foundation and Sprints 14–16 (stable stack/response architecture)
-
-**Releases:**
-- R23.1 — Extend Sprint 13.5 trigger queue substrate to all applicable event types
-- R23.2 — Enqueue all existing triggers
-- R23.3 — Ordering + simultaneous resolution
-- R23.4 — EOT and declaration hooks
-- R23.5 — Circled-number trigger generalisation
-- R23.6 — Acceptance / regression pass
-
-**Key files:** `foursouls/engine/game_loop.py`, `foursouls/engine/events.py`, `foursouls/model/stack.py`, all card definitions with triggered effects
-
----
-
-## Sprint 24 — Replacement effects
-**Goal:** Generalize the Sprint 13.5 replacement/prevention adapter to all "would happen" events (damage, gain, death) so cards can intercept and modify outcomes before they resolve.
-
-**Gaps covered (from IMPL_STATUS):**
-- Replacement effect system [Complex] — hook all "would happen" events; collect applicable effects; prompt for ordering; refactor all damage/gain/entry sites
-- Damage-on-stack integration [Hard] — first-class `DamageStackItem` for prevention between declaration and marking
-- Death as stack item [Hard] — universal HP-reaches-0 observer queuing deaths at priority
-
-**Depends on:** Sprint 23 (trigger queue)
-
-**Releases:**
-- R24.1 — Extend shared replacement protocol and add universal hook sites
-- R24.2 — `DamageStackItem` + prevention pipeline
-- R24.3 — Death-as-stack-item
-- R24.4 — Ordering prompt for simultaneous replacements
-- R24.5 — Acceptance / regression pass
-
-**Key files:** `foursouls/engine/game_loop.py`, `foursouls/rulesets/common/combat.py`, `foursouls/rulesets/common/effects.py`
-
----
-
-## Sprint 25 — Continuous effects + static ability layer
-**Goal:** Complete static/continuous execution on the shared ability model; derive stats (ATK, HP, evasion) on demand rather than direct field mutations. Generalize Sprint 13.5 duration handling.
-
-**Gaps covered (from IMPL_STATUS):**
-- Continuous effect layer [Complex] — maintain list of `ContinuousEffect` objects with endpoints; replace direct stat mutations; remove on source leave-play
-- Static ability layer [Hard] — universal infrastructure; query derived stats from in-play static abilities
-- HP/ATK counter recalculation passes [Medium] — `recalculate_hp(target)` and `recalculate_attack(target)` helper passes
-
-**Depends on:** Sprint 24 (replacement effects)
-
-**Releases:**
-- R25.1 — `ContinuousEffect` data model + registry
-- R25.2 — Derived-stat query functions (replace direct field reads)
-- R25.3 — Static ability infrastructure
-- R25.4 — Counter recalculation passes
-- R25.5 — Acceptance / regression pass
-
-**Key files:** `foursouls/model/`, `foursouls/engine/game_loop.py`, all card definitions with static/continuous abilities
-
----
-
-## Mechanics placed in existing sprints
-
-| Mechanic | Sprint | Notes |
-|---|---|---|
-| Generic ability model / event dispatcher / subscriptions | 13.5 | Shared foundation for future cards |
-| Condition / selector / effect composition | 13.5 | YAML-only combinations of known primitives |
-| `DestroySoulEffect` / `DestroySourceEffect` | 13.5 | Atomic effects; target selection is completed in R13.5.5 |
-| `chosen_player` / `all_monsters` selectors | 13.5 | Explicit R13.5.5 target-resolution scope |
-| Minimal trigger queue and replacement adapter | 13.5 | Migrated monster abilities; expanded in 23–24 |
-| Combat miss damage on stack | 14 | First step toward full dice-on-stack |
-| Stack-item targeting (`StackItemTarget`) | 14 | Required by Butter Bean and cancel effects |
-| `DestroyItemEffect` / `HealEffect` | 14 | Easy gap fills from IMPL_STATUS |
-| Dice as stack items | 15 | Required for rerolls and roll replacement |
-| Roll category tagging | 15 | `"attack"` vs `"non_attack"` |
-| `LootRollEffect` stack refactor | 15 | Fixes synchronous branch-in-apply() |
-| `RollAbilityDef` declarative model | 15 | Replaces ad-hoc roll callbacks |
-| The D6 reroll tap | 15 | Previously stubbed in Sprint 11 |
-| Lucky Foot roll modification | 15 | Previously stubbed in Sprint 11 |
-| Cancellation of item abilities | 16 | `NO` card; loot cancel already in Sprint 14 |
-| Quiescence auto-run | 17 | Removes manual pass loops from most callers |
-| Statistics batch runner | 18 | Requires stable engine API |
-| Heuristic comparison harness | 19 | Depends on stats pipeline |
-| Trinket zone transition | 20 | Loot resolving into `ItemInPlay` |
-| `PileTarget` browsing | 20 | Needed for delayed pile-selection effects |
-| Player give/steal/swap | 21 | Depends on mature targeting/runtime ownership |
-| Curses / rooms | 22 | Deferred until core stack/response systems are stable |
-| Full trigger queue system | 23 | Extend 13.5 foundation; all trigger sites updated |
-| Replacement effect system | 24 | Depends on trigger queue |
-| Continuous effects layer | 25 | Depends on replacement effects |
-| Static legality modifiers (`cannot_be_attacked`) | 25 | Derived legality from in-play static abilities |
-
----
-
-## Ordering rationale
-
-- Sprint 12 remains a pure rules/correction sprint and therefore has no card insertions.
-- Sprint 13 expands monster ability coverage before deeper stack interaction grows more complex.
-- Sprint 13.5 is the next development milestone: extract reusable ability primitives and event subscriptions from the seven verified monsters before completing Sprint 14 and proceeding to Sprint 15. Sprint 14.5 is already shipped.
-- Sprint 14 takes the first stack-items step (combat miss damage + cancel) before full dice-on-stack; Butter Bean is the simplest cancel and earns a response-window before rolls are fully on the stack.
-- Sprint 15 follows naturally: once a non-roll item is on the stack, making dice rolls proper stack items is the next step; Sprint 11 roll stubs (D6, Lucky Foot) become functional here.
-- Sprint 16 deepens cancellation to item abilities (`NO`) once the stack/cancel infrastructure from Sprint 14 is proven.
-- Sprint 17 comes after stack-response depth increases, so quiescence can stabilize the full priority model.
-- Sprint 18 precedes Sprint 19 because the bot needs a measurement framework.
-- Sprint 20 introduces trinkets and pile targeting only after the runtime item model is mature.
-- Sprint 21 adds direct player interaction after targeting and ownership systems have already expanded.
-- Sprint 22 keeps curses and rooms before foundational refactors, as a final card-content sprint on the current architecture.
-- Sprints 23–25 complete and generalize the shared foundations introduced in Sprint 13.5. Full timing, ordering, universal replacement and derived-stat semantics remain explicit later deliverables, not duplicated infrastructure.
+- Completed and merged via PR #3 (`c38b712`); CI passed. Mandatory deck attacks are addressed by Sprint 13; the Sprint 13.5 foundation subsequently merged via PR #5.

@@ -66,8 +66,12 @@ Bots live in `agents/` and can be used to drive the game programmatically:
 ```python
 from agents.combat_bot import choose_command
 
-while not game.game_over:
+for _ in range(4_000):
+    if game.game_over:
+        break
     game.step(choose_command(game))
+
+print("won" if game.game_over else "command cap reached")
 ```
 
 ---
@@ -95,27 +99,9 @@ In short, this repository aims to become both:
 
 ## Current project priority
 
-The current stage of the project is **infrastructure first**.
+The playable release is a seeded CLI and trusted-bot demo with a mixed-edition card pool. The next deliverable adds A Dime!! and three fixed-reward monsters, corrects Clotty, and refills vacant monster slots after ordinary events. Full response timing, official deck multiplicities and a measured headless batch runner are later milestones.
 
-Before deep card coverage, AI, or large-scale simulations, we need a solid foundation:
-
-- a deterministic rules engine,
-- clear game state transitions,
-- stack and priority handling,
-- reproducible setup,
-- a manually playable CLI,
-- expressive events for debugging and UI,
-- and enough tests to trust the engine.
-
-Right now, the most important question is not:
-
-> "Do we already support every card?"
-
-It is:
-
-> "Can developers confidently verify that the game behaves according to the rules?"
-
-That is why the current work emphasizes engine structure, legality checks, event flow, and testability.
+Start with the [delivery roadmap](ROADMAP.md#next-playable-milestone). The [capability inventory](EFFECT_INVENTORY.md) separates implemented primitives, demo wiring and verified card behavior. The [architecture notes](IMPL_STATUS.md) trace the real loading, choice and resolution paths. The [completed Base Game V2 audit](BASE_GAME_V2_AUDIT.md) covers 287 distinct designs at the Sprint 14 PR baseline. The roadmap records which changes have reached main.
 
 ---
 
@@ -225,7 +211,7 @@ At a high level, Four Souls is modeled here as:
 
 ### Broad gameplay structure
 
-A player's turn broadly follows this kind of flow:
+The rules model below is the delivery target. The demo currently resolves combat hits inline and puts miss damage on the stack. A player’s turn broadly follows this flow:
 
 1. **Start Phase**
    - Start-of-turn effects occur.
