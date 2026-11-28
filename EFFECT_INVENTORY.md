@@ -1,6 +1,6 @@
 # Base Game V2 capability inventory
 
-Use this index to choose engineering work. The [batch 055 audit](BASE_GAME_V2_AUDIT.md) owns card text, variants, conditions, costs, selectors, durations, rule questions and card-specific regressions. [Architecture and execution traces](IMPL_STATUS.md) explain the integration points. [Delivery order and exit tests](ROADMAP.md) assign the work. All evidence below is relative to the pinned Sprint 14 tree unless explicitly marked merged.
+Use this index to choose engineering work. The [batch 055 audit](BASE_GAME_V2_AUDIT.md) owns card text, variants, conditions, costs, selectors, durations, rule questions and card-specific regressions. [Architecture and execution traces](IMPL_STATUS.md) explain the integration points. [Delivery order and exit tests](ROADMAP.md) assign the work. Implementation and test evidence refers to Sprint 14 at `0e668c1`, merged into main at `c7e8ff7`.
 
 ## What the numbers measure
 

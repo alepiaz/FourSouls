@@ -6,13 +6,13 @@ Two or more seats can run a seeded CLI demo, draw/play loot, activate selected i
 
 | Reference | Status on 28 November 2026 |
 |---|---|
-| Sprint 14.5, Sprint 13, Sprint 13.5 | Merged in that order via PRs #3, #4 and #5. Merged baseline `main@b39edc6`. R13.5 is also the historical Headless Horseman release within Sprint 13. |
-| Sprint 14 completion | `sprint-14-completion@0e668c1`, open [PR #6](https://github.com/alepiaz/FourSouls/pull/6). Use main for shipped claims and this tip for audited-engine claims. Integration of #6 is a prerequisite only for work using its changes. |
+| Sprint 14.5, Sprint 13, Sprint 13.5 | Merged in that order via PRs #3, #4 and #5. Sprint 13.5 merged at `b39edc6`. R13.5 is also the historical Headless Horseman release within Sprint 13. |
+| Sprint 14 completion | [PR #6](https://github.com/alepiaz/FourSouls/pull/6) merged at `main@c7e8ff7`. Its tree matches the audited Sprint 14 tip, `sprint-14-completion@0e668c1`. |
 | Audit and planning | [Batch 055](BASE_GAME_V2_AUDIT.md), `audit-base-game-v2@0b3bef1`. 287 grouped designs, 370 ability/setup/reward rows. [Capability and wiring map](EFFECT_INVENTORY.md) · [Execution traces and tested baselines](IMPL_STATUS.md). |
 
 ## Next playable milestone
 
-**A corrected V2 demo pack and a board that refills after ordinary events.** Deliver four new demo entries, repair Clotty, and remove a reproduced cause of stalled CPU games. The content and refill changes can start on merged Sprint 13.5. Publish the pack only after both lanes pass. This milestone has its own name (V2 demo pack); the historical optional R14.5 insertion and the completed Sprint 14.5 keep their meanings.
+**A corrected V2 demo pack and a board that refills after ordinary events.** Deliver four new demo entries, repair Clotty, and remove a reproduced cause of stalled CPU games. The content and refill changes can start on merged Sprint 14. Publish the pack only after both lanes pass. This milestone has its own name (V2 demo pack); the historical optional R14.5 insertion and the completed Sprint 14.5 keep their meanings.
 
 | Order | Developer task and files | Acceptance |
 |---|---|---|
@@ -31,7 +31,7 @@ Two or more seats can run a seeded CLI demo, draw/play loot, activate selected i
 
 | Start when | Work that can proceed | Integration gate |
 |---|---|---|
-| Merged main | Demo data and refill in parallel; reproduce the known timing/visibility failures. Review PR #6 on its own merits. | Compare the suite and replay panel on each baseline before calling a branch feature shipped. |
+| Merged main | Start demo data and refill in parallel. Reproduce the known timing and visibility failures. | Run the suite and fixed-seed replay panel against the merged Sprint 14 baseline. |
 | Existing command/stack kernel | R23 decision and captured-context slice, R16 stack kind/sequence contract, R20 target incarnation slice. Private observation work in R17 can start with current actions. | A pending ability can ask the authorized owner once on resolution; source exit and target exit have different effects. A nested roll returns to its original instruction. Decide this contract before card packs depend on eager target binding. |
 | Stack metadata and decision contract | R15 roll path, R16 cancellation pack, R23 typed event subscriptions. Build R20 deck transactions in parallel. | Attack and non-attack rolls are actionable, revalidate by ID and finalize once; unchanged seed/decisions replay. This is the next rules-heavy playable release after the demo pack. |
 | Staged resolution and identity | R24 damage/death/rewards (ordinary souls first); R25 simple derived stats; R17 quiescence/private views; R20 piles/trinket. | Wizoob normal death with delegated choice, Cursed Gaper group expiry, legal off-turn responses. Each feature runs with CLI or scripted CPU. |
@@ -126,7 +126,7 @@ Historical releases through Sprint 14.5. Future release IDs, outcomes and depend
 | 12 | Character stats and ability window | ✅ done |
 | 13 | Monster abilities + expansion pack | ✅ R13.1–R13.7 merged via PR #4 |
 | 13.5 | Ability architecture refactoring | ✅ done — R13.5.1–R13.5.8 complete |
-| 14 | Combat miss on stack + cancel | R14.1–3 merged; R14.4/R14.6 implemented on open PR #6 |
+| 14 | Combat miss on stack + cancel | R14.1–4 and R14.6 merged. R14.5 is an optional card slot. |
 | 14.5 | Stabilization & integration | ✅ done — merged PR #3; CI passed |
 
 ## Sprint 12 — Character stats and ability window
@@ -249,7 +249,7 @@ The card text reads: *"This can be done on any player's turn in response to any 
 ---
 
 ## Sprint 14 — Combat miss on stack + cancel
-**Branch status:** R14.1–3 are on main. R14.4 and the R14.6 inventory/acceptance delta are in open PR #6 at this checkpoint. R14.5 is optional.
+**Branch status:** R14.1–3 shipped first. PR #6 merged the R14.4 effects and R14.6 inventory and acceptance tests at `c7e8ff7`. R14.5 is optional.
 
 **Goal:** Make combat miss damage a first-class stack item so players can respond before it resolves; introduce `StackItemTarget` and stack-item cancellation via Butter Bean.
 

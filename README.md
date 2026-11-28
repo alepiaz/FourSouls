@@ -101,7 +101,7 @@ In short, this repository aims to become both:
 
 The playable release is a seeded CLI and trusted-bot demo with a mixed-edition card pool. The next deliverable adds A Dime!! and three fixed-reward monsters, corrects Clotty, and refills vacant monster slots after ordinary events. Full response timing, official deck multiplicities and a measured headless batch runner are later milestones.
 
-Start with the [delivery roadmap](ROADMAP.md#next-playable-milestone). The [capability inventory](EFFECT_INVENTORY.md) separates implemented primitives, demo wiring and verified card behavior. The [architecture notes](IMPL_STATUS.md) trace the real loading, choice and resolution paths. The [completed Base Game V2 audit](BASE_GAME_V2_AUDIT.md) covers 287 distinct designs at the Sprint 14 PR baseline. The roadmap records which changes have reached main.
+Start with the [delivery roadmap](ROADMAP.md#next-playable-milestone). The [capability inventory](EFFECT_INVENTORY.md) separates implemented primitives, demo wiring and verified card behavior. The [architecture notes](IMPL_STATUS.md) trace the real loading, choice and resolution paths. The [completed Base Game V2 audit](BASE_GAME_V2_AUDIT.md) covers 287 distinct designs against the Sprint 14 implementation merged into main at `c7e8ff7`.
 
 ---
 
