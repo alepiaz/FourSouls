@@ -39,11 +39,18 @@ def legal_commands(game: Game) -> List[Command]:
     deck_available = game.zones is not None and not game.zones.monster_deck.empty()
     forced_deck_attack = (flags.forced_deck_attacks > 0 and deck_available
                           and state.get_player(state.active_player_id).is_alive())
+    forced_slot = None
+    if game.zones is not None and flags.forced_attack_slot is not None:
+        target = game.zones.monster_slots.get(flags.forced_attack_slot)
+        if (target is not None and target.card_ref == flags.forced_attack_card
+                and not target.is_event and target.is_alive()
+                and state.get_player(state.active_player_id).is_alive()):
+            forced_slot = flags.forced_attack_slot
     cmds: List[Command] = [PassPriority()]
 
     # EndTurn is legal in ACTION (normal) or END (after active-player death)
     if (is_active_holder and state.phase in (Phase.ACTION, Phase.END) and stack.empty()
-            and not (state.phase == Phase.ACTION and forced_deck_attack)
+            and not (state.phase == Phase.ACTION and (forced_deck_attack or forced_slot is not None))
             and not (game.combat is not None and game.combat.from_deck)):
         cmds.append(EndTurn())
 
@@ -134,13 +141,15 @@ def legal_commands(game: Game) -> List[Command]:
             # Also requires: attack not yet used this turn, no combat already active,
             # and the monster must be alive (0 HP monsters die automatically before
             # any player receives priority — they should never be attack targets).
-            if not forced_deck_attack and not flags.attack_used and game.zones is not None and game.combat is None:
+            if forced_slot is not None and game.combat is None:
+                cmds.append(AttackMonster(slot_index=forced_slot))
+            elif not forced_deck_attack and not flags.attack_used and game.zones is not None and game.combat is None:
                 for idx in game.zones.monster_slots.filled_indices():
                     monster = game.zones.monster_slots.get(idx)
                     if monster is not None and not monster.is_event and monster.is_alive():
                         cmds.append(AttackMonster(slot_index=idx))
 
-            if (deck_available and game.combat is None and active.is_alive()
+            if (forced_slot is None and deck_available and game.combat is None and active.is_alive()
                     and (not flags.attack_used or flags.forced_deck_attacks or flags.optional_deck_attacks)):
                 cmds.append(AttackMonsterDeck())
 

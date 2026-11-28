@@ -104,6 +104,10 @@ class ChosenPlayerSelector(_StrictDefinition):
     type: Literal["chosen_player"] = "chosen_player"
 
 
+class ChosenItemSelector(_StrictDefinition):
+    type: Literal["chosen_item"] = "chosen_item"
+
+
 class ChosenSoulSelector(_StrictDefinition):
     type: Literal["chosen_soul"] = "chosen_soul"
     player_target_index: int = Field(default=0, ge=0)
@@ -122,6 +126,7 @@ TargetSelectorDefinition = Annotated[
         TriggeringPlayerSelector,
         RandomOtherPlayerSelector,
         ChosenPlayerSelector,
+        ChosenItemSelector,
         ChosenSoulSelector,
         AllMonstersSelector,
     ],
@@ -158,6 +163,11 @@ class PreventEventEffect(_StrictDefinition):
     type: Literal["prevent_event"] = "prevent_event"
 
 
+class HealEffect(_StrictDefinition):
+    type: Literal["heal"] = "heal"
+    amount: int = Field(gt=0)
+
+
 class HealSourceEffect(_StrictDefinition):
     type: Literal["heal_source"] = "heal_source"
     amount: int = Field(gt=0)
@@ -167,6 +177,14 @@ class DealDamageEffect(_StrictDefinition):
     type: Literal["deal_damage"] = "deal_damage"
     amount: int = Field(gt=0)
     damage_type: Literal["combat", "ability"] = "ability"
+
+
+class DestroyItemEffect(_StrictDefinition):
+    type: Literal["destroy_item"] = "destroy_item"
+
+
+class ForceAttackEffect(_StrictDefinition):
+    type: Literal["force_attack"] = "force_attack"
 
 
 class DestroySoulEffect(_StrictDefinition):
@@ -190,7 +208,10 @@ EffectDefinition = Annotated[
         DealDamageEffect,
         ModifyEventAmountEffect,
         PreventEventEffect,
+        HealEffect,
         HealSourceEffect,
+        DestroyItemEffect,
+        ForceAttackEffect,
         DestroySoulEffect,
         DestroySourceEffect,
         ModifySourceStatsEffect,

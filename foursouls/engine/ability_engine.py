@@ -63,6 +63,9 @@ class TriggerQueue:
             raise IndexError("trigger queue is empty")
         return self._items.popleft()
 
+    def discard(self, pending: PendingTrigger) -> None:
+        self._items.remove(pending)
+
     def find(self, pending_id: int) -> PendingTrigger | None:
         return next(
             (item for item in self._items if item.pending_id == pending_id),
@@ -123,8 +126,10 @@ class AbilityEngine:
                 continue
 
             pending = self.trigger_queue.enqueue(ability, context)
-            self._advance_targets(pending, resolver, game)
-            enqueued.append(pending.context)
+            if self._advance_targets(pending, resolver, game):
+                enqueued.append(pending.context)
+            else:
+                self.trigger_queue.discard(pending)
 
         return tuple(enqueued)
 
@@ -152,11 +157,12 @@ class AbilityEngine:
         )
         pending.next_selector_index += 1
         pending.choice = None
-        self._advance_targets(
+        if not self._advance_targets(
             pending,
             TargetResolver(game.zone_identities),
             game,
-        )
+        ):
+            self.trigger_queue.discard(pending)
         return pending
 
     def resolve_next(self, game: "Game") -> PendingTrigger | None:
@@ -193,7 +199,7 @@ class AbilityEngine:
         pending: PendingTrigger,
         resolver: TargetResolver,
         game: "Game",
-    ) -> None:
+    ) -> bool:
         selectors = pending.ability.definition.targets
         while pending.next_selector_index < len(selectors):
             selector = selectors[pending.next_selector_index]
@@ -204,8 +210,10 @@ class AbilityEngine:
                 game,
             )
             if resolution.requires_choice:
+                if not resolution.candidates:
+                    return False
                 pending.choice = resolution
-                return
+                return True
             pending.context = replace(
                 pending.context,
                 selected_targets=(
@@ -213,3 +221,4 @@ class AbilityEngine:
                 ),
             )
             pending.next_selector_index += 1
+        return True

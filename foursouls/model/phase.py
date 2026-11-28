@@ -4,6 +4,8 @@ import enum
 from dataclasses import dataclass, field
 from typing import Dict
 
+from .refs import CardRef
+
 
 class Phase(enum.Enum):
     START = "START"
@@ -16,6 +18,8 @@ class TurnFlags:
     loot_plays_used: int = 0
     loot_plays_allowed: int = 1
     attack_used: bool = False
+    forced_attack_slot: int | None = None
+    forced_attack_card: CardRef | None = None
     forced_deck_attacks: int = 0
     optional_deck_attacks: int = 0
     purchase_used: bool = False
@@ -28,6 +32,8 @@ class TurnFlags:
         self.loot_plays_used = 0
         self.loot_plays_allowed = 1
         self.attack_used = False
+        self.forced_attack_slot = None
+        self.forced_attack_card = None
         self.forced_deck_attacks = 0
         self.optional_deck_attacks = 0
         self.purchase_used = False

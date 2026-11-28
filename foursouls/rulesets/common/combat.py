@@ -225,7 +225,12 @@ def enter_combat(game: Game, slot_index: int, *, from_deck: bool = False) -> Non
 
     attacker_id = game.state.active_player_id
     if not from_deck:
-        game.state.turn_flags.attack_used = True
+        flags = game.state.turn_flags
+        if flags.forced_attack_slot == slot_index and flags.forced_attack_card == monster.card_ref:
+            flags.forced_attack_slot = None
+            flags.forced_attack_card = None
+        else:
+            flags.attack_used = True
 
     game.combat = CombatState(
         attacker_id=attacker_id,
