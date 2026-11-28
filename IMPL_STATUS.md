@@ -1,16 +1,64 @@
-# Implementation Status vs Rules.md
+# Engine architecture and rules status
 
-Legend:
-- ✅ Implemented
-- ⚠️ Partial
-- ❌ Missing
-- Complexity of missing work: [Trivial] [Easy] [Medium] [Hard] [Complex]
+<a id="planned-architecture-milestone--sprint-135"></a>
 
----
+## Source of truth
 
-## Planned architecture milestone — Sprint 13.5
+| Baseline | Revision | What contributors can rely on |
+|---|---|---|
+| Sprint 13.5 baseline | [main at b39edc6](https://github.com/alepiaz/FourSouls/tree/b39edc674b358a400cac3520ff75a8c0980b2cf3) | PR #3 (Sprint 14.5 stabilization), #4 (Sprint 13), then #5 (R13.5.1–8). Typed monster ability architecture is in production code. Some Sprint 14 features, including miss damage, shield and Butter Bean, already exist here. |
+| Audited implementation | [sprint-14-completion at 0e668c1](https://github.com/alepiaz/FourSouls/tree/0e668c1a524288e3fdebb24eca03f9471178641c) | [PR #6](https://github.com/alepiaz/FourSouls/pull/6) merged at [c7e8ff7](https://github.com/alepiaz/FourSouls/commit/c7e8ff741e5d8efe6ce1eb77a2c43c0d0b24ea66) with the same tree as the audited tip. It shipped the R14.4 effects, target selection, legality checks and three tests, plus the initial inventory and roadmap updates. R14.5 is a reserved release slot within Sprint 14; the separate Sprint 14.5 already shipped. |
+| Completed corpus | [audit-base-game-v2 at 0b3bef1](https://github.com/alepiaz/FourSouls/tree/0b3bef12242bfa09d83e1785e0b59151ef7dca52) | Descends from the PR #6 tip. No engine, agent or test diff against that tip. Batch 055 supersedes earlier partial checkpoints. The audit is a grouped-design review, separate from catalog reconciliation. |
 
-The current ability registry uses specialized trigger/effect factories and direct hooks. ROADMAP.md now schedules a shared ability definition, typed event dispatcher, zone-aware subscriptions, composable conditions/selectors/effects and limited trigger/replacement adapters before the remaining Sprint 14 work. These are planned, not implemented. Sprints 23–25 retain full timing, universal replacement and continuous/statics scope.
+Use the [inventory](EFFECT_INVENTORY.md) for current capability, registration and verification boundaries, the [roadmap](ROADMAP.md) for future work, and [CHANGELOG](CHANGELOG.md) and [sprint records](changelogs/) for history. The older project design sketch described a proposed GameEngine and callback architecture. The shipping referee is `foursouls.engine.game_loop.Game`. Cards load from `foursouls/data/`; characters remain Python definitions. There is no statistical batch package at this baseline.
+
+Local baseline verification on Python 3.12: **592 passed, one skipped** at the Sprint 13.5 baseline and **595 passed, one skipped** on the Sprint 14 implementation now in main. The identical skip is an empty parametrization in Sprint 10. PR #6 adds direct checks for healing, non-Eternal item destruction and forced attack legality. Those tests establish component behavior. Card-level integration requires the public command path.
+
+## Execution boundaries
+
+| Owner today | Preserve | Change at the first affected milestone |
+|---|---|---|
+| YAML → registry → in-play object | `MonsterDef` and immutable Pydantic `AbilityDefinition` describe a design. `CardRef` identifies a physical copy. `MonsterInPlay` and `AbilityInstance` hold damage, usage and transient modifiers. Legacy loot and treasure factories are valid execution paths. | At R20 track every targetable incarnation, including a monster without abilities. Keep physical ID, current zone entry, controller and original deck separate. A card returning to the same slot invalidates an old target. A copy overlay changes effective text, never physical ID or origin. |
+| `base_rules.py` / `common/legality.py` → `Game.step` | Engine generates legal commands and validates membership. `engine/actions.py` enriches them for the CLI. | R23 adds owner-bound resumable decisions. R17 projects actions, observations and event payloads for that viewer. Trusted replay keeps raw state. A bot chooses among supplied options; it never selects an arbitrary ID by inspecting the queue. |
+| `Game.emit` → `EventDispatcher` → `AbilityEngine` | Typed subscriptions and per-entry unsubscribe, immutable event context, explicit costs, LIFO and seeded RNG. A log append alone does not dispatch. | R23 sends actual events once from the committing rule. Distinguish active seat, game controller, ability controller, actor, roller, target, and payer. Preserve last-known source and captured controller in a queued/stacked ability, even after transfer or exit. |
+| Stack, effects and cleanup | `StackItem.stack_id`, existing all-pass loop and `PlayLootEffect` discard wrapper provide a single normal entry point. | R16 makes a printed ability one stack item containing ordered instructions. Pause only for a rule-defined response, child roll or decision. Current reverse-push-per-effect permits cancellation or priority between printed sentences. Test Box! cannot receive the benefit when destruction fails or its entire ability was canceled. |
+| Mutating rules in `common/combat.py`, `effects.py`, `items.py`, `turn.py` | Keep definition validation outside the simulation hot path. Keep concrete operations and core state independent of CLI/agents. | R24 calls shared gain, damage, destruction, acquisition and death operations with a result, cause, and origin-aware destination. Replace one producer at a time; prove shop and kill-reward entry produce the same acquired item. R25 owns queries for live characteristics. |
+
+### Wizoob — when a choice becomes legal
+
+The active player chooses a player as the death trigger goes on the stack. Any player, including the active player or a player without souls, can be chosen. On resolution the chosen player destroys one soul they currently control. One soul card can represent several points. A soul obtained in response can be eligible; a soul already lost cannot be selected. A player with no eligible soul destroys nothing. [V2 card](https://foursouls.com/cards/b2-wizoob/) · [Extended rules, abilities and monster death](https://foursouls.com/rules/extended-rulebook/)
+
+1. There is no WIZOOB entry or demo copy. The unit probe attaches a synthetic definition to FLY, emits `MonsterDied` directly, then calls `choose_target` twice before `resolve_next`. It pops and applies the effect directly. It proves ownership and filtering by player. Its definition even lacks the own-source condition. [Probe](tests/unit/test_trigger_pipeline.py)
+2. In a real kill, `_do_resolve_monster_death` puts the ref in discard and removes the slot top before emitting the death event. `activate_next_trigger` stops at an unresolved choice; the death function continues into rewards, soul and refill anyway. No command exposes the pending choice. `DestroySoulEffect` removes a ref from the list without routing it. [Death](foursouls/rulesets/common/combat.py) · [Queue](foursouls/engine/ability_engine.py) · [Selectors](foursouls/engine/target_resolver.py)
+3. R23 exposes a pending decision keyed by owner, stage and monotonically allocated ID. Reuse `chosen_player` on stack entry. Run the delegated `chosen_soul` instruction only on resolution. R24 holds the dead physical ref, suspends before rewards while triggers resolve, then pays the active player, processes after-reward triggers, sends the ref to one destination, and refills. Destroy a normal soul into its origin discard; retire a destroyed bonus soul outside the game. R22 supplies that bonus-soul lifecycle. A source disappearing ends its subscription; checks on effects affecting “this” still require the same incarnation.
+4. **Exit test:** kill a real Wizoob with another player's Bomb during the active player's turn. Through public legal actions the active player chooses the other seat. Change that seat's souls in response, then pass. Only that seat can choose a current soul. Assert one destination per ref, then loot three for the active seat and perform refill. Repeat for self, empty souls, unrelated death, canceled trigger, late/duplicate command. The reward proceeds exactly once even if nothing is destroyed.
+
+**Decision.** An implicit “pick the first valid target” policy would get bots moving but changes outcomes and loses the human's choice. Use an explicit continuation shared by CLI, scripted tests and bots. Remote Detonator is the early contract test: a resolution may require several different decision owners and then tally a tie. Full voting waits for R21. This avoids assuming every decision belongs to priority or that all choices happen on stack entry.
+
+### Cursed Gaper — which roll and which monsters
+
+A final 4 by any player triggers the effect, including an off-turn or non-attack roll. Each monster in play when the ability resolves receives +1 ATK until the current turn ends. This includes Cursed Gaper if present. A later entrant receives nothing. A resolved buff on another monster persists after Gaper leaves. A new incarnation of a beneficiary starts fresh. The active player orders effects on multiple monsters when the order matters. [V2 card](https://foursouls.com/cards/b2-cursed_gaper/) · [Extended rules, dice, “each” and continuous effects](https://foursouls.com/rules/extended-rulebook/)
+
+1. No Cursed Gaper definition is wired. `register_monster_abilities` registers typed listeners for a face-up monster. `resolve_roll` rolls and evaluates combat inline, including committing hit damage or fixing miss damage before `CombatRollResult`. `LootRollEffect.apply` rolls privately inside another effect. Neither produces a universal finalized die a responder could first modify.
+2. `AllMonstersSelector` enumerates occupied non-event slots **at enqueue time**. `_build_modify_source_stats` requires one monster matching the source. It cannot apply a group buff. `DurationManager` already reverses registered deltas at global end-of-turn or zone exit. Registration currently skips ability-free monsters. [Resolver](foursouls/engine/target_resolver.py) · [Builders](foursouls/engine/effect_registry.py) · [Expiry](foursouls/engine/duration.py)
+3. R15 introduces one typed pending roll and a final event carrying roller, roll category, cause and result. Both combat and noncombat consumers resume from it. Sample the affected group **on ability resolution**, using beneficiary zone-entry IDs for expiry. Retain the causing controller and source snapshot separately. Reuse the duration manager for accumulated deltas. R25's live query is appropriate for Stoney, whose modifier follows the source and affects new entrants.
+4. **Exit test:** a non-active player's noncombat roll changes from 3 to 4. Pass through the roll and ability windows. Include a monster that entered before the ability resolved; exclude covered cards, events and later entrants. Repeat a qualifying roll: each surviving beneficiary has +2. Remove Gaper before and after resolution, cover/uncover a beneficiary, end the turn and assert exact expiry. A 4 changed away, canceled roll, or raw reroll cannot produce a final-4 trigger. Damage already committed stays fixed.
+
+### Clotty — where a data correction reaches the player
+
+`monsters.yaml` → `_load_registry` → `make_monster_in_play` → `setup_game/place_monster_card` → `Game.get_legal_actions` → bot or human selects `AttackMonster` and `RollCombat` → hit/death/reward/refill. No selector or special handler is needed. The current demo contains Clotty, and `test_phase0_cards.BASIC_MONSTER_SPECS` explicitly expects 1 HP and two cents. One ordinary hit incorrectly kills it. Use the same runtime path to prove two hits and four cents. This is a content regression even with a green suite. [Card](https://foursouls.com/cards/b2-clotty/) · [Existing fixture](tests/unit/test_phase0_cards.py)
+
+### Determinism and simulation cost
+
+The baseline uses one seeded `RNG` per game. Draw order, chooser responses, trigger ordering and exact commands are replay inputs. Use deterministic counters for decision, stack, roll and zone-entry IDs. Record the deck manifest and code revision. Do not use wall clock, UUIDs, unordered iteration or a shared RNG across games to break ties. Separate public CPU observations from privileged replay/debug output; a per-viewer projection is enough for in-process trusted bots.
+
+A Python 3.12 baseline ran `build_demo_game(seed=s)` with `combat_bot.choose_command(game)` each step, seeds 0–19, default two seats and a 4,000-command cap per seed. Two runs each produced 13 wins, seven caps and 38,101 commands, taking about 0.41 s each locally. All seven capped boards had empty face-up slots with cards still in the monster deck. Event cleanup removes the top and restores a covered occupant, but lacks an empty-slot refill; the combat bot prefers EndTurn to an optional deck attack. This is a reproducible demo limitation. Wall time depends on host and these games are unsuitable for win-rate estimates.
+
+At R15/R17/R18 compare median commands/s, games/s, cap rate and peak memory on the same seed panel, machine, Python and log policy; retain raw counts and replay mismatches. Cap results separately from wins. Profile `Game.emit` (currently scans every slot to sync) and per-command action/observation construction. Prefer registration on enter/exit and event-type indexed dispatch; compare to current idempotent sync under identical traces before removing the scan. Project only the acting seat on demand. Stream aggregate records for million-game runs, retain detailed logs only for selected seeds. Stop a performance optimization if ordered events or outcomes diverge.
+
+## Historical rule-by-rule assessment
+
+The following detailed checklist predates the completed audit. Retain it for rule quotations, earlier estimates and stable section links. For current support use the pinned map above, especially for covered slots, triggers, deck recycling, damage and death. Some older checkmarks describe the demo behavior rather than the printed V2 rule.
 
 ## Sprint 13 completion note
 
